@@ -1,0 +1,137 @@
+{
+  "runtime": "sherpa-onnx 1.13.8",
+  "files": [
+    {
+      "folder": "performance",
+      "name": "model.int8.onnx",
+      "repo": "csukuangfj/sherpa-onnx-streaming-zipformer-small-ctc-zh-int8-2025-04-01",
+      "revision": "a5f60fe00dcfbaf68fcc1c6b5cf53061e144d6da",
+      "bytes": 26342340,
+      "sha256": "68c9c943840f7d9cf3e8a4970ba50f404feb5277f611fa82b7e72267786fa84a",
+      "urls": [
+        "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-small-ctc-zh-int8-2025-04-01/resolve/a5f60fe00dcfbaf68fcc1c6b5cf53061e144d6da/model.int8.onnx",
+        "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-small-ctc-zh-int8-2025-04-01/resolve/a5f60fe00dcfbaf68fcc1c6b5cf53061e144d6da/model.int8.onnx"
+      ]
+    },
+    {
+      "folder": "performance",
+      "name": "tokens.txt",
+      "repo": "csukuangfj/sherpa-onnx-streaming-zipformer-small-ctc-zh-int8-2025-04-01",
+      "revision": "a5f60fe00dcfbaf68fcc1c6b5cf53061e144d6da",
+      "bytes": 13366,
+      "sha256": "6fed8c6c248516f38e7faa19404b57413e8ce259f1cbc1fa4aebc86eac32fdfd",
+      "urls": [
+        "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-small-ctc-zh-int8-2025-04-01/resolve/a5f60fe00dcfbaf68fcc1c6b5cf53061e144d6da/tokens.txt",
+        "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-small-ctc-zh-int8-2025-04-01/resolve/a5f60fe00dcfbaf68fcc1c6b5cf53061e144d6da/tokens.txt"
+      ]
+    },
+    {
+      "folder": "quality",
+      "name": "decoder.onnx",
+      "repo": "csukuangfj/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30",
+      "revision": "ad658fa0201659a09ea3c176129a191c77ecae8f",
+      "bytes": 5165083,
+      "sha256": "06522ad63cec0fdf6809f4e1db9bb4f7d710c34582e3b35db62ac60eccafac7e",
+      "urls": [
+        "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30/resolve/ad658fa0201659a09ea3c176129a191c77ecae8f/decoder.onnx",
+        "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30/resolve/ad658fa0201659a09ea3c176129a191c77ecae8f/decoder.onnx"
+      ]
+    },
+    {
+      "folder": "quality",
+      "name": "encoder.int8.onnx",
+      "repo": "csukuangfj/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30",
+      "revision": "ad658fa0201659a09ea3c176129a191c77ecae8f",
+      "bytes": 161141793,
+      "sha256": "5ac51e27981bb4dab01bb9be4958453ba50c3b61c063ddda0eab23fd3671aa4f",
+      "urls": [
+        "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30/resolve/ad658fa0201659a09ea3c176129a191c77ecae8f/encoder.int8.onnx",
+        "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30/resolve/ad658fa0201659a09ea3c176129a191c77ecae8f/encoder.int8.onnx"
+      ]
+    },
+    {
+      "folder": "quality",
+      "name": "joiner.int8.onnx",
+      "repo": "csukuangfj/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30",
+      "revision": "ad658fa0201659a09ea3c176129a191c77ecae8f",
+      "bytes": 1033416,
+      "sha256": "b34584dc6f561089e1d747fedebb3765f2caa72c927ef54d7ca55e5ae40a814b",
+      "urls": [
+        "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30/resolve/ad658fa0201659a09ea3c176129a191c77ecae8f/joiner.int8.onnx",
+        "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30/resolve/ad658fa0201659a09ea3c176129a191c77ecae8f/joiner.int8.onnx"
+      ]
+    },
+    {
+      "folder": "quality",
+      "name": "tokens.txt",
+      "repo": "csukuangfj/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30",
+      "revision": "ad658fa0201659a09ea3c176129a191c77ecae8f",
+      "bytes": 20628,
+      "sha256": "6193c7ea1c96d0d9a1e9652789b40d13a8a913b434a5451e93158f5a09fd6652",
+      "urls": [
+        "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30/resolve/ad658fa0201659a09ea3c176129a191c77ecae8f/tokens.txt",
+        "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30/resolve/ad658fa0201659a09ea3c176129a191c77ecae8f/tokens.txt"
+      ]
+    },
+    {
+      "folder": "quality_xl",
+      "name": "decoder.onnx",
+      "repo": "csukuangfj/sherpa-onnx-streaming-zipformer-zh-xlarge-int8-2025-06-30",
+      "revision": "18f31ce4644ac3bcf544eea692d7242b798d508f",
+      "bytes": 8533022,
+      "sha256": "8f9c903da2818f207304a3f30b9eeb30028e30398f333c1e95e12c97704173e6",
+      "urls": [
+        "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-zh-xlarge-int8-2025-06-30/resolve/18f31ce4644ac3bcf544eea692d7242b798d508f/decoder.onnx",
+        "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-zh-xlarge-int8-2025-06-30/resolve/18f31ce4644ac3bcf544eea692d7242b798d508f/decoder.onnx"
+      ]
+    },
+    {
+      "folder": "quality_xl",
+      "name": "encoder.int8.onnx",
+      "repo": "csukuangfj/sherpa-onnx-streaming-zipformer-zh-xlarge-int8-2025-06-30",
+      "revision": "18f31ce4644ac3bcf544eea692d7242b798d508f",
+      "bytes": 761133737,
+      "sha256": "f2c543a0330e1ed0bd09c82e4ae7d3f1cbee10a15feca638fcc4f88083a36b8a",
+      "urls": [
+        "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-zh-xlarge-int8-2025-06-30/resolve/18f31ce4644ac3bcf544eea692d7242b798d508f/encoder.int8.onnx",
+        "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-zh-xlarge-int8-2025-06-30/resolve/18f31ce4644ac3bcf544eea692d7242b798d508f/encoder.int8.onnx"
+      ]
+    },
+    {
+      "folder": "quality_xl",
+      "name": "joiner.int8.onnx",
+      "repo": "csukuangfj/sherpa-onnx-streaming-zipformer-zh-xlarge-int8-2025-06-30",
+      "revision": "18f31ce4644ac3bcf544eea692d7242b798d508f",
+      "bytes": 1545417,
+      "sha256": "f76ffce14b6ef80098cfdbce8846896ff68133970abc314eafab632f910df0d7",
+      "urls": [
+        "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-zh-xlarge-int8-2025-06-30/resolve/18f31ce4644ac3bcf544eea692d7242b798d508f/joiner.int8.onnx",
+        "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-zh-xlarge-int8-2025-06-30/resolve/18f31ce4644ac3bcf544eea692d7242b798d508f/joiner.int8.onnx"
+      ]
+    },
+    {
+      "folder": "quality_xl",
+      "name": "tokens.txt",
+      "repo": "csukuangfj/sherpa-onnx-streaming-zipformer-zh-xlarge-int8-2025-06-30",
+      "revision": "18f31ce4644ac3bcf544eea692d7242b798d508f",
+      "bytes": 18626,
+      "sha256": "6722bd1585f46f84456b29c3550a343a3cc375b971645773c02ed8e0b4e2405c",
+      "urls": [
+        "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-zh-xlarge-int8-2025-06-30/resolve/18f31ce4644ac3bcf544eea692d7242b798d508f/tokens.txt",
+        "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-zh-xlarge-int8-2025-06-30/resolve/18f31ce4644ac3bcf544eea692d7242b798d508f/tokens.txt"
+      ]
+    },
+    {
+      "folder": "punctuation",
+      "name": "model.int8.onnx",
+      "repo": "ranger810/sherpa-onnx-punct-ct-transformer-zh-en-vocab272727-2024-04-12-int8",
+      "revision": "5cccf43af83e4fc50d1d55b8410312e87709be70",
+      "bytes": 75519198,
+      "sha256": "65a3fb9f5ad7bfb96bf69e0dc4481df97f6ee60513c1d94ce981ba6effd524b1",
+      "urls": [
+        "https://hf-mirror.com/ranger810/sherpa-onnx-punct-ct-transformer-zh-en-vocab272727-2024-04-12-int8/resolve/5cccf43af83e4fc50d1d55b8410312e87709be70/model.int8.onnx",
+        "https://huggingface.co/ranger810/sherpa-onnx-punct-ct-transformer-zh-en-vocab272727-2024-04-12-int8/resolve/5cccf43af83e4fc50d1d55b8410312e87709be70/model.int8.onnx"
+      ]
+    }
+  ]
+}

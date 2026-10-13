@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <activity
+            android:name="com.paopaoime.aikeyboard.materialhub.MaterialHubActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:label="@string/material_hub_title"
+            android:taskAffinity=".materialhub"
+            android:theme="@style/Theme.MaterialHubOverlay"
+            android:windowSoftInputMode="adjustNothing" />
+
+        <provider
+            android:name="com.paopaoime.aikeyboard.addon.material.MaterialAddonInitializer"
+            android:authorities="${applicationId}.oemaddon.material"
+            android:exported="false" />
+    </application>
+
+</manifest>

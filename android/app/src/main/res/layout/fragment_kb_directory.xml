@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#F5F5F5">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_kb_dir_header"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:background="#FFFFFF"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <ImageView
+            android:id="@+id/btn_kb_dir_back"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:padding="8dp"
+            android:src="@drawable/ic_arrow_back_24"
+            android:contentDescription="@null"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent" />
+
+        <TextView
+            android:id="@+id/tv_kb_dir_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="个人知识库"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="#222222"
+            android:ellipsize="end"
+            android:maxLines="1"
+            app:layout_constraintStart_toEndOf="@id/btn_kb_dir_back"
+            app:layout_constraintEnd_toStartOf="@id/btn_kb_dir_add"
+            app:layout_constraintTop_toTopOf="@id/btn_kb_dir_back"
+            app:layout_constraintBottom_toBottomOf="@id/btn_kb_dir_back"
+            android:layout_marginStart="6dp"
+            android:layout_marginEnd="6dp" />
+
+        <ImageView
+            android:id="@+id/btn_kb_dir_add"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:padding="8dp"
+            android:src="@drawable/ic_neu_plus"
+            app:tint="#222222"
+            android:contentDescription="@null"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <TextView
+        android:id="@+id/tv_kb_dir_sync_status"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="6dp"
+        android:paddingBottom="4dp"
+        android:text="离线缓存（非权威）"
+        android:textSize="12sp"
+        android:textColor="#8A8A8A"
+        app:layout_constraintTop_toBottomOf="@id/layout_kb_dir_header"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <TextView
+        android:id="@+id/tv_kb_documents_empty"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="@string/no_document"
+        android:textSize="14sp"
+        android:textColor="#999999"
+        android:gravity="center"
+        app:layout_constraintTop_toBottomOf="@id/tv_kb_dir_sync_status"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <com.paopaoime.aikeyboard.ime.libs.recyclerview.SwipeRecyclerView
+        android:id="@+id/rv_kb_documents"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:clipToPadding="false"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="10dp"
+        app:layout_constraintTop_toBottomOf="@id/tv_kb_dir_sync_status"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
+
+

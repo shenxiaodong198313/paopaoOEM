@@ -1,0 +1,380 @@
+{
+  "schemaVersion": 1,
+  "sdkName": "Paopao OEM IME SDK",
+  "sdkVersion": "1.0.0.20261012",
+  "versionPolicy": "sdkVersion 为 OEM SDK 统一发布版本，唯一定义在 OEM/android/gradle.properties（oemSdkVersion）；com.paopaoime.oem 组下全部制品（core/host-bridge/ai/ai-reply/material/automation/developer/voice）均以该版本发布，每次发布仅递增末位编号（格式 1.0.0.<日期戳 yyyyMMdd>，同日多次发布追加序号，如 202608151）。fcitx 内核（org.fcitx.fcitx5.android）与 stellar 等内部组件使用独立坐标，不随 SDK 发布版本变化。",
+  "defaultPolicy": "基础输入法必选。离线语音为可选独立 SDK，未集成不引入 sherpa；集成后默认开启，可用 res/raw/oem_voice_config.json 关闭。AI 回复/素材库/自动化/开发者仍默认关闭。",
+  "modules": [
+    {
+      "id": "core",
+      "name": "基础 + 输入法核心",
+      "description": "SDK 初始化、License 授权与能力管理、输入法内核与宿主桥接。所有其他模块的运行基座，必选。",
+      "required": true,
+      "dependsOn": [],
+      "artifacts": [
+        "com.paopaoime.oem:oem-ime-sdk-core:1.0.0.20261012",
+        "com.paopaoime.oem:oem-ime-host-bridge:1.0.0.20261012",
+        "org.fcitx.fcitx5.android:app:1.13",
+        "org.fcitx.fcitx5.android.lib:common:1.0",
+        "org.fcitx.fcitx5.android.lib:fcitx5:1.0",
+        "org.fcitx.fcitx5.android.lib:fcitx5-chinese-addons:1.0",
+        "org.fcitx.fcitx5.android.lib:fcitx5-lua:1.0",
+        "org.fcitx.fcitx5.android.lib:libime:1.0"
+      ],
+      "configKeys": [
+        {
+          "key": "com.paopaoime.oem.customerId",
+          "type": "string",
+          "default": "",
+          "required": true,
+          "description": "企业客户 ID（= 后台交付的企业码 customer_id，不是企业名称），license 按该值校验"
+        },
+        {
+          "key": "com.paopaoime.oem.appKey",
+          "type": "string",
+          "default": "",
+          "required": true,
+          "description": "企业 AppKey：当前与企业码同值（后台交付单一企业码，双字段同填），直接填企业码即可，无需单独索取"
+        },
+        {
+          "key": "com.paopaoime.oem.channel",
+          "type": "string",
+          "default": "release",
+          "required": true,
+          "description": "渠道标识，用于区分发布渠道（宿主侧日志与授权快照标记），必须显式写入，默认值 release；旧版 SDK 未配置会直接启动崩溃，新版缺失时回落 release"
+        },
+        {
+          "key": "com.paopaoime.oem.environment",
+          "type": "string",
+          "default": "prod",
+          "required": false,
+          "description": "环境标识，支持 prod / staging / dev"
+        },
+        {
+          "key": "com.paopaoime.oem.apiBaseUrl",
+          "type": "string",
+          "default": "",
+          "required": false,
+          "description": "企业服务端基础域名；仅当任一模块选用 CLOUD_ONLY / DUAL_WRITE（域名通道）时必填；全 HOST_ONLY / LOCAL_ONLY 对接无需配置"
+        },
+        {
+          "key": "com.paopaoime.oem.analyticsBaseUrl",
+          "type": "string",
+          "default": "",
+          "required": false,
+          "description": "席位激活上报通道域名（选填，仅私有化部署覆盖用）；缺省走 core 内置加密官方通道，与 apiBaseUrl 无关，无需配置即有席位记录"
+        },
+        {
+          "key": "com.paopaoime.oem.enableUi",
+          "type": "boolean",
+          "default": "true",
+          "required": true,
+          "description": "UI 能力总开关（基础能力，默认开启）：true = SDK 承载键盘 UI 与设置页（工具栏 AI 回复/素材库入口、设置页可用）；false = 仅基础键盘，无 AI/素材入口。选购 ai/material 模块时必须为 true"
+        },
+        {
+          "key": "com.paopaoime.oem.sessionArchiveMode",
+          "type": "string",
+          "default": "CLOUD_ONLY",
+          "required": false,
+          "description": "输入质检会话分发模式：LOCAL_ONLY / CLOUD_ONLY / HOST_ONLY / DUAL_WRITE"
+        },
+        {
+          "key": "com.paopaoime.oem.sendTextMaxChars",
+          "type": "int",
+          "default": "1000",
+          "required": false,
+          "description": "AI 回复与素材库单次文本发送最大字符数；未配置默认 1000，可通过 OemSdkConfig 或 OemImeSdk.setSendTextMaxChars 运行时覆盖"
+        }
+      ],
+      "capability": "ui",
+      "docs": [
+        "Doc/外部版-SDK集成手册.md"
+      ]
+    },
+    {
+      "id": "voice",
+      "name": "离线语音",
+      "description": "可选独立语音 SDK，包含工具栏/面板、三档模型管理及 sherpa-onnx 框架。集成后默认开启；未勾选不加入语音框架和功能。模型权重按需下载。",
+      "required": false,
+      "dependsOn": [
+        "core"
+      ],
+      "artifacts": [
+        "com.paopaoime.oem:oem-ime-sdk-voice:1.0.0.20261012",
+        "com.paopaoime.oem.internal:sherpa-onnx:1.13.8"
+      ],
+      "configKeys": [],
+      "capability": "voice",
+      "docs": [
+        "Doc/外部版-离线语音配置.md"
+      ]
+    },
+    {
+      "id": "ai",
+      "name": "AI 回复",
+      "description": "键盘内 AI 回复、企业质检会话与 AI 运行时，含 OCR 能力。未集成自动化（automation）模块时自动降级为手动截屏（MediaProjection）方案。默认关闭，企业开通后启用。",
+      "required": false,
+      "dependsOn": [
+        "core"
+      ],
+      "artifacts": [
+        "com.paopaoime.oem:oem-ime-sdk-ai:1.0.0.20261012",
+        "com.paopaoime.oem:oem-ime-sdk-ai-reply:1.0.0.20261012",
+        "com.paopaoime.oem.internal:paddleocr4android:1.0.0"
+      ],
+      "configKeys": [
+        {
+          "key": "com.paopaoime.oem.enableAi",
+          "type": "boolean",
+          "default": "false",
+          "required": true,
+          "description": "AI 能力总开关；默认关闭，企业开通 AI 能力后显式设为 true"
+        },
+        {
+          "key": "com.paopaoime.oem.enableAiReply",
+          "type": "boolean",
+          "default": "false",
+          "required": false,
+          "description": "是否启用 AI 回复功能；默认关闭，按开通范围启用"
+        },
+        {
+          "key": "com.paopaoime.oem.enableQaSession",
+          "type": "boolean",
+          "default": "false",
+          "required": false,
+          "description": "是否启用企业质检会话功能；默认关闭，按开通范围启用"
+        },
+        {
+          "key": "com.paopaoime.oem.aiMode",
+          "type": "string",
+          "default": "proxy",
+          "required": false,
+          "description": "AI 运行模式，支持 proxy / direct / dual（CLOUD_ONLY 域名通道的子模式）"
+        },
+        {
+          "key": "com.paopaoime.oem.aiOpenAiBaseUrl",
+          "type": "string",
+          "default": "",
+          "required": false,
+          "description": "直连 OpenAI 兼容接口的基础地址（direct/dual 模式）"
+        },
+        {
+          "key": "com.paopaoime.oem.aiOpenAiApiKey",
+          "type": "string",
+          "default": "",
+          "required": false,
+          "description": "直连 OpenAI 兼容接口的密钥（direct/dual 模式）"
+        },
+        {
+          "key": "com.paopaoime.oem.aiOpenAiModel",
+          "type": "string",
+          "default": "",
+          "required": false,
+          "description": "直连 OpenAI 兼容接口的模型名（direct/dual 模式）"
+        },
+        {
+          "key": "com.paopaoime.oem.aiReplyDispatchMode",
+          "type": "string",
+          "default": "CLOUD_ONLY",
+          "required": false,
+          "description": "AI 回复分发模式：CLOUD_ONLY（域名配置）/ HOST_ONLY（宿主回调）/ DUAL_WRITE（宿主优先、域名兜底）；HOST_ONLY 需宿主实现 OemAiReplyHostDelegate"
+        },
+        {
+          "key": "com.paopaoime.oem.aiReplyMaxImageSelection",
+          "type": "int",
+          "default": "5",
+          "required": false,
+          "description": "AI 回复「传图回复」最多可选图片数量；未配置默认 5，有效范围 1..20，可通过 OemSdkConfig 或 OemImeSdk.setAiReplyMaxImageSelection 运行时覆盖"
+        },
+        {
+          "key": "com.paopaoime.oem.sendTextMaxChars",
+          "type": "int",
+          "default": "1000",
+          "required": false,
+          "description": "AI 回复单次文本发送最大字符数；未配置默认 1000，可通过 OemSdkConfig 或 OemImeSdk.setSendTextMaxChars 运行时覆盖"
+        },
+        {
+          "key": "com.paopaoime.oem.builtinNeonOverlayEnabled",
+          "type": "boolean",
+          "default": "false",
+          "required": false,
+          "description": "SDK 内置 AI 回复霓虹边框/后台接管层总开关；默认关闭，宿主可通过 OemAiReplyLifecycleListener 自行展示 loading/悬浮窗；如需恢复 SDK 内置霓虹再显式设为 true"
+        },
+        {
+          "key": "com.paopaoime.oem.ocrEnabled",
+          "type": "boolean",
+          "default": "true",
+          "required": false,
+          "description": "SDK 内置 OCR 总开关；默认开启。低配机或宿主自管 OCR 时可设为 false，SDK 将跳过 Paddle-Lite OCR 初始化与识别"
+        },
+        {
+          "key": "com.paopaoime.oem.enableAiReplyCustomUi",
+          "type": "boolean",
+          "default": "false",
+          "required": false,
+          "description": "AI回复自定义UI交互开关（DrawerKit L1，默认关闭）：开启后 AI 回复抽屉由宿主注册的内容工厂渲染；默认走内容槽，若 factory.onCreateFullDrawerView 返回非空 View 则整块替换含顶栏区域；已注册工厂但开关关闭时回退 L0 并输出 missingToggle=ENABLE_AI_REPLY_CUSTOM_UI warn"
+        },
+        {
+          "key": "com.paopaoime.oem.enableCustomDrawers",
+          "type": "boolean",
+          "default": "false",
+          "required": false,
+          "description": "用户自定义抽屉开关（DrawerKit L2，默认关闭）：开启后宿主运行时注册的自定义抽屉（OemImeSdk.registerCustomDrawer(spec)）才会进入工具面板与定制工具栏；关闭时注册表可保留，但入口不暴露、拉起请求不生效并输出 missingToggle=ENABLE_CUSTOM_DRAWERS warn"
+        }
+      ],
+      "capability": "ai",
+      "docs": [
+        "Doc/外部版-SDK集成手册.md",
+        "Doc/外部版-API参考.md"
+      ]
+    },
+    {
+      "id": "material",
+      "name": "素材库",
+      "description": "键盘工具栏素材库入口与素材中心（素材库面板内嵌 AI 沟通能力，依赖 AI 回复模块）。默认关闭，企业开通后启用。",
+      "required": false,
+      "dependsOn": [
+        "core",
+        "ai"
+      ],
+      "artifacts": [
+        "com.paopaoime.oem:oem-ime-sdk-material:1.0.0.20261012"
+      ],
+      "configKeys": [
+        {
+          "key": "com.paopaoime.oem.enableMaterialLibrary",
+          "type": "boolean",
+          "default": "false",
+          "required": true,
+          "description": "是否启用素材库功能；默认关闭，按开通范围启用"
+        },
+        {
+          "key": "com.paopaoime.oem.enableUi",
+          "type": "boolean",
+          "default": "true",
+          "required": true,
+          "description": "素材库依赖 UI 能力承载，需与 core 的 enableUi 一致（必须 true）"
+        },
+        {
+          "key": "com.paopaoime.oem.sendTextMaxChars",
+          "type": "int",
+          "default": "1000",
+          "required": false,
+          "description": "素材库单次文本发送最大字符数；未配置默认 1000，可通过 OemSdkConfig 或 OemImeSdk.setSendTextMaxChars 运行时覆盖"
+        },
+        {
+          "key": "com.paopaoime.oem.materialDispatchMode",
+          "type": "string",
+          "default": "CLOUD_ONLY",
+          "required": false,
+          "description": "企业素材分发模式：LOCAL_ONLY（仅本地）/ CLOUD_ONLY（域名配置）/ HOST_ONLY（宿主回调）/ DUAL_WRITE（宿主优先、域名兜底）；HOST_ONLY 需宿主实现 OemMaterialHostDelegate"
+        },
+        {
+          "key": "com.paopaoime.oem.materialNavigationMode",
+          "type": "string",
+          "default": "TYPE_ONLY",
+          "required": false,
+          "description": "素材库导航模式：TYPE_ONLY（仅显示素材类型）/ TYPE_PRIMARY_CATEGORY_SECONDARY（类型一级、分类二级）/ CATEGORY_PRIMARY_TYPE_SECONDARY（分类一级、类型二级）/ CATEGORY_ONLY（仅显示分类，不显示类型）。若宿主未返回任何分类，SDK 自动回退为 TYPE_ONLY；第一期仅第三方企业配置分类/标签，素材类型仍由 SDK 内部控制"
+        },
+        {
+          "key": "com.paopaoime.oem.enableMaterialLibraryCustomUi",
+          "type": "boolean",
+          "default": "false",
+          "required": false,
+          "description": "素材库自定义UI交互开关（DrawerKit L1，默认关闭）：开启后素材库抽屉由宿主注册的内容工厂渲染；默认走内容槽，若 factory.onCreateFullDrawerView 返回非空 View 则整块替换含顶栏区域；已注册工厂但开关关闭时回退 L0 并输出 missingToggle=ENABLE_MATERIAL_LIBRARY_CUSTOM_UI warn"
+        }
+      ],
+      "capability": "material_library",
+      "docs": [
+        "Doc/外部版-SDK集成手册.md"
+      ]
+    },
+    {
+      "id": "automation",
+      "name": "Stellar 自动化",
+      "description": "基于 Stellar（Shizuku 深度定制）的高权限自动化执行链路，含 AIDL、客户端 API、Provider、UserService 与 Shizuku 兼容层，companion 为 stellar-manager。可选增强模块：AI 回复/素材库在未集成本模块时自动降级（手动截屏），不会报错。默认关闭，企业开通后启用。",
+      "required": false,
+      "dependsOn": [
+        "core"
+      ],
+      "artifacts": [
+        "com.paopaoime.oem:oem-ime-sdk-automation:1.0.0.20261012",
+        "com.paopaoime.oem.internal.stellar:stellar-api:1.1",
+        "com.paopaoime.oem.internal.stellar:stellar-aidl:1.1",
+        "com.paopaoime.oem.internal.stellar:stellar-shared:1.1",
+        "com.paopaoime.oem.internal.stellar:stellar-provider:1.1",
+        "com.paopaoime.oem.internal.stellar:stellar-userservice:1.1",
+        "com.paopaoime.oem.internal.stellar:stellar-server:1.1",
+        "com.paopaoime.oem.internal.stellar:stellar-manager:1.1",
+        "com.paopaoime.oem.internal.stellar:stellar-shizuku-api:1.1"
+      ],
+      "excludedArtifacts": [
+        {
+          "coordinate": "com.paopaoime.oem.internal.stellar:stellar-shizuku-aidl:1.1",
+          "reason": "交付仓内随 repo 整体提供，但宿主禁止显式依赖：其 moe.shizuku.server 类由 fcitx 官方传递依赖 dev.rikka.shizuku:aidl 在运行时提供，显式加入 vendored 副本会产生 duplicate class（IShizukuService 等）导致构建失败"
+        }
+      ],
+      "configKeys": [
+        {
+          "key": "com.paopaoime.oem.enableAutomation",
+          "type": "boolean",
+          "default": "false",
+          "required": true,
+          "description": "自动化能力总开关；默认关闭，选购 automation 模块并开通后必须 true（companion 安装与授权前置步骤见 §11）"
+        },
+        {
+          "key": "com.paopaoime.oem.enableAutomationSettingsEntry",
+          "type": "boolean",
+          "default": "false",
+          "required": false,
+          "description": "自动化设置入口显示开关；默认关闭。即使已集成 automation 模块并启用自动化能力，也只有显式设为 true 时，输入法设置页中的“自动化设置”卡片/入口才会显示"
+        },
+        {
+          "key": "roro.stellar.permissions",
+          "type": "string",
+          "default": "stellar,follow_stellar_startup",
+          "required": true,
+          "toolsReplaceValue": true,
+          "description": "Stellar 授权声明，SDK 构件已声明同名 meta，宿主必须显式声明并以 tools:replace 覆盖"
+        }
+      ],
+      "capability": "automation",
+      "docs": [
+        "Doc/外部版-自动化授权配置.md"
+      ]
+    },
+    {
+      "id": "developer",
+      "name": "开发者",
+      "description": "开发者调试入口（AI 模型配置、会话存档覆盖、调试存储），独立 AAR 交付，未集成时相关调试入口自动隐藏。默认关闭；集成/联调期可临时开启，正式交付保持关闭。",
+      "required": false,
+      "dependsOn": [
+        "core"
+      ],
+      "artifacts": [
+        "com.paopaoime.oem:oem-ime-sdk-developer:1.0.0.20261012"
+      ],
+      "configKeys": [
+        {
+          "key": "com.paopaoime.oem.enable_developer",
+          "type": "boolean",
+          "default": "false",
+          "required": true,
+          "description": "是否启用开发者模块；默认关闭（正式交付基线），集成/联调期可临时设为 true"
+        },
+        {
+          "key": "com.paopaoime.oem.enable_developer_entry",
+          "type": "boolean",
+          "default": "false",
+          "required": false,
+          "toolsReplaceValue": true,
+          "description": "开发者入口开关；SDK 构件已声明同名 meta，宿主声明时必须带 tools:replace；默认关闭，正式交付不暴露调试入口"
+        }
+      ],
+      "capability": "developer",
+      "docs": [
+        "Doc/外部版-FAQ与排障.md"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OEM AI回复 · 网络异常返回状态设计</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:"Microsoft YaHei","PingFang SC",sans-serif; background:#eef1f6; color:#1f2430; padding:32px 20px 80px; }
+  .wrap { max-width:1240px; margin:0 auto; }
+  header { text-align:center; margin-bottom:26px; }
+  header h1 { font-size:26px; }
+  header p { color:#667; margin-top:8px; font-size:13px; line-height:1.8; }
+  section { background:#fff; border-radius:16px; padding:26px 26px 30px; margin-top:24px; box-shadow:0 2px 10px rgba(30,40,70,.06); }
+  h2 { font-size:18px; margin-bottom:6px; }
+  h2 .no { color:#3557d4; margin-right:6px; }
+  .sub { color:#778; font-size:12.5px; margin-bottom:18px; line-height:1.8; }
+  h3 { font-size:14px; margin:20px 0 10px; color:#334; }
+  .row { display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start; }
+  .annot { font-size:12px; color:#556; line-height:1.8; flex:1; min-width:250px; }
+  .annot li { margin-left:18px; margin-bottom:6px; }
+  .annot .bad { color:#d43d3d; font-weight:600; }
+  .annot .good { color:#0aa870; font-weight:600; }
+  .annot code { background:#f2f4fa; border:1px solid #e2e7f0; border-radius:5px; padding:1px 6px; font-size:11px; color:#3557d4; }
+
+  /* ===== 手机壳 ===== */
+  .phone { width:298px; background:#111; border-radius:26px; padding:10px; flex:none; box-shadow:0 8px 24px rgba(0,0,0,.25); }
+  .phone .plabel { text-align:center; font-size:11px; color:#fff; opacity:.75; padding:2px 0 6px; }
+  .screen { background:#f2f4f8; border-radius:18px; overflow:hidden; height:600px; display:flex; flex-direction:column; position:relative; }
+  .chatbg { background:#ededed; padding:12px 12px 6px; flex:none; }
+  .bubble-l { background:#fff; border-radius:8px; padding:7px 10px; font-size:11px; margin:0 0 8px 34px; width:fit-content; max-width:80%; color:#333; }
+  .bubble-r { background:#95ec69; border-radius:8px; padding:7px 10px; font-size:11px; margin:0 34px 8px 0; width:fit-content; max-width:80%; color:#111; }
+
+  /* ===== AI回复面板抽屉 ===== */
+  .drawer { margin-top:auto; background:linear-gradient(180deg,#f3efff,#eef3fb 34%,#f7f8fd); border-radius:18px 18px 0 0; flex:1; display:flex; flex-direction:column; padding:0 12px 10px; box-shadow:0 -6px 18px rgba(0,0,0,.12); min-height:0; }
+  .dhead { display:flex; align-items:center; height:44px; flex:none; position:relative; }
+  .dhead .title { position:absolute; left:50%; transform:translateX(-50%); font-size:15px; font-weight:700; color:#2A2251; }
+  .chev { width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#3a4356; font-size:14px; background:rgba(255,255,255,.7); }
+  .chev.right { margin-left:auto; font-size:12px; }
+  .dbody { flex:1; min-height:0; display:flex; flex-direction:column; gap:9px; padding-top:2px; }
+
+  /* 语气行 */
+  .tones { display:flex; gap:6px; flex:none; }
+  .tone { font-size:10.5px; padding:5px 12px; border-radius:999px; background:#f5f5f5; color:#666; font-weight:600; white-space:nowrap; }
+  .tone.on { background:linear-gradient(90deg,#E0FE54,#7BDE78); color:#090314; }
+
+  /* 错误卡片 */
+  .errcard { background:#fff; border:1px solid #E9D7DB; border-radius:14px; padding:18px 16px; text-align:center; flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; }
+  .errcard .icon { width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:20px; flex:none; }
+  .ic-net { background:#fdecec; }
+  .ic-busy { background:#fff4e3; }
+  .ic-block { background:#f1ecfd; }
+  .ic-cfg { background:#eef1f6; }
+  .ic-cap { background:#e8f3fd; }
+  .errcard .t { font-size:15px; font-weight:700; color:#15171B; }
+  .errcard .d { font-size:11.5px; color:#8A8A8A; line-height:1.75; }
+  .statetag { display:inline-block; font-size:10px; border-radius:6px; padding:2px 8px; color:#fff; margin-bottom:2px; }
+  .st-net { background:#e05a5a; }
+  .st-busy { background:#f0932b; }
+  .st-block { background:#7b5cd6; }
+  .st-cfg { background:#8a94a6; }
+  .st-cap { background:#3f8ae0; }
+
+  /* 主按钮 */
+  .btn { display:block; text-align:center; font-size:12.5px; font-weight:700; color:#39415F; background:linear-gradient(180deg,#FFFFFF,#F0F3FF); border:1px solid #DFE5F8; border-radius:999px; padding:11px 0; flex:none; }
+  .btn.disabled { color:#8A91A0; background:linear-gradient(180deg,#F7F8FB,#EEF1F6); border-color:#E3E7EE; }
+  .btn .cd { font-size:10px; color:#b0b7c4; font-weight:400; margin-left:4px; }
+  .sublink { text-align:center; font-size:11px; color:#8a90a3; padding:2px 0 0; flex:none; }
+
+  /* 结果列表 */
+  .listcard { background:#FBFBFD; border:1px solid #ececf4; border-radius:14px; padding:10px; flex:1; display:flex; flex-direction:column; gap:8px; overflow:hidden; }
+  .reply { background:#fff; border:1px solid #f0eef8; border-radius:10px; padding:9px 10px; display:flex; align-items:center; gap:8px; }
+  .reply .idx { width:16px; height:16px; border-radius:50%; background:#6B64F0; color:#fff; font-size:9.5px; display:flex; align-items:center; justify-content:center; flex:none; }
+  .reply .txt { font-size:11px; color:#2c2f3a; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .reply .go { width:18px; height:18px; border-radius:50%; background:#f2f1fb; display:flex; align-items:center; justify-content:center; font-size:10px; color:#6B64F0; flex:none; }
+
+  /* 内嵌刷新失败横幅 */
+  .banner { background:#fff7e8; border:1px solid #f5dfb2; border-radius:10px; padding:8px 10px; display:flex; align-items:center; gap:8px; flex:none; }
+  .banner .bt { font-size:10.5px; color:#8a6116; flex:1; line-height:1.5; }
+  .banner .rb { font-size:10.5px; color:#b4690e; font-weight:700; border:1px solid #e8c98a; background:#fff; border-radius:999px; padding:4px 12px; flex:none; }
+
+  /* 表格 */
+  table { width:100%; border-collapse:collapse; font-size:12px; }
+  th,td { border:1px solid #e4e8f1; padding:8px 10px; text-align:left; vertical-align:top; line-height:1.7; }
+  th { background:#f6f8fd; font-size:12px; color:#334; }
+  td code { background:#f2f4fa; border-radius:5px; padding:1px 6px; font-size:11px; color:#3557d4; }
+  .cat { display:inline-block; font-size:10px; border-radius:6px; padding:2px 8px; color:#fff; }
+
+  .steps { display:flex; gap:10px; flex-wrap:wrap; margin-top:6px; }
+  .step { flex:1; min-width:210px; background:#fafbfe; border:1px solid #e2e7f0; border-radius:12px; padding:12px 14px; font-size:12px; color:#556; line-height:1.8; }
+  .step b { display:block; color:#223; font-size:13px; margin-bottom:4px; }
+  .step .n { display:inline-block; width:18px; height:18px; border-radius:50%; background:#3557d4; color:#fff; font-size:11px; text-align:center; line-height:18px; margin-right:6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>OEM AI回复 · 网络异常返回状态与重试交互设计</h1>
+  <p>针对 AI回复（AiCommunicate）生成链路的「非正常返回」做状态分级：网络异常 / 生成超时 / 大模型服务失败 / 命中大模型质检 / 返回内容异常 / 配置缺失 / 截图读取失败<br>
+  统一替换当前「这次生成没有成功 + 原始报错文案」的单一错误页，避免向客户暴露内部信息，并把重试交互做扎实。</p>
+</header>
+
+<!-- ============ 1. 现状问题 ============ -->
+<section>
+  <h2><span class="no">01</span>现状与问题：当前错误页</h2>
+  <div class="sub">当前所有异常（网络、模型、超时、宿主回调、解析失败）都收敛到同一个 ERROR 页，只有一句通用标题 + 直接透传的 errorMessage。</div>
+  <div class="row">
+    <div class="phone">
+      <div class="screen">
+        <div class="chatbg">
+          <div class="bubble-l">这个方案报价能再优惠一点吗？</div>
+          <div class="bubble-r">我帮您申请一下，稍后答复您～</div>
+        </div>
+        <div class="drawer">
+          <div class="dhead">
+            <div class="chev">‹</div>
+            <div class="title">AI回复</div>
+            <div class="chev right">✕</div>
+          </div>
+          <div class="dbody">
+            <div class="tones">
+              <div class="tone on">专业</div><div class="tone">亲切</div><div class="tone">简洁</div><div class="tone">活泼</div>
+            </div>
+            <div class="errcard">
+              <div class="t">这次生成没有成功</div>
+              <div class="d" style="font-size:10px;word-break:break-all;">The host has not registered the AI reply callback (OemAiReplyHostDelegate). Please contact the host app to complete the integration</div>
+            </div>
+            <div class="btn">重新生成</div>
+          </div>
+        </div>
+      </div>
+      <div class="plabel">现状 · 单一错误页</div>
+    </div>
+    <div class="annot">
+      <b style="font-size:13px;">复查发现的问题（均已定位到代码）：</b>
+      <ul>
+        <li><span class="bad">信息暴露</span>：HOST_ONLY 分发模式下，宿主回调失败的<b>英文内部文案直接透传给用户</b>（如 “OEM SDK is not initialized…” “The host has not registered…”），还包含内部类名。</li>
+        <li><span class="bad">不分类</span>：网络断开、模型 429/5xx、超时、内容被质检拦截、解析失败，全部显示同一句“这次生成没有成功”，用户无法判断该怎么办。</li>
+        <li><span class="bad">重试死路</span>：错误页“重新生成”按钮走的是<b>基于上一轮上下文的刷新流程</b>；首次生成就失败时上下文为空，点击只会弹 Toast“上一轮聊天上下文已失效”，什么也不会发生。</li>
+        <li><span class="bad">质检无感知</span>：链路中没有任何内容审核识别，命中大模型质检（如 data_inspection_failed / content_filter）会被当成普通失败，用户反复重试反复失败。</li>
+        <li><span class="bad">刷新失败只弹 Toast</span>：换语气/重新生成失败时仅 Toast + 静默回退旧列表，提示转瞬即逝，用户容易误以为切换成功。</li>
+        <li><span class="bad">断网等超时</span>：无网络预检查，断网时要等满超时（约15s）才报“超时”，体验差且归因错误。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 2. 错误分类模型 ============ -->
+<section>
+  <h2><span class="no">02</span>错误分类模型：非正常返回 → 状态码</h2>
+  <div class="sub">在 UserVisibleFailure 上增加错误类别（category），由 ModelClient / ReplyService / Activity 三层共同归类；<b>原始英文报错与堆栈只写入 AiReplyTaskLogger 日志上报，绝不上屏</b>。</div>
+  <table>
+    <tr><th style="width:150px;">状态码</th><th style="width:300px;">触发来源（现有代码位置）</th><th>上屏文案方向</th><th style="width:130px;">主操作</th></tr>
+    <tr>
+      <td><span class="cat st-net">NETWORK</span> 网络异常</td>
+      <td>OkHttp 连接异常 / SSL / DNS / 断网；<code>ModelClient</code> 的 “Network Error:” 前缀；建议新增请求前 ConnectivityManager 预检</td>
+      <td>网络连接异常，请检查网络后重试</td>
+      <td>重试</td>
+    </tr>
+    <tr>
+      <td><span class="cat st-net">TIMEOUT</span> 生成超时</td>
+      <td><code>MaterialHubActivity</code> withTimeoutOrNull（resolveAiGenerationTimeoutMs）；宿主回调 90s 超时</td>
+      <td>本次生成超时了，请重试</td>
+      <td>重试</td>
+    </tr>
+    <tr>
+      <td><span class="cat st-busy">MODEL_BUSY</span> 服务繁忙</td>
+      <td>模型 HTTP 非 2xx（429 限流 / 5xx）、调用异常、上下文过长自动重试仍失败</td>
+      <td>AI 服务暂时繁忙，请稍后再试</td>
+      <td>重试（限次）</td>
+    </tr>
+    <tr>
+      <td><span class="cat st-block">CONTENT_BLOCKED</span> 命中质检</td>
+      <td>模型错误体关键词识别：data_inspection_failed / inappropriate / content_filter / sensitive / 敏感 / 违规 等（新增识别逻辑）</td>
+      <td>本次内容未通过安全质检，建议调整聊天内容后再试</td>
+      <td>不提供重试</td>
+    </tr>
+    <tr>
+      <td><span class="cat st-cap">RESULT_INVALID</span> 返回异常</td>
+      <td>解析失败（parseReplies）、回复数量不足（ensureTargetReplyCount）、空结果</td>
+      <td>未获得有效的回复建议，请重试</td>
+      <td>重试</td>
+    </tr>
+    <tr>
+      <td><span class="cat st-cfg">CONFIG_MISSING</span> 暂不可用</td>
+      <td>model-settings 获取失败、apiKey/baseUrl 缺失、宿主关闭 AI 回复、SDK 未初始化、宿主未注册回调</td>
+      <td>AI 回复暂不可用，请联系企业管理员检查配置</td>
+      <td>刷新配置 / 无重试</td>
+    </tr>
+    <tr>
+      <td><span class="cat st-cap">CAPTURE_FAILED</span> 读取失败</td>
+      <td>无聊天截图 / 无可用图片 / OCR 文本为空 / 截屏会话失效</td>
+      <td>聊天内容读取失败，请重新读取</td>
+      <td>重新读取</td>
+    </tr>
+  </table>
+  <div class="sub" style="margin-top:12px;">归类流程：ModelClient 返回结构化错误（类别 + 脱敏文案）→ AiCommunicateReplyService 映射为带 category 的 UserVisibleFailure（宿主回调英文消息在此层全部转中文文案）→ MaterialHubActivity 捕获后调用 showError(category, 文案) → 面板渲染对应分类错误卡。</div>
+</section>
+
+<!-- ============ 3. 新错误页 ============ -->
+<section>
+  <h2><span class="no">03</span>新错误页：分类状态卡 + 明确的操作按钮</h2>
+  <div class="sub">ERROR 页保持现有布局骨架（语气行 + 内容卡 + 底部主按钮），升级为「状态标签 + 图标 + 标题 + 说明 + 主/次操作」；不同状态给不同主操作，避免无意义的重试。</div>
+  <div class="row">
+
+    <!-- 网络异常 -->
+    <div class="phone">
+      <div class="screen">
+        <div class="chatbg">
+          <div class="bubble-l">这个方案报价能再优惠一点吗？</div>
+        </div>
+        <div class="drawer">
+          <div class="dhead">
+            <div class="chev">‹</div>
+            <div class="title">AI回复</div>
+            <div class="chev right">✕</div>
+          </div>
+          <div class="dbody">
+            <div class="tones"><div class="tone on">专业</div><div class="tone">亲切</div><div class="tone">简洁</div><div class="tone">活泼</div></div>
+            <div class="errcard">
+              <span class="statetag st-net">网络异常</span>
+              <div class="icon ic-net">📶</div>
+              <div class="t">网络连接异常</div>
+              <div class="d">当前无法连接到 AI 服务，请检查手机网络（Wi-Fi / 移动数据）后重试。</div>
+            </div>
+            <div class="btn">重试</div>
+            <div class="sublink">返回重新选择</div>
+          </div>
+        </div>
+      </div>
+      <div class="plabel">NETWORK · 断网 / 连接失败</div>
+    </div>
+
+    <!-- 服务繁忙 -->
+    <div class="phone">
+      <div class="screen">
+        <div class="chatbg">
+          <div class="bubble-l">这个方案报价能再优惠一点吗？</div>
+        </div>
+        <div class="drawer">
+          <div class="dhead">
+            <div class="chev">‹</div>
+            <div class="title">AI回复</div>
+            <div class="chev right">✕</div>
+          </div>
+          <div class="dbody">
+            <div class="tones"><div class="tone on">专业</div><div class="tone">亲切</div><div class="tone">简洁</div><div class="tone">活泼</div></div>
+            <div class="errcard">
+              <span class="statetag st-busy">服务繁忙</span>
+              <div class="icon ic-busy">⚡</div>
+              <div class="t">AI 服务暂时繁忙</div>
+              <div class="d">本次生成没有成功，可能是模型服务短暂波动，建议稍后再试一次。</div>
+            </div>
+            <div class="btn disabled">重试次数过多，请稍后再试<span class="cd">（10s 后可再试）</span></div>
+            <div class="sublink">返回重新选择</div>
+          </div>
+        </div>
+      </div>
+      <div class="plabel">MODEL_BUSY · 429/5xx（含重试保护态）</div>
+    </div>
+
+    <!-- 命中质检 -->
+    <div class="phone">
+      <div class="screen">
+        <div class="chatbg">
+          <div class="bubble-l">这个方案报价能再优惠一点吗？</div>
+        </div>
+        <div class="drawer">
+          <div class="dhead">
+            <div class="chev">‹</div>
+            <div class="title">AI回复</div>
+            <div class="chev right">✕</div>
+          </div>
+          <div class="dbody">
+            <div class="tones"><div class="tone on">专业</div><div class="tone">亲切</div><div class="tone">简洁</div><div class="tone">活泼</div></div>
+            <div class="errcard">
+              <span class="statetag st-block">质检未通过</span>
+              <div class="icon ic-block">🛡️</div>
+              <div class="t">本次内容未通过安全质检</div>
+              <div class="d">当前聊天内容可能包含不适合生成的信息，建议调整聊天内容或截图范围后，再重新生成。</div>
+            </div>
+            <div class="btn">返回重新选择</div>
+            <div class="sublink">为避免反复失败，此状态不提供直接重试</div>
+          </div>
+        </div>
+      </div>
+      <div class="plabel">CONTENT_BLOCKED · 命中大模型质检</div>
+    </div>
+
+  </div>
+
+  <div class="row" style="margin-top:22px;">
+
+    <!-- 配置缺失 -->
+    <div class="phone">
+      <div class="screen">
+        <div class="chatbg">
+          <div class="bubble-l">这个方案报价能再优惠一点吗？</div>
+        </div>
+        <div class="drawer">
+          <div class="dhead">
+            <div class="chev">‹</div>
+            <div class="title">AI回复</div>
+            <div class="chev right">✕</div>
+          </div>
+          <div class="dbody">
+            <div class="tones"><div class="tone on">专业</div><div class="tone">亲切</div><div class="tone">简洁</div><div class="tone">活泼</div></div>
+            <div class="errcard">
+              <span class="statetag st-cfg">暂不可用</span>
+              <div class="icon ic-cfg">🔧</div>
+              <div class="t">AI 回复暂不可用</div>
+              <div class="d">当前未获取到可用的 AI 模型配置，请联系企业管理员检查模型配置后再试。</div>
+            </div>
+            <div class="btn">刷新配置</div>
+            <div class="sublink">返回重新选择</div>
+          </div>
+        </div>
+      </div>
+      <div class="plabel">CONFIG_MISSING · 配置缺失 / 宿主关闭</div>
+    </div>
+
+    <!-- 读取失败 -->
+    <div class="phone">
+      <div class="screen">
+        <div class="chatbg">
+          <div class="bubble-l">这个方案报价能再优惠一点吗？</div>
+        </div>
+        <div class="drawer">
+          <div class="dhead">
+            <div class="chev">‹</div>
+            <div class="title">AI回复</div>
+            <div class="chev right">✕</div>
+          </div>
+          <div class="dbody">
+            <div class="tones"><div class="tone on">专业</div><div class="tone">亲切</div><div class="tone">简洁</div><div class="tone">活泼</div></div>
+            <div class="errcard">
+              <span class="statetag st-cap">读取失败</span>
+              <div class="icon ic-cap">🖼️</div>
+              <div class="t">聊天内容读取失败</div>
+              <div class="d">没有获取到可用的聊天截图或识别文本，请确认聊天页面在前台后重新读取。</div>
+            </div>
+            <div class="btn">重新读取</div>
+            <div class="sublink">返回重新选择</div>
+          </div>
+        </div>
+      </div>
+      <div class="plabel">CAPTURE_FAILED · 截图 / OCR 失败</div>
+    </div>
+
+    <!-- 设计规范说明 -->
+    <div class="annot" style="min-width:280px;">
+      <b style="font-size:13px;">错误卡设计规范：</b>
+      <ul>
+        <li><span class="good">状态标签</span>：卡片顶部小标签直接说明「非正常返回」类别（网络异常/服务繁忙/质检未通过/暂不可用/读取失败），替代笼统的“这次生成没有成功”。</li>
+        <li><span class="good">文案脱敏</span>：说明文案只讲用户能理解的原因与下一步动作；HTTP 状态码、模型名、宿主英文报错、堆栈一律只进任务日志（AiReplyTaskLogger），不上屏。</li>
+        <li><span class="good">按钮语义按状态区分</span>：NETWORK/TIMEOUT/MODEL_BUSY/RESULT_INVALID → 「重试」；CONTENT_BLOCKED → 不提供重试（改为返回）；CONFIG_MISSING → 「刷新配置」；CAPTURE_FAILED → 「重新读取」。</li>
+        <li><span class="good">重试保护</span>：同一会话连续重试上限 3 次，超限后按钮置灰并显示 10s 冷却倒计时，防止刷接口。</li>
+        <li><span class="good">重试防抖</span>：点击重试后立即进入 GENERATING 时间轴页，按钮不可重复点击。</li>
+      </ul>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============ 4. 结果页内嵌刷新失败 ============ -->
+<section>
+  <h2><span class="no">04</span>结果页内嵌「刷新失败」状态（换语气 / 重新生成）</h2>
+  <div class="sub">换语气或“重新生成”走的是基于已有上下文的刷新流程。失败时不再只弹 Toast，而是在保留旧候选列表的同时，在列表上方常驻一条失败横幅 + 内联重试。</div>
+  <div class="row">
+    <div class="phone">
+      <div class="screen">
+        <div class="chatbg">
+          <div class="bubble-l">这个方案报价能再优惠一点吗？</div>
+        </div>
+        <div class="drawer">
+          <div class="dhead">
+            <div class="chev">‹</div>
+            <div class="title">AI回复</div>
+            <div class="chev right">✕</div>
+          </div>
+          <div class="dbody">
+            <div class="tones"><div class="tone">专业</div><div class="tone on">亲切</div><div class="tone">简洁</div><div class="tone">活泼</div></div>
+            <div class="banner">
+              <span style="font-size:13px;">⚠️</span>
+              <div class="bt">本次刷新失败（网络异常），已为你保留上一版回复</div>
+              <div class="rb">重试</div>
+            </div>
+            <div class="listcard">
+              <div class="reply"><div class="idx">1</div><div class="txt">好的，我这边帮您再申请一下优惠～</div><div class="go">›</div></div>
+              <div class="reply"><div class="idx">2</div><div class="txt">收到，价格这块我去跟公司争取一下</div><div class="go">›</div></div>
+              <div class="reply"><div class="idx">3</div><div class="txt">可以呀，我稍后给您一个最新报价</div><div class="go">›</div></div>
+              <div class="reply"><div class="idx">4</div><div class="txt">没问题，优惠的事情我来协调</div><div class="go">›</div></div>
+            </div>
+            <div class="btn">重新生成</div>
+          </div>
+        </div>
+      </div>
+      <div class="plabel">RESULT · 刷新失败内嵌横幅</div>
+    </div>
+    <div class="annot">
+      <b style="font-size:13px;">交互规则：</b>
+      <ul>
+        <li><span class="good">保留旧结果</span>：刷新失败不整页跳错误页，旧候选列表继续可用（与现状一致），但把“转瞬即逝的 Toast”升级为<span class="good">常驻横幅</span>，并带上失败类别（如“网络异常”）。</li>
+        <li><span class="good">内联重试</span>：横幅右侧提供「重试」，成功后横幅消失并替换为新列表；连续失败 3 次后横幅提示“刷新多次未成功，建议返回重新读取”。</li>
+        <li><span class="good">语气选中态回退</span>：刷新失败后，语气行高亮回到实际生效的旧语气（现状已回退，保持）。</li>
+        <li><span class="good">修复重试死路</span>：ERROR 页点「重试」时，若<b>没有可复用上下文</b>（首次生成即失败），自动改走完整入口流程（重新截图/读取），而不是弹“上下文已失效”。</li>
+        <li><span class="good">请求前预检</span>：每次发起生成前先检查网络连接，断网直接进 NETWORK 错误卡，不再空等 15s 超时。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 5. 实施落点 ============ -->
+<section>
+  <h2><span class="no">05</span>实施落点（下一轮开发参考，本轮不改代码）</h2>
+  <div class="steps">
+    <div class="step"><b><span class="n">1</span>网络层 ModelClient</b>错误返回结构化为「类别 + 脱敏文案」：识别 Network Error / HTTP 429 / 5xx / 内容质检关键词（data_inspection、content_filter、inappropriate、敏感、违规等），不再只返回裸的 “Error: {code} {原始message}”。</div>
+    <div class="step"><b><span class="n">2</span>服务层 AiCommunicateReplyService</b>UserVisibleFailure 增加 category 字段；宿主回调通道的英文内部消息全部映射为分类 + 中文文案；原始报错只写 taskLogger。</div>
+    <div class="step"><b><span class="n">3</span>面板 AiCommunicatePanelController</b>PanelState 增加 errorCategory / retryCount / refreshFailedMessage；renderErrorPage 渲染分类错误卡（标签+图标+文案+主操作）；RESULT 页新增刷新失败横幅组件。</div>
+    <div class="step"><b><span class="n">4</span>编排层 MaterialHubActivity</b>三条生成流程（极速/识屏、传图、粘贴）+ 刷新流程统一接入分类 showError；请求前网络预检；修复无上下文时重试死路；重试限次与冷却；上报日志带上 errorCategory。</div>
+  </div>
+  <div class="sub" style="margin-top:16px;">涉及文件（OEM/android）：app/.../compat/agent/network/ModelClient.kt · app/.../materialhub/AiCommunicateReplyService.kt · app/.../materialhub/MaterialHubActivity.kt · ai-ime/app/.../input/materialhub/AiCommunicatePanelController.kt</div>
+</section>
+
+</div>
+</body>
+</html>

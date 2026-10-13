@@ -1,0 +1,123 @@
+plugins {
+    id 'com.android.application'
+}
+
+def demoProfile = (findProperty('demoProfile') ?: 'full').toString().toLowerCase()
+if (demoProfile != 'full' && demoProfile != 'lite') {
+    throw new GradleException("demoProfile 只支持 full 或 lite，当前值：${demoProfile}")
+}
+
+def demoApplicationId = (findProperty('demoApplicationId') ?: (demoProfile == 'lite' ? 'com.paopaoime.demo.lite' : 'com.enpaopaokeyboard.ai')).toString()
+def demoDisplayName = demoProfile == 'lite' ? '泡泡输入法演示(仅输入法)' : '泡泡企业输入法'
+def demoLocalProperties = new Properties()
+def demoLocalPropertiesFile = rootProject.file('local.properties')
+if (demoLocalPropertiesFile.exists()) {
+    demoLocalPropertiesFile.withInputStream { demoLocalProperties.load(it) }
+}
+def demoAppKey = demoLocalProperties.getProperty('oemDemoAppKey') ?: System.getenv('OEM_DEMO_APP_KEY') ?: 'UNCONFIGURED'
+
+android {
+    namespace 'com.paopaoime.company'
+    compileSdk 36
+    ndkVersion "28.0.13004108"
+
+    defaultConfig {
+        applicationId demoApplicationId
+        minSdk 26
+        targetSdk 36
+        versionCode 202610120
+        versionName "1.0.0.20261012"
+        manifestPlaceholders['oemDemoAppKey'] = demoAppKey
+        resValue 'string', 'company_app_name', demoDisplayName
+        ndk {
+            abiFilters 'arm64-v8a'
+        }
+    }
+
+    buildFeatures {
+        buildConfig true
+        resValues true
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = true
+            keepDebugSymbols += ['**/*.so']
+            pickFirsts += ['**/libc++_shared.so']
+            pickFirsts += ['**/libonnxruntime.so']
+            pickFirsts += ['**/libonnxruntime4j_jni.so']
+        }
+        resources {
+            excludes += [
+                'DebugProbesKt.bin',
+                'kotlin-tooling-metadata.json',
+                'META-INF/app_debug.kotlin_module',
+                'META-INF/atomicfu.kotlin_module',
+                'META-INF/com.android.tools/**',
+                'META-INF/kotlinx_coroutines_core.version',
+                'META-INF/kotlinx-coroutines-core.version',
+                'META-INF/LICENSE.md',
+                'META-INF/LICENSE-notice.md',
+                'META-INF/INDEX.LIST',
+                'META-INF/io.netty.versions.properties',
+                'META-INF/gradle/incremental.annotation-processors'
+            ]
+        }
+    }
+
+    buildTypes {
+        debug {
+            minifyEnabled false
+            shrinkResources false
+        }
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+    }
+}
+
+dependencies {
+    def hostBridgeVersion = findProperty('oemSdkHostBridgeVersion') ?: '1.0.0.20261012'
+    def featureVersion = findProperty('oemSdkFeatureVersion') ?: '1.0.0.20261012'
+
+    implementation 'androidx.core:core-ktx:1.18.0'
+    implementation 'androidx.appcompat:appcompat:1.7.1'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.10.0'
+    implementation 'com.google.android.material:material:1.13.0'
+
+    // 基础功能 + 输入法（必选）：core 通过 host-bridge 的 POM 传递引入
+    implementation "com.paopaoime.oem:oem-ime-sdk-core:$hostBridgeVersion"
+    implementation "com.paopaoime.oem:oem-ime-host-bridge:$hostBridgeVersion"
+    implementation 'org.fcitx.fcitx5.android:app:1.13'
+
+    // Optional voice module: full demo includes it; lite excludes sherpa and all voice UI.
+    if ((findProperty('demoVoice') ?: (demoProfile == 'full' ? 'true' : 'false')).toString().toBoolean()) {
+        implementation "com.paopaoime.oem:oem-ime-sdk-voice:$featureVersion"
+    }
+    if (demoProfile == 'full') {
+        // AI 回复模块（运行时 + 业务）
+        implementation "com.paopaoime.oem:oem-ime-sdk-ai:$featureVersion"
+        implementation "com.paopaoime.oem:oem-ime-sdk-ai-reply:$featureVersion"
+        implementation 'com.paopaoime.oem.internal:paddleocr4android:1.0.0'
+        // 素材库模块（依赖闭包含 AI 回复）
+        implementation "com.paopaoime.oem:oem-ime-sdk-material:$featureVersion"
+        // Stellar 自动化模块（可选增强，AI 回复未集成时自动降级手动截屏）
+        implementation "com.paopaoime.oem:oem-ime-sdk-automation:$featureVersion"
+        implementation 'com.paopaoime.oem.internal.stellar:stellar-manager:1.1'
+        // 开发者模块
+        implementation "com.paopaoime.oem:oem-ime-sdk-developer:$featureVersion"
+    }
+}

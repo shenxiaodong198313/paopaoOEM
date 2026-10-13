@@ -1,0 +1,76 @@
+plugins {
+    id 'com.android.library'
+    id 'maven-publish'
+}
+
+group = 'com.paopaoime.oem.internal'
+version = '1.0.0'
+
+android {
+    def androidConfig = rootProject.ext.androidConfig
+    namespace 'com.equationl.paddleocr4android'
+    compileSdk androidConfig.compileSdk
+
+    defaultConfig {
+        minSdk androidConfig.minSdkAi
+        targetSdk androidConfig.targetSdk
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        consumerProguardFiles "consumer-rules.pro"
+        ndk {
+            abiFilters "arm64-v8a"
+            ldLibs "jnigraphics"
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    publishing {
+        singleVariant('release')
+    }
+}
+
+dependencies {
+    def versions = rootProject.ext.versions
+
+    implementation "androidx.core:core-ktx:${versions.androidxCoreKtx}"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:${versions.coroutines}"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:${versions.coroutines}"
+    testImplementation "junit:junit:${versions.junit4}"
+    androidTestImplementation "androidx.test.ext:junit:${versions.androidXTestJunitExt}"
+    androidTestImplementation "androidx.test.espresso:espresso-core:${versions.espressoCore}"
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+    }
+}
+
+afterEvaluate {
+    publishing {
+        publications {
+            release(MavenPublication) {
+                groupId = project.group
+                artifactId = 'paddleocr4android'
+                version = project.version
+                from components.release
+            }
+        }
+        repositories {
+            maven {
+                name = 'oemLocal'
+                url = uri(rootProject.layout.buildDirectory.dir('oem-sdk-repo'))
+            }
+        }
+    }
+}

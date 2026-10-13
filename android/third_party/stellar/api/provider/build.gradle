@@ -1,0 +1,38 @@
+plugins {
+    id('com.android.library')
+}
+
+ext.stellarPublishVersion = '1.1'
+apply from: rootProject.file('third_party/stellar/publish-local.gradle')
+
+android {
+    namespace 'roro.stellar.provider'
+    compileSdk 36
+    defaultConfig {
+        minSdk 24
+        consumerProguardFiles "consumer-rules.pro"
+    }
+    buildFeatures {
+        buildConfig false
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlin {
+        jvmToolchain(17)
+    }
+}
+
+dependencies {
+    implementation project(':stellar-api')
+
+    implementation apiLibs.androidxAnnotation
+    implementation apiLibs.coreKtx
+}
+

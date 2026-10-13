@@ -1,0 +1,105 @@
+plugins {
+    id 'com.android.library'
+    id 'org.jetbrains.kotlin.plugin.serialization'
+    id 'maven-publish'
+}
+
+def oemCoreGroupId = 'com.paopaoime.oem'
+def oemCoreArtifactId = 'oem-ime-sdk-core'
+def oemCoreVersion = rootProject.ext.oemSdkVersion
+def oemLocalRepoDir = rootProject.layout.buildDirectory.dir('oem-sdk-repo')
+
+android {
+    def androidConfig = rootProject.ext.androidConfig
+    namespace = 'com.paopaoime.aikeyboard.sdk.core'
+    compileSdk = androidConfig.compileSdk
+
+    defaultConfig {
+        minSdk = androidConfig.minSdkAi
+        targetSdk = androidConfig.targetSdk
+        consumerProguardFiles 'consumer-rules.pro'
+        buildConfigField 'String', 'OEM_SDK_VERSION', "\"${oemCoreVersion}\""
+    }
+
+    publishing {
+        singleVariant('release') {
+            withSourcesJar()
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    buildFeatures {
+        buildConfig = true
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            consumerProguardFiles 'consumer-rules.pro'
+        }
+        debug {
+        }
+    }
+
+    sourceSets {
+        main {
+            java.srcDirs += [
+                '../app/src/main/java/com/paopaoime/aikeyboard/sdk/core',
+                '../app/src/main/java/com/paopaoime/aikeyboard/midscene/bridge/model',
+            ]
+            kotlin.srcDirs += [
+                '../app/src/main/java/com/paopaoime/aikeyboard/sdk/core',
+                '../app/src/main/java/com/paopaoime/aikeyboard/midscene/bridge/model',
+            ]
+            java.exclude(
+                    'OemHostRuntime.kt'
+            )
+            kotlin.exclude(
+                    'OemHostRuntime.kt'
+            )
+        }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+    }
+}
+
+dependencies {
+    implementation project(':aikeyboard-sdk-ai')
+    def versions = rootProject.ext.versions
+    implementation "androidx.core:core-ktx:${versions.androidxCoreKtx}"
+    api "org.jetbrains.kotlinx:kotlinx-serialization-json:${versions.serializationJson}"
+}
+
+afterEvaluate {
+    publishing {
+        publications {
+            release(MavenPublication) {
+                from components.release
+                groupId = oemCoreGroupId
+                artifactId = oemCoreArtifactId
+                version = oemCoreVersion
+
+                pom {
+                    name = 'Paopao OEM Core SDK'
+                    description = 'Second-stage OEM core SDK for initialization, license gating and capability management.'
+                }
+            }
+        }
+
+        repositories {
+            maven {
+                name = 'oemLocal'
+                url = uri(oemLocalRepoDir)
+            }
+        }
+    }
+}

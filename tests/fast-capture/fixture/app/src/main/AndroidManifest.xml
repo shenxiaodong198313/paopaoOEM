@@ -1,0 +1,9 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
+<application android:name=".RegressionApplication" android:theme="@style/RegressionTheme" android:label="OEM Capture Regression" tools:replace="android:name,android:theme,android:label">
+<meta-data android:name="com.paopaoime.oem.enableUi" android:value="true"/>
+<meta-data android:name="com.paopaoime.oem.enableAi" android:value="true"/>
+<meta-data android:name="com.paopaoime.oem.enableAiReply" android:value="true"/>
+<meta-data android:name="com.paopaoime.oem.enableAutomation" android:value="false"/>
+<meta-data android:name="com.paopaoime.oem.swipeDispatchMode" android:value="HOST_ONLY"/>
+<activity android:name=".ChatActivity" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity>
+</application></manifest>

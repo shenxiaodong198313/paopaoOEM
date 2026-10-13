@@ -1,0 +1,5 @@
+<resources>
+    <color name="company_primary">#355CFF</color>
+    <color name="company_primary_dark">#2446D9</color>
+    <color name="company_surface">#F5F7FB</color>
+</resources>

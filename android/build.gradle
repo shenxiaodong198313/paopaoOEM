@@ -1,0 +1,153 @@
+plugins {
+    id 'com.android.application' version '9.2.0' apply false
+    id 'com.android.library' version '9.2.0' apply false
+    id 'org.jetbrains.kotlin.android' version '2.3.21' apply false
+    id 'org.jetbrains.kotlin.plugin.compose' version '2.3.21' apply false
+    id 'org.jetbrains.kotlin.plugin.serialization' version '2.3.21' apply false
+    id 'com.google.devtools.ksp' version '2.3.7' apply false
+    id 'com.google.dagger.hilt.android' version '2.57.2' apply false
+    id 'io.objectbox' version '5.1.0' apply false
+    id 'dev.rikka.tools.refine' version '4.4.0' apply false
+    id 'dev.rikka.tools.autoresconfig' version '1.2.2' apply false
+}
+
+import java.util.Properties
+
+def rootLocalProperties = new Properties()
+def rootLocalPropertiesFile = rootProject.file("local.properties")
+if (rootLocalPropertiesFile.exists()) {
+    rootLocalProperties.load(rootLocalPropertiesFile.newInputStream())
+}
+def resolveRootProperty = { String key, String fallback ->
+    def envValue = System.getenv(key)
+    if (envValue != null && envValue.toString().trim()) return envValue.toString()
+    def localValue = rootLocalProperties.getProperty(key)
+    if (localValue != null && localValue.toString().trim()) return localValue.toString()
+    def projectValue = gradle.startParameter.projectProperties.get(key)
+    if (projectValue != null && projectValue.toString().trim()) return projectValue.toString()
+    return fallback
+}
+
+ext.versions = [
+        androidxCoreKtx     : '1.18.0',
+        activityKtx         : '1.13.0',
+        appcompat           : '1.7.1',
+        fragmentKtx         : '1.8.5',
+        lifecycle           : '2.10.0',
+        recyclerview        : '1.4.0',
+        preference          : '1.2.1',
+        material            : '1.13.0',
+        media3              : '1.10.1',
+        coroutines          : '1.10.2',
+        serializationJson   : '1.11.0',
+        room                : '2.8.4',
+        constraintlayout    : '2.2.1',
+        navigation          : '2.9.8',
+        exifinterface       : '1.3.7',
+        work                : '2.11.2',
+        okhttp              : '4.12.0',
+        retrofit            : '2.9.0',
+        gson                : '2.12.1',
+        composeBom          : '2026.04.01',
+        navigationCompose   : '2.7.7',
+        kotlinStdlib        : '2.3.21',
+        ktor                : '3.1.3',
+        flexbox             : '3.0.0',
+        emoji2              : '1.5.0',
+        splitties           : '3.0.0',
+        mlkitTextZh         : '16.0.1',
+        pdfboxAndroid       : '2.0.27.0',
+        poi                 : '5.5.0',
+        aaltoXml            : '1.3.3',
+        staxApi             : '1.0.1',
+        log4jApi            : '2.25.2',
+        onnxruntimeAndroid  : '1.17.1',
+        readability4j       : '1.0.8',
+        progressDialog      : '1.5.1',
+        spinkit             : '1.4.0',
+        expandableFab       : '1.2.1',
+        waveRecorder        : '2.0.1',
+        androidXTestJunitExt: '1.2.1',
+        espressoCore        : '3.6.1',
+        markwon             : '4.6.2',
+        jlatexmathAndroid   : '0.2.0',
+        zxingEmbedded       : '4.3.0',
+        koin                : '3.5.0',
+        datastore           : '1.1.7',
+        cameraX             : '1.4.2',
+        firebaseBom         : '34.4.0',
+        protobufLite        : '4.26.1',
+        timber              : '5.0.1',
+        androidDeviceNames  : '0.0.1',
+        androidXTestCore    : '1.5.0',
+        junit4              : '4.13.2',
+        robolectric         : '4.12.1',
+        mockitoCore         : '5.11.0',
+        mockitoInline       : '5.2.0',
+        mockitoKotlin       : '5.2.0',
+        mockk               : '1.13.10'
+]
+
+ext.androidConfig = [
+        compileSdk : 36,
+        targetSdk  : 36,
+        minSdkIme  : 26,
+        minSdkAi   : 24,
+        ndkVersion : '28.0.13004108',
+        java       : 17
+]
+
+ext.api_version_major = 1
+ext.api_version_minor = 0
+ext.api_version_patch = 3
+ext.api_version_name = "${ext.api_version_major}.${ext.api_version_minor}.${ext.api_version_patch}"
+ext.api_version_code = ext.api_version_major * 100 + ext.api_version_minor * 10 + ext.api_version_patch
+
+ext.serverConfig = [
+        authBaseUrl: resolveRootProperty("AUTH_BASE_URL", 'https://paopaoime.com')
+]
+
+// OEM SDK unified version: every com.paopaoime.oem artifact publishes with this version.
+// Single source of truth lives in gradle.properties (oemSdkVersion); releases only bump that one place.
+ext.oemSdkVersion = (findProperty('oemSdkVersion') ?: '1.0.0.202608248').toString()
+
+tasks.register('clean', Delete) {
+    delete project.layout.buildDirectory
+}
+
+tasks.register('packageDebug') {
+    group = 'build'
+    dependsOn(':app:assembleDebug')
+    doLast {
+        def apkDir = file("$rootDir/app/build/outputs/apk")
+        if (!apkDir.exists()) {
+            throw new GradleException("APK output directory not found: ${apkDir}")
+        }
+        println("")
+        println("Debug APK outputs:")
+        fileTree(apkDir).matching { include '**/*debug*.apk' }.files.sort { it.absolutePath }.each { f ->
+            println(f.absolutePath)
+        }
+    }
+}
+
+tasks.register('installDebug') {
+    group = 'build'
+    dependsOn(':app:installDebug')
+}
+
+tasks.register('packageRelease') {
+    group = 'build'
+    dependsOn(':app:assembleRelease')
+    doLast {
+        def apkDir = file("$rootDir/app/build/outputs/apk")
+        if (!apkDir.exists()) {
+            throw new GradleException("APK output directory not found: ${apkDir}")
+        }
+        println("")
+        println("Release APK outputs:")
+        fileTree(apkDir).matching { include '**/*release*.apk' }.files.sort { it.absolutePath }.each { f ->
+            println(f.absolutePath)
+        }
+    }
+}

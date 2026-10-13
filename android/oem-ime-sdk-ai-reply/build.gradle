@@ -1,0 +1,120 @@
+plugins {
+    id 'com.android.library'
+    id 'maven-publish'
+    id 'com.google.devtools.ksp'
+}
+
+def oemAddonGroupId = 'com.paopaoime.oem'
+def oemAddonArtifactId = 'oem-ime-sdk-ai-reply'
+def oemAddonVersion = rootProject.ext.oemSdkVersion
+def oemLocalRepoDir = rootProject.layout.buildDirectory.dir('oem-sdk-repo')
+
+android {
+    def androidConfig = rootProject.ext.androidConfig
+    compileSdk = androidConfig.compileSdk
+    namespace = 'com.paopaoime.aikeyboard.addon.aireply'
+
+    lint {
+        checkDependencies = false
+        abortOnError = false
+    }
+
+    defaultConfig {
+        minSdk = androidConfig.minSdkIme
+        consumerProguardFiles 'consumer-rules.pro'
+    }
+
+    publishing {
+        singleVariant('release') {
+            withSourcesJar()
+        }
+    }
+
+    sourceSets {
+        main {
+            java.srcDirs += layout.buildDirectory.dir('sliced-src')
+            kotlin.srcDirs += layout.buildDirectory.dir('sliced-src')
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            consumerProguardFiles 'consumer-rules.pro'
+        }
+        debug {
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+tasks.register('syncOemSlice', Sync) {
+    from('../app/src/main/java') {
+        include 'com/paopaoime/aikeyboard/materialhub/AiCommunicateLaunchGate.kt'
+        include 'com/paopaoime/aikeyboard/materialhub/AiCommunicateOcrCacheStore.kt'
+        include 'com/paopaoime/aikeyboard/materialhub/AiCommunicateReplyService.kt'
+        include 'com/paopaoime/aikeyboard/materialhub/AiCommunicateScreenCaptureManager.kt'
+        include 'com/paopaoime/aikeyboard/materialhub/AiScreenCaptureForegroundService.kt'
+    }
+    into layout.buildDirectory.dir('sliced-src')
+}
+preBuild.dependsOn 'syncOemSlice'
+tasks.configureEach { t ->
+    if (t.name != 'syncOemSlice' && t.name.contains('Kotlin')) {
+        t.dependsOn 'syncOemSlice'
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+    }
+}
+
+dependencies {
+    def versions = rootProject.ext.versions
+
+    api project(':oem-ime-sdk-core')
+    compileOnly project(':oem-ime-host-bridge')
+    implementation project(':aikeyboard-sdk-ai')
+    implementation 'org.fcitx.fcitx5.android:app:1.8'
+
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:${versions.kotlinStdlib}"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:${versions.coroutines}"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:${versions.coroutines}"
+    implementation "androidx.core:core-ktx:${versions.androidxCoreKtx}"
+    implementation "androidx.work:work-runtime-ktx:${versions.work}"
+    implementation "androidx.room:room-runtime:${versions.room}"
+    implementation "androidx.room:room-ktx:${versions.room}"
+    ksp "androidx.room:room-compiler:${versions.room}"
+}
+
+afterEvaluate {
+    publishing {
+        publications {
+            release(MavenPublication) {
+                from components.release
+                groupId = oemAddonGroupId
+                artifactId = oemAddonArtifactId
+                version = oemAddonVersion
+
+                pom {
+                    name = 'Paopao OEM IME AI Reply Addon'
+                    description = 'OEM IME AI reply feature addon compiled from app source slices via sourceSets.'
+                }
+            }
+        }
+
+        repositories {
+            maven {
+                name = 'oemLocal'
+                url = uri(oemLocalRepoDir)
+            }
+        }
+    }
+}

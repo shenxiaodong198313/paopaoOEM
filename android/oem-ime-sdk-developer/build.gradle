@@ -1,0 +1,114 @@
+plugins {
+    id 'com.android.library'
+    id 'maven-publish'
+}
+
+def oemAddonGroupId = 'com.paopaoime.oem'
+def oemAddonArtifactId = 'oem-ime-sdk-developer'
+def oemAddonVersion = rootProject.ext.oemSdkVersion
+def oemLocalRepoDir = rootProject.layout.buildDirectory.dir('oem-sdk-repo')
+
+android {
+    def androidConfig = rootProject.ext.androidConfig
+    compileSdk = androidConfig.compileSdk
+    namespace = 'com.paopaoime.aikeyboard.addon.developer'
+
+    lint {
+        checkDependencies = false
+        abortOnError = false
+    }
+
+    defaultConfig {
+        minSdk = androidConfig.minSdkIme
+        consumerProguardFiles 'consumer-rules.pro'
+    }
+
+    publishing {
+        singleVariant('release') {
+            withSourcesJar()
+        }
+    }
+
+    sourceSets {
+        main {
+            java.srcDirs += layout.buildDirectory.dir('sliced-src')
+            kotlin.srcDirs += layout.buildDirectory.dir('sliced-src')
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            consumerProguardFiles 'consumer-rules.pro'
+        }
+        debug {
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+tasks.register('syncOemSlice', Sync) {
+    from('../app/src/main/java') {
+        include 'com/paopaoime/aikeyboard/oem/debug/**'
+        include 'com/paopaoime/aikeyboard/ime/ui/fragment/DeveloperSettingsFragment.kt'
+        include 'com/paopaoime/aikeyboard/ime/ui/fragment/DeveloperAiModelConfigFragment.kt'
+        include 'com/paopaoime/aikeyboard/ime/ui/fragment/DeveloperAiReplyConfigFragment.kt'
+        include 'com/paopaoime/aikeyboard/ime/ui/fragment/DeveloperMaterialCallbackFragment.kt'
+        include 'com/paopaoime/aikeyboard/ime/ui/fragment/DeveloperSessionArchiveFragment.kt'
+    }
+    into layout.buildDirectory.dir('sliced-src')
+}
+preBuild.dependsOn 'syncOemSlice'
+tasks.configureEach { t ->
+    if (t.name != 'syncOemSlice' && t.name.contains('Kotlin')) {
+        t.dependsOn 'syncOemSlice'
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+    }
+}
+
+dependencies {
+    def versions = rootProject.ext.versions
+
+    api project(':oem-ime-sdk-core')
+    compileOnly project(':oem-ime-host-bridge')
+
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:${versions.kotlinStdlib}"
+    implementation "androidx.core:core-ktx:${versions.androidxCoreKtx}"
+    implementation "androidx.appcompat:appcompat:${versions.appcompat}"
+    implementation "androidx.fragment:fragment-ktx:${versions.fragmentKtx}"
+}
+
+afterEvaluate {
+    publishing {
+        publications {
+            release(MavenPublication) {
+                from components.release
+                groupId = oemAddonGroupId
+                artifactId = oemAddonArtifactId
+                version = oemAddonVersion
+
+                pom {
+                    name = 'Paopao OEM IME Developer Addon'
+                    description = 'OEM IME developer/debug feature addon compiled from app source slices via sourceSets.'
+                }
+            }
+        }
+
+        repositories {
+            maven {
+                name = 'oemLocal'
+                url = uri(oemLocalRepoDir)
+            }
+        }
+    }
+}

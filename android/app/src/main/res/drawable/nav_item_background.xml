@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Active State (选中状态) -->
+    <item android:state_checked="true">
+        <layer-list>
+            <!-- 1. Top Indicator (顶部指示器) -->
+            <!-- 胶囊状短横线，悬浮在上方 -->
+            <item android:gravity="top|center_horizontal" android:top="2dp">
+                <shape android:shape="rectangle">
+                    <size android:width="20dp" android:height="3dp"/>
+                    <corners android:radius="2dp"/>
+                    <solid android:color="#00BFA5"/>
+                </shape>
+            </item>
+
+            <!-- 2. Atmospheric Lighting / Soft Glow (氛围光/柔光) -->
+            <!-- 径向渐变背景，模拟柔和扩散的光晕 -->
+            <item>
+                <shape android:shape="rectangle">
+                    <gradient
+                        android:type="radial"
+                        android:gradientRadius="64dp"
+                        android:centerX="0.5"
+                        android:centerY="0.5"
+                        android:startColor="#3300BFA5"
+                        android:endColor="#0000BFA5"/>
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+
+    <!-- Inactive State (未选中状态) -->
+    <item android:drawable="@android:color/transparent"/>
+</selector>

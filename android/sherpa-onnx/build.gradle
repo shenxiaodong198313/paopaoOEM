@@ -1,0 +1,25 @@
+plugins { id 'base'; id 'maven-publish' }
+group = 'com.paopaoime.oem.internal'
+version = '1.13.8'
+configurations { runtimeElements { canBeResolved = false; canBeConsumed = true; attributes { attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, Usage.JAVA_RUNTIME)); attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category, Category.LIBRARY)) } } }
+artifacts { runtimeElements(file('sherpa-onnx-static-link-onnxruntime-1.13.8.aar')) }
+publishing {
+    publications { release(MavenPublication) {
+        artifactId = 'sherpa-onnx'
+        artifact(file('sherpa-onnx-static-link-onnxruntime-1.13.8.aar'))
+        pom { name = 'sherpa-onnx static ONNX Runtime'; description = 'Unmodified official sherpa-onnx 1.13.8 Android AAR' }
+    } }
+    repositories { maven { name = 'oemLocal'; url = rootProject.layout.buildDirectory.dir('oem-sdk-repo') } }
+}
+// Raw upstream AAR has no Gradle component: publish explicit runtime metadata for offline consumers.
+tasks.register('writeModuleMetadata') {
+    doLast {
+        def target = rootProject.file("build/oem-sdk-repo/com/paopaoime/oem/internal/sherpa-onnx/1.13.8/sherpa-onnx-1.13.8.module")
+        target.parentFile.mkdirs()
+        target.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson([
+            formatVersion: '1.1', component: [group: project.group.toString(), module: 'sherpa-onnx', version: project.version.toString()],
+            variants: [[name:'runtime', attributes:['org.gradle.category':'library','org.gradle.usage':'java-runtime','org.gradle.libraryelements':'aar'], files:[[name:'sherpa-onnx-1.13.8.aar',url:'sherpa-onnx-1.13.8.aar']]]]
+        ]))
+    }
+}
+tasks.named('publishReleasePublicationToOemLocalRepository') { finalizedBy('writeModuleMetadata') }

@@ -1,0 +1,12 @@
+<resources>
+    <item name="paopao_app_name" type="string">@string/oem_ime_display_name</item>
+    <item name="ime_app_name" type="string">@string/oem_ime_display_name</item>
+    <item name="material_hub_title" type="string">@string/oem_ime_display_name</item>
+    <string name="material_hub_page_one">页面一</string>
+    <string name="material_hub_page_two">页面二</string>
+    <string name="material_hub_page_one_content">页面1</string>
+    <string name="material_hub_input_hint">输入框</string>
+    <string name="material_hub_keyboard">键盘</string>
+    <string name="material_hub_close">关闭</string>
+    <item name="splash_title_paopao" type="string">@string/oem_ime_display_name</item>
+</resources>

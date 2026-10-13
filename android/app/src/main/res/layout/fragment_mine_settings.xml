@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#141415">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_settings_header"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <ImageView
+            android:id="@+id/btn_settings_back"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:padding="8dp"
+            android:src="@drawable/ic_arrow_back_24"
+            android:contentDescription="@null"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            app:tint="#C4C4C6"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent" />
+
+        <TextView
+            android:id="@+id/tv_settings_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="设置"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="#C4C4C6"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:layout_marginStart="6dp"
+            app:layout_constraintStart_toEndOf="@id/btn_settings_back"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="@id/btn_settings_back"
+            app:layout_constraintBottom_toBottomOf="@id/btn_settings_back" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:fillViewport="true"
+        android:clipToPadding="false"
+        app:layout_constraintTop_toBottomOf="@id/layout_settings_header"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingBottom="24dp">
+
+            <LinearLayout
+                android:id="@+id/list_group_1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="16dp"
+                android:background="@drawable/bg_card_dark_16dp"
+                android:orientation="vertical"
+                android:paddingVertical="8dp">
+
+                <include
+                    layout="@layout/item_mine_menu"
+                    android:id="@+id/item_permission_settings" />
+
+                <include
+                    layout="@layout/item_mine_menu"
+                    android:id="@+id/item_knowledge_base" />
+
+                <include
+                    layout="@layout/item_mine_menu_switch"
+                    android:id="@+id/item_shizuku_adb" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/list_group_2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="16dp"
+                android:background="@drawable/bg_card_dark_16dp"
+                android:orientation="vertical"
+                android:paddingVertical="8dp">
+
+                <include
+                    layout="@layout/item_mine_menu"
+                    android:id="@+id/item_invite_code" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

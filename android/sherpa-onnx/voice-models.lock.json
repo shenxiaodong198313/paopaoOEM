@@ -1,0 +1,98 @@
+{
+  "runtime": "sherpa-onnx-android@1.13.8",
+  "models": [
+    {
+      "repo": "csukuangfj/sherpa-onnx-streaming-zipformer-small-ctc-zh-int8-2025-04-01",
+      "revision": "a5f60fe00dcfbaf68fcc1c6b5cf53061e144d6da",
+      "name": "model.int8.onnx",
+      "bytes": 26342340,
+      "sha256": "68c9c943840f7d9cf3e8a4970ba50f404feb5277f611fa82b7e72267786fa84a"
+    },
+    {
+      "repo": "csukuangfj/sherpa-onnx-streaming-zipformer-small-ctc-zh-int8-2025-04-01",
+      "revision": "a5f60fe00dcfbaf68fcc1c6b5cf53061e144d6da",
+      "name": "tokens.txt",
+      "bytes": 13366,
+      "sha256": "6fed8c6c248516f38e7faa19404b57413e8ce259f1cbc1fa4aebc86eac32fdfd"
+    },
+    {
+      "repo": "csukuangfj/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30",
+      "revision": "ad658fa0201659a09ea3c176129a191c77ecae8f",
+      "name": "decoder.onnx",
+      "bytes": 5165083,
+      "sha256": "06522ad63cec0fdf6809f4e1db9bb4f7d710c34582e3b35db62ac60eccafac7e"
+    },
+    {
+      "repo": "csukuangfj/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30",
+      "revision": "ad658fa0201659a09ea3c176129a191c77ecae8f",
+      "name": "encoder.int8.onnx",
+      "bytes": 161141793,
+      "sha256": "5ac51e27981bb4dab01bb9be4958453ba50c3b61c063ddda0eab23fd3671aa4f"
+    },
+    {
+      "repo": "csukuangfj/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30",
+      "revision": "ad658fa0201659a09ea3c176129a191c77ecae8f",
+      "name": "joiner.int8.onnx",
+      "bytes": 1033416,
+      "sha256": "b34584dc6f561089e1d747fedebb3765f2caa72c927ef54d7ca55e5ae40a814b"
+    },
+    {
+      "repo": "csukuangfj/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30",
+      "revision": "ad658fa0201659a09ea3c176129a191c77ecae8f",
+      "name": "tokens.txt",
+      "bytes": 20628,
+      "sha256": "6193c7ea1c96d0d9a1e9652789b40d13a8a913b434a5451e93158f5a09fd6652"
+    },
+    {
+      "repo": "ranger810/sherpa-onnx-punct-ct-transformer-zh-en-vocab272727-2024-04-12-int8",
+      "revision": "5cccf43af83e4fc50d1d55b8410312e87709be70",
+      "name": "model.int8.onnx",
+      "bytes": 75519198,
+      "sha256": "65a3fb9f5ad7bfb96bf69e0dc4481df97f6ee60513c1d94ce981ba6effd524b1"
+    },
+    {
+      "repo": "csukuangfj/sherpa-onnx-streaming-zipformer-zh-xlarge-int8-2025-06-30",
+      "revision": "18f31ce4644ac3bcf544eea692d7242b798d508f",
+      "name": "decoder.onnx",
+      "bytes": 8533022,
+      "sha256": "8f9c903da2818f207304a3f30b9eeb30028e30398f333c1e95e12c97704173e6"
+    },
+    {
+      "repo": "csukuangfj/sherpa-onnx-streaming-zipformer-zh-xlarge-int8-2025-06-30",
+      "revision": "18f31ce4644ac3bcf544eea692d7242b798d508f",
+      "name": "encoder.int8.onnx",
+      "bytes": 761133737,
+      "sha256": "f2c543a0330e1ed0bd09c82e4ae7d3f1cbee10a15feca638fcc4f88083a36b8a"
+    },
+    {
+      "repo": "csukuangfj/sherpa-onnx-streaming-zipformer-zh-xlarge-int8-2025-06-30",
+      "revision": "18f31ce4644ac3bcf544eea692d7242b798d508f",
+      "name": "joiner.int8.onnx",
+      "bytes": 1545417,
+      "sha256": "f76ffce14b6ef80098cfdbce8846896ff68133970abc314eafab632f910df0d7"
+    },
+    {
+      "repo": "csukuangfj/sherpa-onnx-streaming-zipformer-zh-xlarge-int8-2025-06-30",
+      "revision": "18f31ce4644ac3bcf544eea692d7242b798d508f",
+      "name": "tokens.txt",
+      "bytes": 18626,
+      "sha256": "6722bd1585f46f84456b29c3550a343a3cc375b971645773c02ed8e0b4e2405c"
+    }
+  ],
+  "punctuationVerification": "SHA256 matches existing official ct_small distribution at paopaoime.com/api/v1/voice-models/download?packageId=ct_small&file=package.tar.bz2",
+  "modes": {
+    "performance": {
+      "title": "性能",
+      "totalBytes": 101874904
+    },
+    "quality": {
+      "title": "均衡",
+      "totalBytes": 242880118,
+      "note": "Legacy ID retained to preserve user choice and downloads"
+    },
+    "quality_xl": {
+      "title": "质量",
+      "totalBytes": 846750000
+    }
+  }
+}

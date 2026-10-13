@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OEM 素材库 & AI回复 优化设计图</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; background: #f2f4f7; color: #222; padding: 32px; }
+  h1 { font-size: 24px; margin-bottom: 6px; }
+  .sub { color: #667; margin-bottom: 28px; font-size: 13px; }
+  .board { display: flex; flex-wrap: wrap; gap: 28px; }
+  .card { background: #fff; border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,.08); padding: 18px; width: 330px; }
+  .card h2 { font-size: 15px; margin-bottom: 4px; }
+  .card .desc { font-size: 12px; color: #667; margin-bottom: 12px; line-height: 1.6; }
+  .phone { position: relative; width: 290px; height: 560px; background: #e8ecf1; border-radius: 22px; overflow: hidden; border: 6px solid #1c1f24; }
+  .chat-bg { position: absolute; inset: 0; background: linear-gradient(#dfe6ee, #d4dce6); padding: 10px; }
+  .bubble { background: #fff; border-radius: 8px; padding: 8px; font-size: 10px; color: #556; margin-bottom: 8px; width: 70%; }
+  .drawer { position: absolute; left: 0; right: 0; bottom: 0; height: 78%; background: linear-gradient(135deg,#fdfbf3,#eef6fb); border-radius: 18px 18px 0 0; box-shadow: 0 -4px 16px rgba(0,0,0,.18); display: flex; flex-direction: column; }
+  .drawer-head { display: flex; align-items: center; padding: 12px 14px 6px; }
+  .drawer-title { font-size: 15px; font-weight: 700; color: #333; flex: 1; }
+  .icon-btn { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; }
+  .close-btn { border: 2px solid #333; color: #229BFF; font-weight: 700; }
+  .tabs { display: flex; gap: 8px; padding: 6px 14px; }
+  .tab { font-size: 11px; background: #e3e6ea; border-radius: 14px; padding: 4px 12px; color: #445; }
+  .tab.on { background: #d7ef6a; color: #222; font-weight: 700; }
+  .grid { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 8px 14px; overflow: hidden; }
+  .cell { background: #fff; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.08); position: relative; }
+  .cell .img { position: absolute; inset: 6px; border-radius: 6px; background: linear-gradient(160deg,#2b3245,#4a3b57); }
+  .cell .img.green { background: linear-gradient(160deg,#274d33,#3f7a4c); }
+  .cell .img.blue { background: linear-gradient(160deg,#20415f,#3a6d96); }
+  .cell .img.pink { background: linear-gradient(160deg,#5f2038,#96406a); }
+  .badge { position: absolute; top: 8px; left: 8px; background: rgba(255,255,255,.85); font-size: 9px; padding: 2px 6px; border-radius: 8px; color: #345; }
+  .fab { position: absolute; right: 14px; bottom: 16px; width: 46px; height: 46px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #7ee08a, #22a83c); box-shadow: 0 3px 8px rgba(0,0,0,.25); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 26px; font-weight: 300; }
+  .fab.hidden { display: none; }
+  .ghost-fab { position: absolute; right: 14px; bottom: 16px; width: 46px; height: 46px; border-radius: 50%; border: 2px dashed #b6bcc6; display: flex; align-items: center; justify-content: center; color: #98a0ac; font-size: 20px; }
+  .preview-head { display: flex; align-items: center; padding: 12px 14px; }
+  .back-arrow { font-size: 22px; color: #229BFF; font-weight: 700; }
+  .dl-btn { margin-left: auto; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; }
+  .preview-body { flex: 1; margin: 4px 12px 12px; background: #fff; border-radius: 8px; box-shadow: 0 1px 5px rgba(0,0,0,.1); padding: 14px; font-size: 10px; color: #556; overflow: hidden; }
+  .doc-line { height: 7px; background: #e6e9ee; border-radius: 4px; margin-bottom: 7px; }
+  .stamp { width: 70px; height: 44px; border: 2px solid #d33; border-radius: 50%; margin: 12px auto; display:flex; align-items:center; justify-content:center; color:#d33; font-size:9px; transform: rotate(-8deg); }
+  .anno { position: absolute; font-size: 10px; color: #d0342c; background: #fff6f5; border: 1px solid #f2b8b5; border-radius: 8px; padding: 3px 8px; box-shadow: 0 1px 4px rgba(0,0,0,.12); }
+  .anno.green { color: #1c7c33; background: #f2fbf4; border-color: #b5e3c0; }
+  .legend { margin-top: 12px; font-size: 11px; color: #445; line-height: 1.8; }
+  .legend b { color: #d0342c; }
+  .legend i { color: #1c7c33; font-style: normal; font-weight: 700; }
+  .flow { background: #fff; border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,.08); padding: 20px; width: 700px; }
+  .flow h2 { font-size: 15px; margin-bottom: 12px; }
+  .flow-row { display: flex; align-items: stretch; gap: 12px; margin-bottom: 12px; }
+  .flow-box { flex: 1; border-radius: 10px; padding: 12px; font-size: 11px; line-height: 1.7; }
+  .sdk { background: #eef4ff; border: 1px solid #b9cdf5; }
+  .host { background: #f2fbf4; border: 1px solid #b5e3c0; }
+  .arrow { display: flex; flex-direction: column; justify-content: center; align-items: center; width: 120px; font-size: 10px; color: #556; text-align: center; }
+  .arrow .line { font-size: 16px; color: #229BFF; font-weight: 700; }
+  code { background: #f0f2f5; border-radius: 4px; padding: 1px 5px; font-size: 10px; }
+  .tag { display: inline-block; font-size: 10px; border-radius: 6px; padding: 2px 8px; margin-right: 6px; }
+  .tag.red { background: #fdecea; color: #c0392b; }
+  .tag.green { background: #eafaf0; color: #1c7c33; }
+  .tag.blue { background: #eaf2fd; color: #2160c4; }
+</style>
+</head>
+<body>
+<h1>OEM 企业输入法 · 素材库 & AI回复 优化设计图</h1>
+<div class="sub">需求批次：企业素材只读 / 媒体预览下载 / 抽屉手势修复 / 极速生成滑屏宿主双写 · 本地浏览画布</div>
+<div class="board">
+
+  <div class="card">
+    <h2>需求1 · 企业推送素材详情页</h2>
+    <div class="desc">企业后台推送（source=REMOTE）的素材详情页，屏蔽右下角"增加 文本/图片/视频/文档"悬浮按钮；本地个人素材不受影响。</div>
+    <div class="phone">
+      <div class="chat-bg"><div class="bubble">批量回单打印，110970278…共1笔.pdf</div></div>
+      <div class="drawer">
+        <div class="drawer-head">
+          <div class="drawer-title">企业素材 · 详情</div>
+          <span class="tag red">企业下发</span>
+          <div class="icon-btn close-btn">×</div>
+        </div>
+        <div class="grid">
+          <div class="cell"><div class="img"></div><span class="badge">回单</span></div>
+          <div class="cell"><div class="img green"></div><span class="badge">话术</span></div>
+          <div class="cell"><div class="img blue"></div><span class="badge">产品</span></div>
+          <div class="cell"><div class="img pink"></div><span class="badge">活动</span></div>
+        </div>
+        <div class="ghost-fab">+</div>
+        <div class="anno" style="right:70px;bottom:26px;">企业素材：隐藏添加按钮</div>
+      </div>
+    </div>
+    <div class="legend"><b>■</b> 右下角悬浮 + 按钮不再出现（含展开菜单）；<i>■</i> 个人本地素材详情页保持原样可添加。</div>
+  </div>
+
+  <div class="card">
+    <h2>需求2 · 媒体独立预览页</h2>
+    <div class="desc">图片/视频/文档预览页：屏蔽右下角添加按钮；右上角新增下载按钮（云下载图标），点击保存到对应类型公共目录。</div>
+    <div class="phone">
+      <div class="chat-bg"><div class="bubble">文件传输助手</div></div>
+      <div class="drawer">
+        <div class="preview-head">
+          <span class="back-arrow">←</span>
+          <div class="dl-btn">
+            <svg width="26" height="26" viewBox="0 0 1024 1024"><path fill="#43484D" d="M966.4 396.8c-30.4-44.8-80-73.6-136-80 1.6-9.6 1.6-19.2 1.6-28.8 0-145.6-116.8-262.4-259.2-262.4-132.8 0-243.2 102.4-257.6 233.6-19.2-3.2-36.8-6.4-57.6-6.4C121.6 252.8 12.8 353.6 12.8 475.2c0 121.6 72 206.4 184 217.6h3.2c3.2 0 4.8 1.6 8 1.6h152c19.2 0 33.6-14.4 33.6-32s-16-32-33.6-32h-148.8c-1.6 0-3.2 0-4.8-1.6-80-8-128-65.6-128-153.6s81.6-158.4 180.8-158.4c27.2 0 51.2 4.8 75.2 14.4 9.6 4.8 22.4 3.2 30.4-3.2 9.6-6.4 14.4-17.6 12.8-27.2V288c0-108.8 88-198.4 195.2-198.4S768 177.6 768 288c0 17.6-1.6 35.2-6.4 51.2-3.2 9.6 0 20.8 6.4 28.8s17.6 12.8 27.2 11.2h11.2c44.8 0 84.8 20.8 107.2 54.4l1.6 1.6c14.4 17.6 30.4 44.8 30.4 83.2 0 73.6-67.2 108.8-129.6 112l-132.8 1.6c-20.8 0-36.8 14.4-36.8 32s16 32 36.8 32l128-1.6h9.6c3.2 0 4.8 0 8-1.6 91.2-8 180.8-70.4 180.8-176 1.6-54.4-22.4-96-43.2-120z"/><path fill="#229BFF" d="M512 998.4c-8 0-14.4-3.2-20.8-8l-137.6-115.2c-12.8-11.2-16-32-3.2-44.8s32-16 44.8-3.2l84.8 70.4V476.8c0-17.6 14.4-32 32-32s32 14.4 32 32v491.2c0 12.8-8 24-19.2 28.8-3.2 1.6-8 1.6-12.8 1.6z"/><path fill="#229BFF" d="M512 998.4c-9.6 0-19.2-4.8-24-11.2-11.2-14.4-9.6-33.6 4.8-44.8l137.6-112c14.4-11.2 33.6-9.6 44.8 4.8 11.2 14.4 9.6 33.6-4.8 44.8l-137.6 112c-6.4 4.8-14.4 6.4-20.8 6.4z"/></svg>
+          </div>
+        </div>
+        <div class="preview-body">
+          <div style="text-align:center;font-size:12px;font-weight:700;margin-bottom:10px;">出 账 回 单</div>
+          <div class="doc-line" style="width:90%"></div>
+          <div class="doc-line" style="width:75%"></div>
+          <div class="doc-line" style="width:82%"></div>
+          <div class="stamp">电子回单专用章</div>
+          <div class="doc-line" style="width:60%"></div>
+        </div>
+        <div class="ghost-fab">+</div>
+        <div class="anno green" style="right:56px;top:44px;">新增下载按钮</div>
+        <div class="anno" style="right:70px;bottom:26px;">添加按钮屏蔽</div>
+      </div>
+    </div>
+    <div class="legend">下载去向：图片→<code>Pictures/</code>，视频→<code>Movies/</code>，文档→<code>Documents/</code>（Q+ MediaStore，Q- 写存储权限）。</div>
+  </div>
+
+  <div class="card">
+    <h2>需求3 · 抽屉手势修复</h2>
+    <div class="desc">素材列表超过一屏时下滑可正常滚动列表；抽屉只能通过右上角关闭按钮关闭，下滑手势不再关闭抽屉。</div>
+    <div class="phone">
+      <div class="chat-bg"><div class="bubble">快捷发送</div></div>
+      <div class="drawer">
+        <div class="drawer-head">
+          <div class="drawer-title">快捷发送</div>
+          <div class="icon-btn" style="font-size:16px;">⌕</div>
+          <div class="icon-btn close-btn">×</div>
+        </div>
+        <div class="tabs"><span class="tab on">最近</span><span class="tab">文件夹</span><span class="tab">文档</span><span class="tab">图片</span></div>
+        <div class="grid">
+          <div class="cell"><div class="img"></div></div>
+          <div class="cell"><div class="img green"></div></div>
+          <div class="cell"><div class="img blue"></div></div>
+          <div class="cell"><div class="img pink"></div></div>
+        </div>
+        <div class="fab">+</div>
+        <div class="anno green" style="left:16px;bottom:120px;">↓ 列表可自由下滑滚动</div>
+        <div class="anno" style="right:12px;top:52px;">仅 × 可关闭</div>
+      </div>
+    </div>
+    <div class="legend">移除 <code>handleDrawerDragTouch</code> 拖拽关闭逻辑与 VelocityTracker 判定，列表滚动不再被抽屉手势抢占。</div>
+  </div>
+
+  <div class="flow">
+    <h2>需求4 · 极速生成滑屏事件宿主双写时序</h2>
+    <div class="flow-row">
+      <div class="flow-box sdk">
+        <b>SDK（输入法）</b><br>
+        极速生成连续滑屏循环：<br>
+        抽象滑屏事件字段 <code>OemSwipeRequest</code><br>
+        （requestId / scene=AI_FAST_GENERATE / direction=DOWNWARD_DRAG / 起止坐标 / 屏幕尺寸 / durationMs / timestamp）
+      </div>
+      <div class="arrow"><span class="line">→</span>onSwipeRequested(request, callback)<br>分发模式 DUAL_WRITE 默认</div>
+      <div class="flow-box host">
+        <b>宿主 App</b><br>
+        <code>OemSwipeHostDelegate</code><br>
+        返回 true 接管：用自有自动化能力（无障碍等）执行滑屏
+      </div>
+    </div>
+    <div class="flow-row">
+      <div class="flow-box sdk">
+        SDK 收到 <code>OemSwipeResult</code>（success/errorMessage）→ 继续截图与下一轮滑屏；<br>
+        宿主拒绝 / 未注册 / 5s 超时 → DUAL_WRITE 回落 SDK 自身 <code>input swipe</code>（Stellar/ADB）。
+      </div>
+      <div class="arrow"><span class="line">←</span>callback.onResult(result)<br>宿主通知滑动完成</div>
+      <div class="flow-box host">
+        宿主执行完成后回写结果<br>
+        <code>OemSwipeResultCallback.onResult</code>
+      </div>
+    </div>
+    <div class="legend">
+      分发模式 <code>com.paopaoime.oem.swipeDispatchMode</code>：<span class="tag blue">SDK_ONLY</span><span class="tag green">HOST_ONLY</span><span class="tag red">DUAL_WRITE(默认)</span>
+      注册：<code>OemImeSdk.setSwipeHostDelegate(delegate)</code> 或 <code>OemSdkConfig.swipeHostDelegate</code>。
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

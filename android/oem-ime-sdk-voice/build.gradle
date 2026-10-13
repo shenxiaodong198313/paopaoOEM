@@ -1,0 +1,56 @@
+plugins {
+    id 'com.android.library'
+    id 'maven-publish'
+}
+
+android {
+    namespace = 'com.paopaoime.aikeyboard.addon.voice'
+    compileSdk = rootProject.ext.androidConfig.compileSdk
+    defaultConfig {
+        minSdk = rootProject.ext.androidConfig.minSdkIme
+        consumerProguardFiles 'consumer-rules.pro'
+    }
+    publishing { singleVariant('release') { withSourcesJar() } }
+    buildTypes {
+        release {
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+kotlin { compilerOptions { jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17 } }
+
+dependencies {
+    def versions = rootProject.ext.versions
+    implementation 'org.fcitx.fcitx5.android:app:1.10'
+    implementation 'com.paopaoime.oem.internal:sherpa-onnx:1.13.8'
+    implementation "androidx.core:core-ktx:${versions.androidxCoreKtx}"
+    implementation "androidx.appcompat:appcompat:${versions.appcompat}"
+    implementation "androidx.activity:activity-ktx:${versions.activityKtx}"
+    implementation "androidx.fragment:fragment-ktx:${versions.fragmentKtx}"
+    implementation "androidx.lifecycle:lifecycle-runtime-ktx:${versions.lifecycle}"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:${versions.coroutines}"
+    implementation "com.squareup.okhttp3:okhttp:${versions.okhttp}"
+}
+
+afterEvaluate {
+    publishing {
+        publications {
+            release(MavenPublication) {
+                from components.release
+                groupId = 'com.paopaoime.oem'
+                artifactId = 'oem-ime-sdk-voice'
+                version = rootProject.ext.oemSdkVersion
+                pom {
+                    name = 'Paopao OEM Offline Voice SDK'
+                    description = 'Optional three-tier offline speech recognition, model downloads and IME voice UI.'
+                }
+            }
+        }
+        repositories { maven { name = 'oemLocal'; url = uri(rootProject.layout.buildDirectory.dir('oem-sdk-repo')) } }
+    }
+}

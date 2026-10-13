@@ -1,0 +1,230 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000">
+
+    <!-- Header -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_header"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="16dp"
+        android:paddingBottom="16dp"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ImageView
+            android:id="@+id/iv_close_result"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:padding="12dp"
+            android:src="@drawable/ic_menu_close"
+            app:tint="#FFFFFF"
+            android:layout_marginStart="8dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="图片生成"
+            android:textColor="#FFFFFF"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"/>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Main Content Card -->
+    <FrameLayout
+        android:id="@+id/card_content"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="0dp"
+        android:layout_marginBottom="16dp"
+        android:background="@drawable/bg_card_dark"
+        app:layout_constraintTop_toBottomOf="@id/layout_header"
+        app:layout_constraintBottom_toTopOf="@id/layout_bottom_actions"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <!-- Loading State -->
+        <LinearLayout
+            android:id="@+id/layout_loading"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <!-- Logo -->
+            <ImageView
+                android:id="@+id/iv_loading_logo"
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                android:src="@drawable/ic_home_logo" />
+
+            <TextView
+                android:id="@+id/tv_loading_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:text="作品生成中"
+                android:textColor="#E0E0E0"
+                android:textSize="16sp"
+                android:letterSpacing="0.05"/>
+
+            <ProgressBar
+                android:id="@+id/progress_loading"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="220dp"
+                android:layout_height="8dp"
+                android:layout_marginTop="14dp"
+                android:max="100"
+                android:progress="0"
+                android:progressTint="#4CAF50"
+                android:progressBackgroundTint="#2C2C2E" />
+
+            <TextView
+                android:id="@+id/tv_loading_percent"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="0%"
+                android:textColor="#BDBDBD"
+                android:textSize="13sp" />
+
+            <!-- Green Arrow Indicator -->
+            <TextView
+                android:id="@+id/tv_loading_anim"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text=">>>>>"
+                android:textColor="#4CAF50"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.2"
+                android:visibility="gone"/>
+        </LinearLayout>
+
+        <!-- Result Content -->
+        <RelativeLayout
+            android:id="@+id/layout_result_content"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone">
+
+            <ImageView
+                android:id="@+id/iv_result_image"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="fitCenter" />
+            
+            <!-- Image Count Badge (Top Left) -->
+            <TextView
+                android:id="@+id/tv_image_count"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentStart="true"
+                android:layout_alignParentTop="true"
+                android:layout_margin="12dp"
+                android:background="@drawable/bg_badge_transparent"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="6dp"
+                android:text="4张"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:visibility="gone"/>
+
+            <!-- Expand Button (Top Right) -->
+            <ImageView
+                android:id="@+id/btn_expand"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_alignParentTop="true"
+                android:layout_alignParentEnd="true"
+                android:layout_margin="12dp"
+                android:padding="8dp"
+                android:src="@drawable/ic_fullscreen"
+                android:background="@drawable/bg_badge_transparent"
+                app:tint="#FFFFFF"
+                android:visibility="gone"/>
+
+            <!-- Play Button Overlay -->
+            <ImageView
+                android:id="@+id/btn_play_video"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:layout_centerInParent="true"
+                android:src="@android:drawable/ic_media_play"
+                android:background="@drawable/bg_option_selected"
+                android:padding="16dp"
+                app:tint="#FFFFFF"
+                android:visibility="gone"/>
+                
+        </RelativeLayout>
+
+    </FrameLayout>
+
+    <!-- Bottom Actions -->
+    <LinearLayout
+        android:id="@+id/layout_bottom_actions"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginBottom="32dp"
+        android:orientation="horizontal"
+        android:paddingVertical="20dp"
+        android:background="@drawable/bg_card_dark"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <TextView
+            android:id="@+id/btn_reedit"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:text="重新编辑"
+            android:drawableTop="@drawable/ic_menu_edit"
+            android:drawablePadding="8dp"
+            android:drawableTint="#FFFFFF"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"/>
+
+        <TextView
+            android:id="@+id/btn_continue"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:text="继续创作"
+            android:drawableTop="@drawable/ic_menu_plus"
+            android:drawablePadding="8dp"
+            android:drawableTint="#FFFFFF"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"/>
+
+        <TextView
+            android:id="@+id/btn_assets"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:text="我的资产"
+            android:drawableTop="@drawable/ic_neu_user"
+            android:drawablePadding="8dp"
+            android:drawableTint="#FFFFFF"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"/>
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

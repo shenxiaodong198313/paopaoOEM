@@ -1,0 +1,27 @@
+plugins {
+    id 'com.android.library'
+}
+
+ext.stellarPublishVersion = '1.1'
+apply from: rootProject.file('third_party/stellar/publish-local.gradle')
+
+android {
+    namespace 'moe.shizuku.server'
+    compileSdk 36
+    defaultConfig {
+        minSdk 24
+    }
+    buildFeatures {
+        buildConfig = false
+        aidl = true
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation serverLibs.androidxAnnotation
+}
+

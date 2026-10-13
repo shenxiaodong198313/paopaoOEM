@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp"
+    android:paddingTop="12dp"
+    android:paddingBottom="12dp"
+    android:layout_marginBottom="10dp"
+    android:foreground="?attr/selectableItemBackground"
+    android:background="@drawable/bg_card_white_12dp">
+
+    <ImageView
+        android:id="@+id/iv_kb_item_icon"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:contentDescription="@null"
+        android:alpha="0.7"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        android:src="@drawable/ic_kb_folder" />
+
+    <TextView
+        android:id="@+id/tv_kb_item_title"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="个人知识库"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="#333333"
+        android:ellipsize="end"
+        android:maxLines="1"
+        app:layout_constraintStart_toEndOf="@id/iv_kb_item_icon"
+        app:layout_constraintEnd_toStartOf="@id/cb_kb_item_select"
+        app:layout_constraintTop_toTopOf="@id/iv_kb_item_icon"
+        android:layout_marginStart="12dp"
+        android:layout_marginEnd="12dp" />
+
+    <TextView
+        android:id="@+id/tv_kb_item_subtitle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="最近更新 12/27"
+        android:textSize="12sp"
+        android:textColor="#999999"
+        android:ellipsize="end"
+        android:maxLines="1"
+        app:layout_constraintStart_toStartOf="@id/tv_kb_item_title"
+        app:layout_constraintEnd_toEndOf="@id/tv_kb_item_title"
+        app:layout_constraintTop_toBottomOf="@id/tv_kb_item_title"
+        android:layout_marginTop="4dp" />
+
+    <androidx.appcompat.widget.AppCompatCheckBox
+        android:id="@+id/cb_kb_item_select"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@id/iv_kb_item_icon"
+        app:layout_constraintBottom_toBottomOf="@id/iv_kb_item_icon" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,0 +1,8 @@
+-keep class * implements com.paopaoime.aikeyboard.sdk.core.OemMaterialHubAddon { *; }
+-keep class com.paopaoime.aikeyboard.addon.material.** { *; }
+-keep class com.paopaoime.aikeyboard.materialhub.MaterialHubActivity { *; }
+-keep class com.paopaoime.aikeyboard.materialhub.MaterialHubLaunchAuthorizer { *; }
+-keep class com.paopaoime.aikeyboard.materialhub.OemRemoteMaterialAutoSync { *; }
+-keep class com.paopaoime.aikeyboard.materialhub.OemRemoteMaterialService { *; }
+-keep class com.paopaoime.aikeyboard.materialhub.OemRemoteMaterialSyncScheduler { *; }
+-keep class com.paopaoime.aikeyboard.materialhub.OemRemoteMaterialSyncScheduler$* { *; }

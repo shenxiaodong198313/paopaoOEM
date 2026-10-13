@@ -1,0 +1,35 @@
+{
+  "default": "standard",
+  "items": [
+    {
+      "id": "standard",
+      "name": "标准按键"
+    },
+    {
+      "id": "mouse",
+      "name": "鼠标轻点"
+    },
+    {
+      "id": "click",
+      "name": "短促点击"
+    },
+    {
+      "id": "crisp",
+      "name": "清脆点击"
+    },
+    {
+      "id": "pluck",
+      "name": "拨弦"
+    },
+    {
+      "id": "glass",
+      "name": "玻璃轻响"
+    },
+    {
+      "id": "tick",
+      "name": "滴答"
+    }
+  ],
+  "sourceManifest": "apps/harmony/design/audio-audition/20261002/manifest.json",
+  "gain": "same as audition, peak 10000"
+}

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 底层白色背景 -->
+    <item android:drawable="@android:color/white" />
+    
+    <!-- 上层透明图片，居中显示或拉伸填充，视图片设计而定。
+         由于是背景图，通常希望填满屏幕，直接引用即可。
+         如果需要保持比例，可以使用 <bitmap> 标签并设置 gravity。
+         这里假设是全屏背景图，直接覆盖。 -->
+    <item>
+        <bitmap
+            android:src="@drawable/splash_bg"
+            android:gravity="center|fill" />
+    </item>
+</layer-list>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 主背景：稍深的灰色，匹配参考图选中态 -->
+    <!-- 移除复杂的阴影层，仅保留纯色背景，确保无边框感 -->
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="24dp" />
+            <solid android:color="#E0E3E6" />
+        </shape>
+    </item>
+</layer-list>

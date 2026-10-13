@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Gradient Border -->
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="24dp"/>
+            <gradient
+                android:angle="45"
+                android:startColor="#FFFFFFFF"
+                android:centerColor="#88FFFFFF"
+                android:endColor="#FFFFFFFF"
+                android:type="linear"/>
+        </shape>
+    </item>
+    <!-- Background (Inset to reveal border) -->
+    <item android:top="1.5dp" android:bottom="1.5dp" android:left="1.5dp" android:right="1.5dp">
+         <shape android:shape="rectangle">
+            <corners android:radius="22.5dp"/>
+            <solid android:color="#D9000000"/> <!-- Dark frosted glass look for contrast or light? Jimeng is dark usually? -->
+        </shape>
+    </item>
+</layer-list>

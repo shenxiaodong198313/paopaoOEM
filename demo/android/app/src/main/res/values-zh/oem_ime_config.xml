@@ -1,0 +1,3 @@
+<resources>
+    <item name="oem_ime_display_name" type="string">@string/company_app_name</item>
+</resources>

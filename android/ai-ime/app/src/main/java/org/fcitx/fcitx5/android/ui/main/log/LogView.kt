@@ -1,0 +1,118 @@
+/*
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ * SPDX-FileCopyrightText: Copyright 2021-2023 Fcitx5 for Android Contributors
+ */
+package org.fcitx.fcitx5.android.ui.main.log
+
+import android.content.Context
+import android.util.TypedValue
+import android.util.AttributeSet
+import android.widget.HorizontalScrollView
+import androidx.annotation.AttrRes
+import androidx.annotation.ColorRes
+import androidx.core.content.ContextCompat
+import androidx.core.text.buildSpannedString
+import androidx.core.text.color
+import androidx.lifecycle.findViewTreeLifecycleOwner
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import org.fcitx.fcitx5.android.R
+import org.fcitx.fcitx5.android.utils.Logcat
+import splitties.resources.styledColor
+import splitties.views.bottomPadding
+import splitties.views.dsl.core.add
+import splitties.views.dsl.core.lParams
+import splitties.views.dsl.core.matchParent
+import splitties.views.dsl.core.wrapContent
+import splitties.views.dsl.recyclerview.recyclerView
+import splitties.views.recyclerview.verticalLayoutManager
+
+class LogView @JvmOverloads constructor(context: Context, attributeSet: AttributeSet? = null) :
+    HorizontalScrollView(context, attributeSet) {
+
+    private var logcat: Logcat? = null
+
+    private val logAdapter = LogAdapter()
+
+    private val rv = recyclerView {
+        adapter = logAdapter
+        layoutManager = verticalLayoutManager()
+    }
+
+    init {
+        add(rv, lParams(wrapContent, matchParent))
+    }
+
+    override fun onDetachedFromWindow() {
+        logcat?.shutdownLogFlow()
+        super.onDetachedFromWindow()
+    }
+
+    fun append(content: String) {
+        logAdapter.append(buildSpannedString {
+            color(resolveColorAttrOrFallback(android.R.attr.colorForeground, R.color.grey_700)) {
+                append(content)
+            }
+        })
+    }
+
+    fun setLogcat(logcat: Logcat) {
+        this.logcat = logcat
+        logcat.initLogFlow()
+        logcat.logFlow.onEach {
+            val color = resolveColorAttrOrFallback(
+                when (it.first()) {
+                    'V' -> R.attr.colorLogVerbose
+                    'D' -> R.attr.colorLogDebug
+                    'I' -> R.attr.colorLogInfo
+                    'W' -> R.attr.colorLogWarning
+                    'E' -> R.attr.colorLogError
+                    'F' -> R.attr.colorLogFatal
+                    else -> android.R.attr.colorForeground
+                },
+                when (it.first()) {
+                    'V', 'D' -> R.color.grey_700
+                    'I' -> R.color.blue_500
+                    'W' -> R.color.yellow_800
+                    'E' -> R.color.red_400
+                    'F' -> R.color.red_A700
+                    else -> R.color.grey_700
+                },
+            )
+            logAdapter.append(buildSpannedString {
+                color(color) { append(it) }
+            })
+        }.launchIn(findViewTreeLifecycleOwner()!!.lifecycleScope)
+    }
+
+    val currentLog: String
+        get() = logAdapter.fullLogString()
+
+    fun clear() {
+        logAdapter.clear()
+    }
+
+    fun setBottomPadding(padding: Int) {
+        rv.clipToPadding = false
+        rv.bottomPadding = padding
+    }
+
+    private fun resolveColorAttrOrFallback(
+        @AttrRes attrRes: Int,
+        @ColorRes fallbackColorRes: Int,
+    ): Int {
+        return runCatching { styledColor(attrRes) }.getOrElse {
+            val typedValue = TypedValue()
+            if (context.theme.resolveAttribute(attrRes, typedValue, true)) {
+                when {
+                    typedValue.resourceId != 0 -> ContextCompat.getColor(context, typedValue.resourceId)
+                    typedValue.type in TypedValue.TYPE_FIRST_COLOR_INT..TypedValue.TYPE_LAST_COLOR_INT -> typedValue.data
+                    else -> ContextCompat.getColor(context, fallbackColorRes)
+                }
+            } else {
+                ContextCompat.getColor(context, fallbackColorRes)
+            }
+        }
+    }
+}

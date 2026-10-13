@@ -1,0 +1,16 @@
+<resources>
+    <style name="Theme.Oem.VoiceSettings" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:statusBarColor">#F5F7F6</item>
+        <item name="android:navigationBarColor">#F5F7F6</item>
+    </style>
+    <style name="Theme.AppCompat.TranslucentVoice" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:colorAccent">#0787FF</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:backgroundDimEnabled">false</item>
+    </style>
+</resources>

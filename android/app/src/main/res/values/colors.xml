@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="skb_elevation_color">#bfbfbf</color>
+    <color name="splash_bg">#000000</color>
+    <color name="splash_pink">#f93c65</color>
+    <color name="red_400">#EF5350</color>
+    <color name="color_gray">#B4B4B4</color>
+
+    <color name="x_recycler_color_text_gray">#FF777777</color>
+    <color name="x_recycler_color_loading_color1">#55777777</color>
+    <color name="x_recycler_color_loading_color2">#B1777777</color>
+    <color name="x_recycler_color_loading_color3">#FF777777</color>
+    <!-- Settings homepage palette -->
+    <color name="settings_bg">#F5F5F5</color>
+    <color name="oem_settings_page_bg">#F2F2F2</color>
+    <color name="settings_title">#333333</color>
+    <color name="settings_text">#333333</color>
+    <color name="settings_subtext">#999999</color>
+    <color name="settings_card_border">#E5E7EB</color>
+    <color name="settings_icon_tint">#333333</color>
+    <color name="settings_arrow_tint">#999999</color>
+    <color name="brand_green">#10B981</color>
+    
+    <!-- Content Card Colors -->
+    <color name="text_cyan">#00897B</color>
+    <color name="bg_cyan_light">#E0F2F1</color>
+    <color name="text_title_primary">#212121</color>
+    <color name="text_time_secondary">#9E9E9E</color>
+    <color name="indicator_cyan">#00BCD4</color>
+    
+    <!-- Navigation Bar Colors -->
+    <color name="nav_active_bg">#C9F138</color>
+    <color name="nav_active_content">#293400</color>
+    
+    <!-- New Navigation Colors -->
+    <color name="nav_bg_active">#FA6400</color>
+    <color name="nav_bg_inactive">#1A252525</color>
+    <color name="nav_icon_active">#FFFFFF</color>
+    <color name="nav_icon_inactive">#5C5C5C</color>
+    <color name="nav_text_active">#FFFFFF</color>
+
+    <!-- Register/Login Colors -->
+    <color name="register_bg">#212129</color>
+    <color name="register_red">#ff034f</color>
+    <color name="register_white">#ffffff</color>
+    <color name="register_input_bg">#00000000</color>
+    <color name="register_placeholder">#4DFFFFFF</color> <!-- 30% white approx -->
+</resources>

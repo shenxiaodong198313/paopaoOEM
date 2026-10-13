@@ -1,0 +1,9 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Theme.CompanyHost" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/company_primary</item>
+        <item name="colorPrimaryContainer">@color/company_primary_dark</item>
+        <item name="android:statusBarColor" tools:targetApi="l">@color/company_primary</item>
+        <item name="android:navigationBarColor">@android:color/white</item>
+        <item name="android:windowBackground">@color/company_surface</item>
+    </style>
+</resources>

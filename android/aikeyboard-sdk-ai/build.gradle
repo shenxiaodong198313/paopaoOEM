@@ -1,0 +1,83 @@
+plugins {
+    id 'com.android.library'
+    id 'maven-publish'
+}
+
+android {
+    def androidConfig = rootProject.ext.androidConfig
+    namespace = 'com.paopaoime.aikeyboard.sdk.ai'
+    compileSdk = androidConfig.compileSdk
+
+    defaultConfig {
+        minSdk = androidConfig.minSdkAi
+        targetSdk = androidConfig.targetSdk
+        consumerProguardFiles 'consumer-rules.pro'
+    }
+
+    publishing {
+        singleVariant('release') {
+            withSourcesJar()
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    buildFeatures {
+        buildConfig = false
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            consumerProguardFiles 'consumer-rules.pro'
+        }
+        debug {
+        }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+    }
+}
+
+dependencies {
+    def versions = rootProject.ext.versions
+    implementation "androidx.core:core-ktx:${versions.androidxCoreKtx}"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:${versions.coroutines}"
+}
+
+def oemSdkGroupId = 'com.paopaoime.oem'
+def oemSdkArtifactId = 'oem-ime-sdk-ai'
+def oemSdkVersion = rootProject.ext.oemSdkVersion
+def oemLocalRepoDir = rootProject.layout.buildDirectory.dir('oem-sdk-repo')
+
+afterEvaluate {
+    publishing {
+        publications {
+            release(MavenPublication) {
+                from components.release
+                groupId = oemSdkGroupId
+                artifactId = oemSdkArtifactId
+                version = oemSdkVersion
+
+                pom {
+                    name = 'Paopao OEM AI Runtime SDK'
+                    description = 'First-stage OEM AI runtime SDK for Paopao input method.'
+                }
+            }
+        }
+
+        repositories {
+            maven {
+                name = 'oemLocal'
+                url = uri(oemLocalRepoDir)
+            }
+        }
+    }
+}

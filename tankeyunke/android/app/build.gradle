@@ -1,0 +1,88 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.tankeyunkeime.keyboard'
+    compileSdk 36
+    ndkVersion "28.0.13004108"
+
+    defaultConfig {
+        applicationId 'com.tankeyunkeime.keyboard'
+        minSdk 26
+        targetSdk 36
+        versionCode 1
+        versionName "1.0"
+        ndk {
+            abiFilters 'arm64-v8a'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+            pickFirsts += 'lib/**/libonnxruntime.so'
+            pickFirsts += 'lib/**/libsherpa-onnx-c-api.so'
+            pickFirsts += 'lib/**/libsherpa-onnx-cxx-api.so'
+            pickFirsts += 'lib/**/libsherpa-onnx-jni.so'
+            pickFirsts += 'lib/**/libc++_shared.so'
+            pickFirsts += 'lib/**/libFcitxJsi.so'
+            pickFirsts += 'lib/**/libfcitx5.so'
+        }
+        resources {
+            excludes += 'META-INF/INDEX.LIST'
+            excludes += 'META-INF/DEPENDENCIES'
+            excludes += 'META-INF/*.version'
+            excludes += 'META-INF/AL2.0'
+            excludes += 'META-INF/LGPL2.1'
+        }
+    }
+
+    lint {
+        abortOnError = false
+        checkReleaseBuilds = false
+    }
+
+    buildTypes {
+        debug {
+            minifyEnabled false
+        }
+        release {
+            minifyEnabled false
+        }
+    }
+}
+
+dependencies {
+    def oemSdkVersion = '1.0.0.20260816'
+
+    implementation "com.paopaoime.oem:oem-ime-sdk-core:$oemSdkVersion"
+    implementation "com.paopaoime.oem:oem-ime-host-bridge:$oemSdkVersion"
+    implementation 'org.fcitx.fcitx5.android:app:1.6'
+    implementation 'org.fcitx.fcitx5.android.lib:common:1.0'
+    implementation 'org.fcitx.fcitx5.android.lib:fcitx5:1.0'
+    implementation 'org.fcitx.fcitx5.android.lib:fcitx5-chinese-addons:1.0'
+    implementation 'org.fcitx.fcitx5.android.lib:fcitx5-lua:1.0'
+    implementation 'org.fcitx.fcitx5.android.lib:libime:1.0'
+    implementation "com.paopaoime.oem:oem-ime-sdk-ai:$oemSdkVersion"
+    implementation "com.paopaoime.oem:oem-ime-sdk-ai-reply:$oemSdkVersion"
+    implementation 'com.paopaoime.oem.internal:paddleocr4android:1.0.0'
+    implementation "com.paopaoime.oem:oem-ime-sdk-material:$oemSdkVersion"
+    implementation "com.paopaoime.oem:oem-ime-sdk-automation:$oemSdkVersion"
+    implementation 'com.paopaoime.oem.internal.stellar:stellar-api:1.1'
+    implementation 'com.paopaoime.oem.internal.stellar:stellar-aidl:1.1'
+    implementation 'com.paopaoime.oem.internal.stellar:stellar-shared:1.1'
+    implementation 'com.paopaoime.oem.internal.stellar:stellar-provider:1.1'
+    implementation 'com.paopaoime.oem.internal.stellar:stellar-userservice:1.1'
+    implementation 'com.paopaoime.oem.internal.stellar:stellar-server:1.1'
+    implementation 'com.paopaoime.oem.internal.stellar:stellar-manager:1.1'
+    implementation 'com.paopaoime.oem.internal.stellar:stellar-shizuku-api:1.1'
+    implementation "com.paopaoime.oem:oem-ime-sdk-developer:$oemSdkVersion"
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib:2.3.21'
+    implementation 'androidx.appcompat:appcompat:1.7.1'
+}

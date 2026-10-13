@@ -1,0 +1,94 @@
+pluginManagement {
+    repositories {
+        maven { url 'https://mirrors.cloud.tencent.com/nexus/repository/maven-public/' }
+        maven { url 'https://repo.huaweicloud.com/repository/maven/' }
+        maven { url 'https://maven.aliyun.com/repository/google' }
+        maven { url 'https://maven.aliyun.com/repository/public' }
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+        maven { url 'https://jitpack.io' }
+    }
+    resolutionStrategy {
+        eachPlugin {
+            if (requested.id.id == 'io.objectbox') {
+                useModule("io.objectbox:objectbox-gradle-plugin:${requested.version}")
+            }
+        }
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        maven { url = uri('build/oem-sdk-repo') }
+        exclusiveContent {
+            forRepository {
+                maven { url 'https://jitpack.io' }
+            }
+            filter {
+                includeGroup 'com.github.squti'
+                includeGroup 'com.github.Juude.Markwon'
+                includeGroup 'com.github.Juude'
+                includeGroup 'com.github.topjohnwu.libsu'
+                includeGroup 'com.github.Kyant0'
+                includeGroup 'com.github.jeziellago'
+                includeGroup 'com.github.ybq'
+                includeGroup 'com.github.Excelsior-Technologies-Community'
+            }
+        }
+        maven { url 'https://maven.aliyun.com/repository/google' }
+        google()
+        maven { url 'https://mirrors.cloud.tencent.com/nexus/repository/maven-public/' }
+        maven { url 'https://repo.huaweicloud.com/repository/maven/' }
+        maven { url 'https://maven.aliyun.com/repository/public' }
+        mavenCentral {
+            content {
+                includeGroup 'com.alipay.sdk'
+            }
+        }
+    }
+    versionCatalogs {
+        libs {
+            from(files('third_party/stellar/gradle/libs.versions.toml'))
+        }
+        serverLibs {
+            from(files('third_party/stellar/server/server.versions.toml'))
+        }
+        apiLibs {
+            from(files('third_party/stellar/api/api.versions.toml'))
+        }
+        managerLibs {
+            from(files('third_party/stellar/manager/manager.versions.toml'))
+        }
+    }
+}
+
+rootProject.name = 'TankeImeKeyboardOEM'
+
+include ':sherpa-onnx', ':oem-ime-sdk-voice'
+include ':app', ':paddleocr4android', ':aikeyboard-sdk-ai', ':oem-ime-sdk-core', ':oem-ime-host-bridge'
+include ':oem-ime-sdk-automation', ':oem-ime-sdk-ai-reply', ':oem-ime-sdk-material', ':oem-ime-sdk-developer'
+include ':stellar-manager', ':stellar-server', ':stellar-aidl', ':stellar-shared', ':stellar-api', ':stellar-provider', ':stellar-userservice', ':stellar-shizuku-aidl', ':stellar-shizuku-api'
+
+project(':paddleocr4android').projectDir = file('paddleocr4android')
+project(':aikeyboard-sdk-ai').projectDir = file('aikeyboard-sdk-ai')
+project(':oem-ime-sdk-core').projectDir = file('oem-ime-sdk-core')
+project(':oem-ime-host-bridge').projectDir = file('oem-ime-host-bridge')
+project(':stellar-manager').projectDir = file('third_party/stellar/manager')
+project(':stellar-server').projectDir = file('third_party/stellar/server')
+project(':stellar-aidl').projectDir = file('third_party/stellar/api/aidl')
+project(':stellar-shared').projectDir = file('third_party/stellar/api/shared')
+project(':stellar-api').projectDir = file('third_party/stellar/api/api')
+project(':stellar-provider').projectDir = file('third_party/stellar/api/provider')
+project(':stellar-userservice').projectDir = file('third_party/stellar/api/userservice')
+project(':stellar-shizuku-aidl').projectDir = file('third_party/stellar/shizuku/aidl')
+project(':stellar-shizuku-api').projectDir = file('third_party/stellar/shizuku/api')
+
+if (System.getenv("PAOPAO_SKIP_AI_IME") != "1") {
+    includeBuild("ai-ime") {
+        dependencySubstitution {
+            substitute(module("org.fcitx.fcitx5.android:app")).using(project(":host-bridge"))
+        }
+    }
+}

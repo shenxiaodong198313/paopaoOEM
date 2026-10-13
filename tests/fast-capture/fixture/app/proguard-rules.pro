@@ -1,0 +1,73 @@
+-keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod
+
+# Keep the host entry points stable while allowing the rest of the demo host to shrink.
+-keep class com.paopaoime.company.CompanyApplication { *; }
+-keep class com.paopaoime.company.MainActivity { *; }
+-keep class com.paopaoime.company.EnterpriseRemoteLicenseProvider { *; }
+-keep class org.fcitx.fcitx5.android.** { *; }
+-keepclasseswithmembernames class * {
+    native <methods>;
+}
+
+# Optional desktop, OSGi, XML/XLSX and hidden API references are not packaged on Android.
+# Suppress these warnings so the demo host can still be minified in release builds.
+-dontwarn aQute.bnd.annotation.spi.ServiceConsumer
+-dontwarn aQute.bnd.annotation.spi.ServiceProvider
+-dontwarn android.app.IActivityManager$Stub
+-dontwarn android.app.IActivityManager
+-dontwarn android.content.pm.ILauncherApps
+-dontwarn android.content.pm.IPackageManager
+-dontwarn android.content.pm.UserInfo
+-dontwarn android.hardware.display.IDisplayManager
+-dontwarn android.os.IBatteryPropertiesRegistrar
+-dontwarn android.os.IDeviceIdleController
+-dontwarn android.os.IUserManager
+-dontwarn android.os.ServiceManager
+-dontwarn android.os.SystemProperties
+-dontwarn android.permission.IPermissionManager
+-dontwarn android.view.IWindowManager
+-dontwarn com.android.internal.app.IAppOpsService
+-dontwarn com.android.org.conscrypt.Conscrypt
+-dontwarn com.gemalto.jp2.JP2Decoder
+-dontwarn com.github.luben.zstd.ZstdInputStream
+-dontwarn edu.umd.cs.findbugs.annotations.Nullable
+-dontwarn java.awt.Color
+-dontwarn java.awt.Dimension
+-dontwarn java.awt.Rectangle
+-dontwarn java.awt.color.ColorSpace
+-dontwarn java.awt.geom.AffineTransform
+-dontwarn java.awt.geom.Dimension2D
+-dontwarn java.awt.geom.Path2D
+-dontwarn java.awt.geom.PathIterator
+-dontwarn java.awt.geom.Point2D
+-dontwarn java.awt.geom.Rectangle2D$Double
+-dontwarn java.awt.geom.Rectangle2D
+-dontwarn java.awt.image.BufferedImage
+-dontwarn java.awt.image.ColorModel
+-dontwarn java.awt.image.ComponentColorModel
+-dontwarn java.awt.image.DirectColorModel
+-dontwarn java.awt.image.IndexColorModel
+-dontwarn java.awt.image.PackedColorModel
+-dontwarn javax.imageio.ImageIO
+-dontwarn net.sf.saxon.Configuration
+-dontwarn net.sf.saxon.dom.DOMNodeWrapper
+-dontwarn net.sf.saxon.om.Item
+-dontwarn net.sf.saxon.om.NamespaceUri
+-dontwarn net.sf.saxon.om.NodeInfo
+-dontwarn net.sf.saxon.om.Sequence
+-dontwarn net.sf.saxon.om.SequenceTool
+-dontwarn net.sf.saxon.sxpath.IndependentContext
+-dontwarn net.sf.saxon.sxpath.XPathDynamicContext
+-dontwarn net.sf.saxon.sxpath.XPathEvaluator
+-dontwarn net.sf.saxon.sxpath.XPathExpression
+-dontwarn net.sf.saxon.sxpath.XPathStaticContext
+-dontwarn net.sf.saxon.sxpath.XPathVariable
+-dontwarn net.sf.saxon.tree.wrapper.VirtualNode
+-dontwarn net.sf.saxon.value.DateTimeValue
+-dontwarn net.sf.saxon.value.GDateValue
+-dontwarn org.osgi.framework.Bundle
+-dontwarn org.osgi.framework.BundleContext
+-dontwarn org.osgi.framework.FrameworkUtil
+-dontwarn org.osgi.framework.ServiceReference
+-dontwarn org.osgi.framework.wiring.BundleRevision
+-dontwarn org.slf4j.impl.StaticLoggerBinder

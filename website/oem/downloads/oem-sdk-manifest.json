@@ -1,0 +1,274 @@
+{
+  "schemaVersion": 1,
+  "sdkName": "Paopao OEM IME SDK",
+  "sdkVersion": "1.0.0.20261012",
+  "generatedAt": "2026-10-12T15:59:39+08:00",
+  "requestedModules": [
+    "all"
+  ],
+  "resolvedModules": [
+    "core",
+    "voice",
+    "ai",
+    "material",
+    "automation",
+    "developer"
+  ],
+  "modules": [
+    {
+      "id": "core",
+      "name": "基础 + 输入法核心",
+      "capability": "ui",
+      "required": true
+    },
+    {
+      "id": "voice",
+      "name": "离线语音",
+      "capability": "voice",
+      "required": false
+    },
+    {
+      "id": "ai",
+      "name": "AI 回复",
+      "capability": "ai",
+      "required": false
+    },
+    {
+      "id": "material",
+      "name": "素材库",
+      "capability": "material_library",
+      "required": false
+    },
+    {
+      "id": "automation",
+      "name": "Stellar 自动化",
+      "capability": "automation",
+      "required": false
+    },
+    {
+      "id": "developer",
+      "name": "开发者",
+      "capability": "developer",
+      "required": false
+    }
+  ],
+  "artifacts": [
+    {
+      "module": "core",
+      "group": "com.paopaoime.oem",
+      "artifact": "oem-ime-sdk-core",
+      "version": "1.0.0.20261012",
+      "file": "oem-ime-sdk-core-1.0.0.20261012.aar",
+      "md5": "5e3669323dcfc410bfb2eb028d6a73c9",
+      "sha256": "9046d10489456216e713c8a7f9764a8116fe72a9cce8433d24d199b16745f7ee"
+    },
+    {
+      "module": "core",
+      "group": "com.paopaoime.oem",
+      "artifact": "oem-ime-host-bridge",
+      "version": "1.0.0.20261012",
+      "file": "oem-ime-host-bridge-1.0.0.20261012.aar",
+      "md5": "6812c77a81b9730424b25f270d042817",
+      "sha256": "524f4fd0237ef621bb50799704f765032e6bdc61c934eb4c4ba680633ad64092"
+    },
+    {
+      "module": "core",
+      "group": "org.fcitx.fcitx5.android",
+      "artifact": "app",
+      "version": "1.13",
+      "file": "app-1.13.aar",
+      "md5": "bfb9b9e26465900b5efbc0c44e915bee",
+      "sha256": "c0d2c4a866059c01e4756c8607f92c4cfaa39112f8bb1217be54e4748900819d"
+    },
+    {
+      "module": "core",
+      "group": "org.fcitx.fcitx5.android.lib",
+      "artifact": "common",
+      "version": "1.0",
+      "file": "common-1.0.aar",
+      "md5": "4a83518e46f5e33da72dfccaed432ab6",
+      "sha256": "ba1c16dbde87bd589c634aec4b74da6ee5b3988873ae28eeff8f722e977fadc7"
+    },
+    {
+      "module": "core",
+      "group": "org.fcitx.fcitx5.android.lib",
+      "artifact": "fcitx5",
+      "version": "1.0",
+      "file": "fcitx5-1.0.aar",
+      "md5": "8c4c052003d0d249e795daa96aebbe35",
+      "sha256": "314b246e69492d2d5807b7fb4f31c74e228e32682bec3f55231e39a533aea640"
+    },
+    {
+      "module": "core",
+      "group": "org.fcitx.fcitx5.android.lib",
+      "artifact": "fcitx5-chinese-addons",
+      "version": "1.0",
+      "file": "fcitx5-chinese-addons-1.0.aar",
+      "md5": "98beb1e9873b6fafafecae98bc8df501",
+      "sha256": "1cf6e32c8d3b701042c893f6fbd6f2d6eafce3eed4e25f0db9334e2dd56ac9e1"
+    },
+    {
+      "module": "core",
+      "group": "org.fcitx.fcitx5.android.lib",
+      "artifact": "fcitx5-lua",
+      "version": "1.0",
+      "file": "fcitx5-lua-1.0.aar",
+      "md5": "a78c375a7cbfda55f3238a8f928dcb11",
+      "sha256": "ec8ac0ae822a464da8545b443800a422b0f9415ca02f7c0317360d4842e4acdd"
+    },
+    {
+      "module": "core",
+      "group": "org.fcitx.fcitx5.android.lib",
+      "artifact": "libime",
+      "version": "1.0",
+      "file": "libime-1.0.aar",
+      "md5": "91dd4942d098bab537dd339a820264ba",
+      "sha256": "d943ea48a0aa810ba47883ff4e638684ec4f3db0235cd59d62e30833111d247a"
+    },
+    {
+      "module": "voice",
+      "group": "com.paopaoime.oem",
+      "artifact": "oem-ime-sdk-voice",
+      "version": "1.0.0.20261012",
+      "file": "oem-ime-sdk-voice-1.0.0.20261012.aar",
+      "md5": "b78e38225017f91ed6d552a70c2f968a",
+      "sha256": "35b708021fcd4261302c742fc2342a471bb8d34d1882d03b26cd1c8640a53256"
+    },
+    {
+      "module": "voice",
+      "group": "com.paopaoime.oem.internal",
+      "artifact": "sherpa-onnx",
+      "version": "1.13.8",
+      "file": "sherpa-onnx-1.13.8.aar",
+      "md5": "3e6ac74ea89eb6eafac402c98473ac00",
+      "sha256": "b22c3fc1b6a45666d28892bb2f7694beeb77a8362d7ebd77c1a5431ec9435471"
+    },
+    {
+      "module": "ai",
+      "group": "com.paopaoime.oem",
+      "artifact": "oem-ime-sdk-ai",
+      "version": "1.0.0.20261012",
+      "file": "oem-ime-sdk-ai-1.0.0.20261012.aar",
+      "md5": "3085cf3980e705fa88d7448561ff9025",
+      "sha256": "1330881c58e819a7dea355984a743c957be1ff9fe1bc4abbb57748f4d9f2cd58"
+    },
+    {
+      "module": "ai",
+      "group": "com.paopaoime.oem",
+      "artifact": "oem-ime-sdk-ai-reply",
+      "version": "1.0.0.20261012",
+      "file": "oem-ime-sdk-ai-reply-1.0.0.20261012.aar",
+      "md5": "919565a508463c650947ea2ad80499b2",
+      "sha256": "01436e1555a582218640e1149068b2e2a51d7f05e996901f4ff3df67eadc402f"
+    },
+    {
+      "module": "ai",
+      "group": "com.paopaoime.oem.internal",
+      "artifact": "paddleocr4android",
+      "version": "1.0.0",
+      "file": "paddleocr4android-1.0.0.aar",
+      "md5": "9ba0009a99d01e8f7fe3f12d5d5ab7e7",
+      "sha256": "c8de45083cdfa47364b0a8887099ad667ddfcad31a15ca134a92e96958080e17"
+    },
+    {
+      "module": "material",
+      "group": "com.paopaoime.oem",
+      "artifact": "oem-ime-sdk-material",
+      "version": "1.0.0.20261012",
+      "file": "oem-ime-sdk-material-1.0.0.20261012.aar",
+      "md5": "6811a4476cdb87c7045ef395b45b76bf",
+      "sha256": "5da5b01aeaf7f23ce3b412ae1519b80c0300321baa93256bf34420e68709ca23"
+    },
+    {
+      "module": "automation",
+      "group": "com.paopaoime.oem",
+      "artifact": "oem-ime-sdk-automation",
+      "version": "1.0.0.20261012",
+      "file": "oem-ime-sdk-automation-1.0.0.20261012.aar",
+      "md5": "ebb89a0781fb32f3e2e340366e0f5153",
+      "sha256": "ce8afb464e561934c18b5a4d518c45a6124deffa4797b42cc77de8f3764e13a6"
+    },
+    {
+      "module": "automation",
+      "group": "com.paopaoime.oem.internal.stellar",
+      "artifact": "stellar-api",
+      "version": "1.1",
+      "file": "stellar-api-1.1.aar",
+      "md5": "8aa6ed9892dc254d4caf2c35c67102e2",
+      "sha256": "ef46ea20259938ac3d8e97501628e35efef45e22ccefd2816f857a58446a6950"
+    },
+    {
+      "module": "automation",
+      "group": "com.paopaoime.oem.internal.stellar",
+      "artifact": "stellar-aidl",
+      "version": "1.1",
+      "file": "stellar-aidl-1.1.aar",
+      "md5": "aeba3b177cbaad2d392177b0ba339d05",
+      "sha256": "95eec3a85e6df1e9ad799fcd927b891c9a48e4d38a93b2853c021a026e904fc4"
+    },
+    {
+      "module": "automation",
+      "group": "com.paopaoime.oem.internal.stellar",
+      "artifact": "stellar-shared",
+      "version": "1.1",
+      "file": "stellar-shared-1.1.aar",
+      "md5": "81743b83be86cda5910da4e3b0aad5c7",
+      "sha256": "e0c51d319b4bfe50026286d49e607002f100d965a4b32013d3ab9096e598f493"
+    },
+    {
+      "module": "automation",
+      "group": "com.paopaoime.oem.internal.stellar",
+      "artifact": "stellar-provider",
+      "version": "1.1",
+      "file": "stellar-provider-1.1.aar",
+      "md5": "db0c2b00a1566cc4502ef9451555c5e4",
+      "sha256": "b2500b35ac0006b964315a89fe1cd058309645adfa5355d966f5fbc6734b7127"
+    },
+    {
+      "module": "automation",
+      "group": "com.paopaoime.oem.internal.stellar",
+      "artifact": "stellar-userservice",
+      "version": "1.1",
+      "file": "stellar-userservice-1.1.aar",
+      "md5": "4048c0393fb000a7f26013e8a2f27572",
+      "sha256": "d0b70994be2896832de066d4f6c678c3261df027a5f7a96d42c445c6e5bcf3d8"
+    },
+    {
+      "module": "automation",
+      "group": "com.paopaoime.oem.internal.stellar",
+      "artifact": "stellar-server",
+      "version": "1.1",
+      "file": "stellar-server-1.1.aar",
+      "md5": "3c8e615acaa643c8c28aa8275f9b525d",
+      "sha256": "fd8410a38d74f842c1d22f38bb5cc26bb37ce1b74b8dd7ceb727ddeb9a4ab12b"
+    },
+    {
+      "module": "automation",
+      "group": "com.paopaoime.oem.internal.stellar",
+      "artifact": "stellar-manager",
+      "version": "1.1",
+      "file": "stellar-manager-1.1.aar",
+      "md5": "6745c9a8873a4efa2b49424cf43f60f6",
+      "sha256": "394958edbe9a4589bb1cad0289be22262081ec1ff14bdff06e3bffc82315f5a3"
+    },
+    {
+      "module": "automation",
+      "group": "com.paopaoime.oem.internal.stellar",
+      "artifact": "stellar-shizuku-api",
+      "version": "1.1",
+      "file": "stellar-shizuku-api-1.1.aar",
+      "md5": "d396195124c6edc106802a8cb266cc28",
+      "sha256": "afbb7f81f38ca39a95a518657a55cf9d723116c3e3178490382cce4690a3cc29"
+    },
+    {
+      "module": "developer",
+      "group": "com.paopaoime.oem",
+      "artifact": "oem-ime-sdk-developer",
+      "version": "1.0.0.20261012",
+      "file": "oem-ime-sdk-developer-1.0.0.20261012.aar",
+      "md5": "b1e9d52942bc68648d7f96717a4ab79b",
+      "sha256": "0cb7706dcd21bd1a10642e8ae00d63dc52781d4baa7d1708ed2fd209cfc3c00c"
+    }
+  ],
+  "missingArtifacts": []
+}

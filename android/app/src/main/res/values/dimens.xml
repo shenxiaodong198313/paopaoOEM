@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="nav_item_active_width">100dp</dimen>
+    <dimen name="kb_doc_thumb_size">56dp</dimen>
+    <dimen name="nav_item_active_size">42dp</dimen>
+    <dimen name="dp_8">8dp</dimen>
+</resources>

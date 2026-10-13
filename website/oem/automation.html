@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>泡泡输入法 OEM 自动化授权配置</title>
+  <meta name="description" content="第三方宿主接入泡泡输入法 OEM 自动化套餐时，必须执行的授权、发布和验收步骤。">
+  <link rel="stylesheet" href="./styles.css?v=20260723e">
+</head>
+<body>
+  <header class="doc-header">
+    <div class="doc-header-inner">
+      <a class="brand" href="./index.html">Paopao OEM</a>
+      <nav class="top-nav nav">
+        <a href="./index.html#intro">集成说明</a>
+        <a href="./API/">API接口</a>
+        <a href="./index.html#feature-overview">功能演示</a>
+        <a class="active" href="./automation.html">自动化配置</a>
+      </nav>
+      <div class="header-actions">
+        <a class="button secondary button-stack" href="https://www.paopaoime.com/oem/downloads/oem-sdk-delivery-latest.zip">
+          <span>下载SDK</span>
+          <small>更新于 2026-08-13</small>
+        </a>
+        <a class="button secondary" href="https://www.paopaoime.com/oem/downloads/oem-ime-demo-latest.apk">下载演示</a>
+        <a class="button secondary" href="https://www.paopaoime.com/oem/downloads/oem-ai-one-click-install-latest.md">AI一键装</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="doc-layout" id="top">
+    <aside class="doc-sidebar">
+      <div class="sidebar-panel">
+        <p class="sidebar-label">主菜单</p>
+        <nav class="sidebar-nav" data-scroll-nav>
+          <div class="nav-group">
+            <a class="nav-primary" href="./index.html#intro">产品介绍</a>
+            <div class="nav-sub">
+              <a href="./index.html#intro">集成说明</a>
+              <a href="./index.html#product-summary">交付摘要</a>
+            </div>
+          </div>
+
+          <div class="nav-group">
+            <a class="nav-primary" href="./index.html#integration-sdk">SDK集成</a>
+            <div class="nav-sub">
+              <a href="./index.html#delivery-package">获取交付包</a>
+              <a href="./index.html#delivery-layout-section">交付目录</a>
+              <a href="./index.html#repo-dependency">接入仓库和依赖</a>
+              <a href="./index.html#repo-example">仓库、依赖和权限示例</a>
+              <a href="./index.html#app-init">Application 初始化</a>
+              <a href="./index.html#manifest-section">Manifest 配置</a>
+              <a href="./index.html#automation-addon">自动化附加配置</a>
+              <a href="./index.html#acceptance">完成验收</a>
+            </div>
+          </div>
+
+          <div class="nav-group">
+            <a class="nav-primary" href="./API/">API接口</a>
+            <div class="nav-sub">
+              <a href="./API/#host-config">域名配置</a>
+              <a href="./API/#ai-mode">AI 模式</a>
+              <a href="./API/#qa-demo">质检演示</a>
+              <a href="./API/#json-viewer">JSON 查看</a>
+            </div>
+          </div>
+
+          <div class="nav-group">
+            <a class="nav-primary" href="./index.html#feature-overview">功能演示</a>
+            <div class="nav-sub">
+              <a href="./index.html#feature-first-open">首次打开</a>
+              <a href="./index.html#feature-switch">切换输入法</a>
+              <a href="./index.html#feature-modules">首页模块</a>
+              <a href="./index.html#feature-module-pages">模块子页面</a>
+              <a href="./index.html#feature-ai-reply">AI 回复抽屉</a>
+              <a href="./index.html#feature-material-library">素材库首页</a>
+            </div>
+          </div>
+
+          <div class="nav-group">
+            <a class="nav-primary active" href="./automation.html#intro">自动化配置</a>
+            <div class="nav-sub">
+              <a class="active" href="./automation.html#intro">自动化说明</a>
+              <a href="./automation.html#step-1">确认宿主包名</a>
+              <a href="./automation.html#step-2">授予权限</a>
+              <a href="./automation.html#step-5">重新发布输入法自动化引擎</a>
+              <a href="./automation.html#step-7">Release/R8 保护</a>
+              <a href="./automation.html#step-8">完成验收</a>
+            </div>
+          </div>
+        </nav>
+      </div>
+    </aside>
+
+    <main class="doc-content">
+      <section class="hero hero-single" id="intro">
+        <span class="tag">自动化配置</span>
+        <h1>泡泡输入法 OEM 自动化配置说明</h1>
+        <p class="lead">
+          本页说明自动化套餐的授权、发布与首次恢复动作，作为对外文档站中的自动化配置频道使用。
+        </p>
+        <div class="hero-actions">
+          <a class="button primary" href="#step-1">开始配置</a>
+          <a class="button secondary" href="./downloads/oem-ai-one-click-install-latest.md">下载 AI 一键装 SOP</a>
+          <a class="button secondary" href="./index.html#automation-addon">查看集成主文档</a>
+          <a class="button secondary" href="./API/">查看 API 页面</a>
+        </div>
+        <div class="hero-summary summary-grid">
+          <div class="summary-item">
+            <p class="panel-label">适用范围</p>
+            <strong>自动化套餐客户</strong>
+            <span>仅在明确交付自动化套餐时启用本页配置，默认集成不需要打开。</span>
+          </div>
+          <div class="summary-item">
+            <p class="panel-label">关键动作</p>
+            <strong>授权 / 发布 / 恢复</strong>
+            <span>重点覆盖宿主包名确认、权限授予、输入法自动化引擎重新发布与首次恢复链路；当前基线为 Stellar v1.0.18。</span>
+          </div>
+          <div class="summary-item">
+            <p class="panel-label">页面作用</p>
+            <strong>配置说明 + 验收路径</strong>
+            <span>用于指导客户完成自动化配置，并在交付后按固定步骤完成验收。</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="step-1">
+        <div class="section-head">
+          <p class="eyebrow">Step 1</p>
+          <h2>确认最终宿主包名</h2>
+        </div>
+        <article class="card">
+          <ol>
+            <li>自动化授权按最终安装到设备上的 `applicationId` 生效，不按源码包名生效。</li>
+            <li>如果客户使用了 `applicationIdSuffix`，必须以最终包名为准。</li>
+            <li>例如 `release` 是 `com.example.host`，`debug` 可能就是 `com.example.host.debug`。</li>
+          </ol>
+        </article>
+      </section>
+
+      <section class="section" id="step-2">
+        <div class="section-head">
+          <p class="eyebrow">Step 2</p>
+          <h2>授予 WRITE_SECURE_SETTINGS</h2>
+        </div>
+        <article class="card">
+          <ol>
+            <li>自动化快速启动链会尝试打开无线调试并连接本机 ADB，这一步要求宿主具备 `WRITE_SECURE_SETTINGS`。</li>
+            <li>如果没有这项权限，常见现象就是“自动化服务启动失败”“服务未运行”“授权应用为空白”。</li>
+          </ol>
+        </article>
+        <article class="code-card">
+          <div class="code-head">
+            <h3>授权示例</h3>
+          </div>
+          <pre><code>adb shell pm grant com.example.host.debug android.permission.WRITE_SECURE_SETTINGS</code></pre>
+        </article>
+      </section>
+
+      <section class="section" id="step-3">
+        <div class="section-head">
+          <p class="eyebrow">Step 3</p>
+          <h2>补 Application 初始化</h2>
+        </div>
+        <article class="code-card">
+          <div class="code-head">
+            <h3>Application 示例</h3>
+          </div>
+          <pre><code>OemHostRuntime.initialize(this)</code></pre>
+        </article>
+      </section>
+
+      <section class="section" id="step-4">
+        <div class="section-head">
+          <p class="eyebrow">Step 4</p>
+          <h2>补 Manifest 元数据</h2>
+        </div>
+        <article class="code-card">
+          <div class="code-head">
+            <h3>Manifest 示例</h3>
+          </div>
+          <pre><code>&lt;meta-data
+    android:name="com.paopaoime.oem.enableAutomation"
+    android:value="true" /&gt;
+
+&lt;meta-data
+    android:name="com.paopaoime.oem.enableAutomationSettingsEntry"
+    android:value="false" /&gt;
+
+// enableAutomationSettingsEntry 默认 false：仅企业明确需要时才显示“自动化设置”入口
+// 自动化权限元数据已由 SDK 默认合并，无需额外暴露底层引擎键名</code></pre>
+        </article>
+      </section>
+
+      <section class="section" id="step-5">
+        <div class="section-head">
+          <p class="eyebrow">Step 5</p>
+          <h2>按宿主包名重新发布输入法自动化引擎</h2>
+        </div>
+        <article class="card">
+          <ol>
+            <li>宿主包名变化后，输入法自动化引擎制品必须重新发布。</li>
+            <li>否则会出现“授权应用为空”“服务未运行”“Binder 无法握手”等问题。</li>
+          </ol>
+        </article>
+        <article class="code-card">
+          <div class="code-head">
+            <h3>发布参数示例</h3>
+          </div>
+          <pre><code>automationEngineApplicationId=com.example.host.debug
+automationEngineDefaultAllowedPackages=com.example.host.debug,com.example.host</code></pre>
+        </article>
+      </section>
+
+      <section class="section" id="step-6">
+        <div class="section-head">
+          <p class="eyebrow">Step 6</p>
+          <h2>重新导出 SDK 压缩包</h2>
+        </div>
+        <article class="card">
+          <ol>
+            <li>输入法自动化引擎重新发布后，必须重新导出 `OEM/SDK`。</li>
+            <li>对客户交付的应该是新的 `oem-sdk-delivery-*.zip`，而不是只告知参数。</li>
+            <li>固定下载地址：<a href="https://www.paopaoime.com/oem/downloads/oem-sdk-delivery-latest.zip">oem-sdk-delivery-latest.zip</a></li>
+          </ol>
+        </article>
+      </section>
+
+      <section class="section" id="step-7">
+        <div class="section-head">
+          <p class="eyebrow">Step 7</p>
+          <h2>检查 Release/R8 保护</h2>
+        </div>
+        <article class="card">
+          <ol>
+            <li>`stellar-server-1.0.0.aar` 内必须包含 `proguard.txt`。</li>
+            <li>`proguard.txt` 必须保留 `roro.stellar.server.**`，避免 Release/R8 后 `app_process` 找不到 `ServerBootstrap`。</li>
+            <li>`proguard.txt` 必须包含 Android hidden API 的 `-dontwarn`，例如 `ActivityThread`、`DdmHandleAppName`、`SELinux`。</li>
+            <li>若漏掉该保护，常见现象是开关停留在“正在启动自动化服务”、授权无法落盘、`logcat` 出现 `ClassNotFoundException: roro.stellar.server.bootstrap.ServerBootstrap`。</li>
+          </ol>
+        </article>
+      </section>
+
+      <section class="section" id="step-8">
+        <div class="section-head">
+          <p class="eyebrow">Step 8</p>
+          <h2>完成验收</h2>
+        </div>
+        <article class="card">
+          <ol>
+            <li>确认宿主能打开内嵌“输入法自动化引擎”。</li>
+            <li>确认宿主已具备 `WRITE_SECURE_SETTINGS`。</li>
+            <li>确认自动化引擎 Provider Authority 已按当前宿主包名完成配置。</li>
+            <li>确认“授权应用”中能看到当前宿主包名。</li>
+            <li>确认启动服务后，重新进入输入法设置页仍可正常打开自动化相关入口。</li>
+            <li>确认第三方 App 跳转到自动化引擎授权时，权限为“询问”的来源 App 可触发官方快速授权弹窗。</li>
+            <li>点击自动化开关后，`adb shell ps -A | findstr stellar` 能看到 `stellar_server`。</li>
+            <li>`adb logcat` 能看到 `Calling main entry roro.stellar.server.bootstrap.ServerBootstrap`，且不能出现 `ClassNotFoundException`。</li>
+            <li>输入法设置页自动化摘要显示已检测到可用自动化引擎服务，并提示当前输入法已获得授权。</li>
+          </ol>
+        </article>
+      </section>
+    </main>
+
+  </div>
+
+  <script src="./app.js"></script>
+  <script src="./md-copy.js"></script>
+</body>
+</html>

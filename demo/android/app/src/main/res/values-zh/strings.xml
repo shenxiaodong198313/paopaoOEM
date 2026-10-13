@@ -1,0 +1,9 @@
+<resources>
+    <string name="company_ime_display_name">@string/company_app_name</string>
+    <item name="app_name" type="string">@string/company_ime_display_name</item>
+    <item name="paopao_app_name" type="string">@string/company_ime_display_name</item>
+    <item name="ime_app_name" type="string">@string/company_ime_display_name</item>
+    <item name="material_hub_title" type="string">@string/company_ime_display_name</item>
+    <item name="splash_title_paopao" type="string">@string/company_ime_display_name</item>
+    <item name="input_method_settings_page_title" type="string">@string/company_ime_display_name</item>
+</resources>

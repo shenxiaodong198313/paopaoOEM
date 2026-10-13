@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@android:color/transparent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="16dp">
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="清晰度选择"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1"/>
+        <ImageView
+            android:id="@+id/btn_close_params"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_menu_arrow_down"
+            android:background="?attr/selectableItemBackgroundBorderless"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="24dp">
+
+        <TextView
+            android:id="@+id/btn_resolution_1k"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:layout_marginEnd="8dp"
+            android:gravity="center"
+            android:text="1k 标准"
+            android:textColor="#FFFFFF"
+            android:background="@drawable/bg_btn_secondary_gray" />
+
+        <TextView
+            android:id="@+id/btn_resolution_2k"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:gravity="center"
+            android:text="2k 高清"
+            android:textColor="#FFFFFF"
+            android:background="@drawable/bg_btn_primary_blue" />
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="图片比例"
+        android:textColor="#FFFFFF"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="12dp"/>
+
+    <GridLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:columnCount="4"
+        android:rowCount="2"
+        android:layout_marginBottom="24dp">
+        
+        <!-- Row 1 -->
+        <TextView android:id="@+id/btn_ratio_1_1" android:text="1:1" style="@style/RatioButtonStyle"/>
+        <TextView android:id="@+id/btn_ratio_9_16" android:text="9:16" style="@style/RatioButtonStyle" android:background="@drawable/bg_option_selected_green"/>
+        <TextView android:id="@+id/btn_ratio_16_9" android:text="16:9" style="@style/RatioButtonStyle"/>
+        <TextView android:id="@+id/btn_ratio_4_3" android:text="4:3" style="@style/RatioButtonStyle"/>
+        
+        <!-- Row 2 -->
+        <TextView android:id="@+id/btn_ratio_3_2" android:text="3:2" style="@style/RatioButtonStyle"/>
+        <TextView android:id="@+id/btn_ratio_2_3" android:text="2:3" style="@style/RatioButtonStyle"/>
+        <TextView android:id="@+id/btn_ratio_3_4" android:text="3:4" style="@style/RatioButtonStyle"/>
+        <TextView android:id="@+id/btn_ratio_21_9" android:text="21:9" style="@style/RatioButtonStyle"/>
+    </GridLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="12dp">
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="生成数量："
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+        <TextView
+            android:id="@+id/tv_count_value"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="4张"
+            android:textColor="#4C87FF"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:layout_marginStart="8dp"/>
+    </LinearLayout>
+
+    <SeekBar
+        android:id="@+id/seekbar_count"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:max="3" 
+        android:progress="3"
+        android:progressTint="#4CAF50"
+        android:thumbTint="#4CAF50"
+        android:layout_marginBottom="24dp"/>
+
+    <Button
+        android:id="@+id/btn_generate_action"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:text="生成"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:textColor="#000000"
+        android:background="@drawable/bg_btn_generate_green"
+        android:drawableStart="@drawable/ic_sharp_light_mode_24"
+        android:drawableTint="#000000"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"/>
+
+</LinearLayout>

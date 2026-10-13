@@ -1,0 +1,685 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>泡泡输入法 OEM API 参考与调试</title>
+  <meta name="description" content="泡泡输入法 OEM API 说明页，覆盖素材库标准协议、Input QA 与在线调试演示。">
+  <link rel="stylesheet" href="../styles.css?v=20260723e">
+</head>
+<body>
+  <header class="doc-header">
+    <div class="doc-header-inner">
+      <a class="brand" href="../index.html">Paopao OEM</a>
+      <nav class="top-nav nav">
+        <a href="../index.html#intro">集成说明</a>
+        <a class="active" href="../API/">API接口</a>
+        <a href="../index.html#feature-overview">功能演示</a>
+        <a href="../automation.html">自动化配置</a>
+      </nav>
+      <div class="header-actions">
+        <a class="button secondary button-stack" href="https://www.paopaoime.com/oem/downloads/oem-sdk-delivery-latest.zip">
+          <span>下载SDK</span>
+          <small>更新于 2026-08-13</small>
+        </a>
+        <a class="button secondary" href="https://www.paopaoime.com/oem/downloads/oem-ime-demo-latest.apk">下载演示</a>
+        <a class="button secondary" href="https://www.paopaoime.com/oem/downloads/oem-ai-one-click-install-latest.md">AI一键装</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="doc-layout" id="top">
+    <aside class="doc-sidebar">
+      <div class="sidebar-panel">
+        <p class="sidebar-label">主菜单</p>
+        <nav class="sidebar-nav" data-scroll-nav>
+          <div class="nav-group">
+            <a class="nav-primary" href="../index.html#intro">产品介绍</a>
+            <div class="nav-sub">
+              <a href="../index.html#intro">集成说明</a>
+              <a href="../index.html#product-summary">交付摘要</a>
+            </div>
+          </div>
+
+          <div class="nav-group">
+            <a class="nav-primary" href="../index.html#integration-sdk">SDK集成</a>
+            <div class="nav-sub">
+              <a href="../index.html#delivery-package">获取交付包</a>
+              <a href="../index.html#delivery-layout-section">交付目录</a>
+              <a href="../index.html#repo-dependency">接入仓库和依赖</a>
+              <a href="../index.html#repo-example">仓库、依赖和权限示例</a>
+              <a href="../index.html#app-init">Application 初始化</a>
+              <a href="../index.html#manifest-section">Manifest 配置</a>
+              <a href="../index.html#automation-addon">自动化附加配置</a>
+              <a href="../index.html#acceptance">完成验收</a>
+            </div>
+          </div>
+
+          <div class="nav-group">
+            <a class="nav-primary active" href="../API/#host-config">API接口</a>
+            <div class="nav-sub">
+              <a class="active" href="../API/#host-config">域名配置</a>
+              <a href="../API/#ai-mode">AI 模式</a>
+              <a href="../API/#material-standard">素材库协议</a>
+              <a href="../API/#material-demo">素材库调试</a>
+              <a href="../API/#qa-demo">质检演示</a>
+              <a href="../API/#json-viewer">JSON 查看</a>
+            </div>
+          </div>
+
+          <div class="nav-group">
+            <a class="nav-primary" href="../index.html#feature-overview">功能演示</a>
+            <div class="nav-sub">
+              <a href="../index.html#feature-first-open">首次打开</a>
+              <a href="../index.html#feature-switch">切换输入法</a>
+              <a href="../index.html#feature-modules">首页模块</a>
+              <a href="../index.html#feature-module-pages">模块子页面</a>
+              <a href="../index.html#feature-ai-reply">AI 回复抽屉</a>
+              <a href="../index.html#feature-material-library">素材库首页</a>
+            </div>
+          </div>
+
+          <div class="nav-group">
+            <a class="nav-primary" href="../automation.html#intro">自动化配置</a>
+            <div class="nav-sub">
+              <a href="../automation.html#intro">自动化说明</a>
+              <a href="../automation.html#step-1">确认宿主包名</a>
+              <a href="../automation.html#step-2">授予权限</a>
+              <a href="../automation.html#step-5">重新发布输入法自动化引擎</a>
+              <a href="../automation.html#step-7">完成验收</a>
+            </div>
+          </div>
+        </nav>
+      </div>
+    </aside>
+
+    <main class="doc-content">
+      <section class="hero hero-single">
+        <span class="tag">API接口</span>
+        <h1>泡泡输入法 OEM API 联调说明</h1>
+        <p class="lead">
+          本页用于说明 OEM 对外交付保留的核心联网边界，作为对外文档站中的 API 接口频道使用。
+          企业宿主只需要配置统一的 `apiBaseUrl`，即可按标准协议接入输入质检、素材库服务端管理、AI 代理与自动化能力。
+        </p>
+        <div class="hero-actions">
+          <a class="button primary" href="#material-demo">开始素材库联调</a>
+          <a class="button secondary" href="../downloads/oem-ai-one-click-install-latest.md">下载 AI 一键装 SOP</a>
+          <a class="button secondary" href="../index.html#api-overview">查看集成主文档</a>
+          <a class="button secondary" href="../automation.html">查看自动化配置</a>
+        </div>
+        <div class="hero-summary summary-grid">
+          <div class="summary-item">
+            <p class="panel-label">演示域名</p>
+            <strong>https://api.enterprise.example.com</strong>
+            <span>这里只展示企业自有域名占位方式，正式接入必须显式替换，不再默认回退到 `paopaoime` 域名。</span>
+          </div>
+          <div class="summary-item">
+            <p class="panel-label">接口边界</p>
+            <strong>质检 / 素材库 / AI / 自动化</strong>
+            <span>当前页面聚焦对外交付仍保留的联网配置与联调能力，未交付能力不在此页承诺。</span>
+          </div>
+          <div class="summary-item">
+            <p class="panel-label">页面作用</p>
+            <strong>标准协议 + 在线演示</strong>
+            <span>既可查看标准字段，也可在线上传附件、创建素材、修改删除并查看 JSON 详情。</span>
+          </div>
+        </div>
+      </section>
+
+    <section class="section" id="host-config">
+      <div class="section-head">
+        <p class="eyebrow">Host Config</p>
+        <h2>企业 API 域名</h2>
+      </div>
+      <article class="card step-card">
+        <p>宿主统一通过 `com.paopaoime.oem.apiBaseUrl` 指定企业后端基础域名。`customerId` 填我方交付的企业码，`appKey` 当前与企业码同值，`channel` 无特殊约定保持 `release`。若企业未开通、企业被停用，或当前设备席位被管理员停用，AI 回复、素材库等增值能力会显示受限。</p>
+      </article>
+      <article class="code-card step-code">
+        <div class="code-head">
+          <h3>Manifest 示例</h3>
+          <button class="copy-button" data-copy-target="host-config-code">复制代码</button>
+        </div>
+        <pre id="host-config-code"><code>&lt;meta-data
+    android:name="com.paopaoime.oem.apiBaseUrl"
+    android:value="https://api.enterprise.example.com" /&gt;</code></pre>
+      </article>
+    </section>
+
+    <section class="section" id="ai-mode">
+      <div class="section-head">
+        <p class="eyebrow">AI Mode</p>
+        <h2>双模式 AI</h2>
+      </div>
+      <article class="card step-card">
+        <ol>
+          <li>`proxy`：只走企业代理，适合统一鉴权、审计和额度控制。</li>
+          <li>`direct`：SDK 直接请求兼容 OpenAI 的模型地址，适合快速联调。</li>
+          <li>`dual`：优先代理，代理未配置或不可用时自动回退到直连。</li>
+        </ol>
+      </article>
+      <article class="code-card step-code">
+        <div class="code-head">
+          <h3>AI Manifest 示例</h3>
+          <button class="copy-button" data-copy-target="ai-config-code">复制代码</button>
+        </div>
+        <pre id="ai-config-code"><code>&lt;meta-data
+    android:name="com.paopaoime.oem.aiMode"
+    android:value="dual" /&gt;
+&lt;meta-data
+    android:name="com.paopaoime.oem.aiOpenAiBaseUrl"
+    android:value="https://your-openai-compatible-host/v1" /&gt;
+&lt;meta-data
+    android:name="com.paopaoime.oem.aiOpenAiApiKey"
+    android:value="your_api_key" /&gt;
+&lt;meta-data
+    android:name="com.paopaoime.oem.aiOpenAiModel"
+    android:value="gpt-4o-mini" /&gt;</code></pre>
+      </article>
+    </section>
+
+    <section class="section" id="material-standard">
+      <div class="section-head">
+        <p class="eyebrow">Material Library</p>
+        <h2>素材库标准协议</h2>
+      </div>
+      <article class="card step-card">
+        <p>素材库原有“本地添加素材”能力保持不变。本次新增的是一套标准版服务端对接协议：客户可以在自己的 `apiBaseUrl` 下，按相同字段协议实现素材上传、查询、修改、删除；也可以在网关层自行映射路径。</p>
+        <p class="api-inline-tip">重点约束：单个文案/图片/文档/视频都属于素材；多类型编组素材通过 `parts` 数组按顺序组合。</p>
+        <p class="api-inline-tip">客户端同步策略已更新为“无感后台同步”：用户每次唤起输入法时，系统都会在后台静默检查最近 10 条元数据并按需补齐附件。</p>
+        <p class="api-inline-tip">后台低频任务默认每小时检查一次远端素材状态；输入法保活周期内则继续静默同步，因此抽屉首页不再单独展示下载按钮。</p>
+      </article>
+      <article class="code-card step-code">
+        <div class="code-head">
+          <h3>推荐标准路径</h3>
+          <button class="copy-button" data-copy-target="material-endpoints-code">复制代码</button>
+        </div>
+        <pre id="material-endpoints-code"><code>POST {apiBaseUrl}/api/v1/material-library/assets:upload
+GET  {apiBaseUrl}/api/v1/material-library/assets
+GET  {apiBaseUrl}/api/v1/material-library/assets/{assetId}
+POST {apiBaseUrl}/api/v1/material-library/materials
+GET  {apiBaseUrl}/api/v1/material-library/materials
+GET  {apiBaseUrl}/api/v1/material-library/materials/{materialId}
+PUT  {apiBaseUrl}/api/v1/material-library/materials/{materialId}
+DELETE {apiBaseUrl}/api/v1/material-library/materials/{materialId}</code></pre>
+      </article>
+      <article class="code-card step-code">
+        <div class="code-head">
+          <h3>编组素材示例</h3>
+          <button class="copy-button" data-copy-target="material-parts-code">复制代码</button>
+        </div>
+        <pre id="material-parts-code"><code>{
+  "materialId": "material_group_001",
+  "title": "售前资料编组",
+  "description": "先发欢迎话术，再发产品图和产品手册",
+  "customerId": "your_customer_id",
+  "channel": "release",
+  "tags": ["销售", "首触达"],
+  "parts": [
+    {
+      "partId": "part_text_001",
+      "type": "text",
+      "text": "您好，这里是泡泡输入法 OEM 方案资料。"
+    },
+    {
+      "partId": "part_image_001",
+      "type": "attachment",
+      "assetId": "asset_image_001",
+      "displayName": "oem-cover.png",
+      "mimeType": "image/png",
+      "attachmentType": "image",
+      "fileSizeBytes": 182736,
+      "downloadUrl": "https://api.example.com/files/asset_image_001"
+    },
+    {
+      "partId": "part_doc_001",
+      "type": "attachment",
+      "assetId": "asset_doc_001",
+      "displayName": "oem-intro.pdf",
+      "mimeType": "application/pdf",
+      "attachmentType": "document",
+      "fileSizeBytes": 548120,
+      "downloadUrl": "https://api.example.com/files/asset_doc_001"
+    }
+  ]
+}</code></pre>
+      </article>
+    </section>
+
+    <section class="section" id="material-demo">
+      <div class="section-head">
+        <p class="eyebrow">Material Demo</p>
+        <h2>发布素材与在线调试</h2>
+      </div>
+      <article class="card step-card">
+        <p>本区只演示标准协议与字段结构，不再把 `paopaoime` 域名当作默认企业后端。正式接入时，宿主必须把 `apiBaseUrl` 改成自己的企业服务端域名。</p>
+        <p class="api-inline-tip">演示接口：`/api/v1/oem/material-library-demo/*`。页面默认只查看并维护最近 `10` 条素材。</p>
+        <p class="api-inline-tip">联调口径已调整为无感后台同步：输入法被用户唤起后会在后台静默检查并下载最近素材，抽屉里不再显示单独的下载按钮。</p>
+        <p class="api-inline-tip">本区支持先上传图片 / 视频 / 文档，再通过右上角新增按钮打开弹窗，逐条添加素材条目并整体保存为一个素材组。</p>
+      </article>
+      <div class="qa-monitor asset-monitor material-demo-grid">
+        <article class="card qa-monitor-card">
+          <div class="qa-toolbar">
+            <div>
+              <h3>上传附件</h3>
+              <p class="api-status">上传后的附件可直接在新增素材弹窗中选用。</p>
+            </div>
+          </div>
+          <form id="asset-upload-form" class="api-form">
+            <div class="form-grid compact-form-grid">
+              <label class="form-field">
+                <span class="form-label-row">
+                  <span>选择文件</span>
+                  <span class="field-badge required">必填</span>
+                </span>
+                <small class="field-hint">支持图片、视频和文档，单文件大小不超过 80MB。</small>
+                <input type="file" id="asset-file" name="assetFile" required />
+              </label>
+              <label class="form-field">
+                <span class="form-label-row">
+                  <span>attachmentType</span>
+                  <span class="field-badge optional">可选</span>
+                </span>
+                <small class="field-hint">可手动指定 image / video / document；留空时后端会自动推断。</small>
+                <select id="asset-attachment-type" name="attachmentType">
+                  <option value="">自动识别</option>
+                  <option value="image">image</option>
+                  <option value="video">video</option>
+                  <option value="document">document</option>
+                </select>
+              </label>
+              <label class="form-field">
+                <span class="form-label-row">
+                  <span>customerId</span>
+                  <span class="field-badge optional">可选</span>
+                </span>
+                <small class="field-hint">企业标识，会随附件元数据一起保存。</small>
+                <input name="assetCustomerId" value="customer_demo" />
+              </label>
+              <label class="form-field">
+                <span class="form-label-row">
+                  <span>channel</span>
+                  <span class="field-badge optional">可选</span>
+                </span>
+                <small class="field-hint">渠道标识，例如 release、gray。</small>
+                <input name="assetChannel" value="release" />
+              </label>
+            </div>
+            <div class="api-toolbar-actions">
+              <button class="button primary" type="submit" id="upload-asset">上传附件</button>
+              <button class="button secondary" type="button" id="refresh-assets">刷新附件列表</button>
+            </div>
+            <p class="api-status" id="asset-upload-status">等待上传</p>
+          </form>
+        </article>
+        <article class="card qa-monitor-card">
+          <div class="qa-toolbar">
+            <div>
+              <h3>最近附件</h3>
+              <p class="api-status" id="asset-table-status">等待刷新</p>
+            </div>
+            <button class="button secondary" type="button" id="refresh-asset-table">刷新附件</button>
+          </div>
+          <div class="qa-table-wrap">
+            <table class="qa-table">
+              <thead>
+                <tr>
+                  <th>文件名</th>
+                  <th>类型</th>
+                  <th>大小</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="asset-table-body">
+                <tr>
+                  <td colspan="4" class="qa-empty">当前还没有上传附件。</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+      </div>
+      <article class="code-card qa-json-card step-card">
+        <div class="code-head">
+          <h3>附件 JSON</h3>
+        </div>
+        <pre class="json-viewer compact-json-viewer" id="asset-json"><code>{}</code></pre>
+      </article>
+      <article class="card step-card">
+        <div class="qa-toolbar">
+          <div>
+            <h3>最近 10 条素材</h3>
+            <p class="api-status" id="material-table-status">右上角新增按钮会打开发布弹窗。每个条目只选择一种媒体类型，连续添加后整体保存为一个素材组。</p>
+          </div>
+          <div class="api-toolbar-actions">
+            <button class="button primary" type="button" id="open-material-modal">新增素材组</button>
+            <button class="button secondary" type="button" id="refresh-materials">刷新最近 10 条</button>
+          </div>
+        </div>
+        <div class="material-group-summary" id="material-group-summary">
+          当前未选中素材，等待刷新。
+        </div>
+        <div class="qa-table-wrap">
+          <table class="qa-table">
+            <thead>
+              <tr>
+                <th>标题</th>
+                <th>条目预览</th>
+                <th>条目数</th>
+                <th>更新时间</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="material-table-body">
+              <tr>
+                <td colspan="5" class="qa-empty">当前还没有演示素材。</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="api-toolbar-actions top-gap-sm">
+          <button class="button secondary" type="button" id="load-selected-material">回填到弹窗</button>
+          <button class="button secondary" type="button" id="delete-selected-material">删除选中素材</button>
+        </div>
+        <p class="api-status" id="material-form-status">等待创建</p>
+      </article>
+      <div class="qa-monitor">
+        <article class="code-card qa-json-card">
+          <div class="code-head">
+            <h3>素材 JSON</h3>
+          </div>
+          <pre class="json-viewer" id="material-json"><code>{}</code></pre>
+        </article>
+      </div>
+      <div class="modal-shell" id="material-modal" hidden>
+        <div class="modal-backdrop" data-close-material-modal></div>
+        <article class="card modal-card">
+          <div class="modal-head">
+            <div>
+              <p class="eyebrow">Material Builder</p>
+              <h3>新增素材组</h3>
+              <p class="api-status">不同媒体类型作为单选项逐条添加，最后按当前条目数整体保存为一个素材组。</p>
+            </div>
+            <button class="button secondary" type="button" data-close-material-modal>关闭</button>
+          </div>
+          <form id="material-form" class="api-form">
+            <div class="form-grid">
+              <label class="form-field">
+                <span class="form-label-row">
+                  <span>materialId</span>
+                  <span class="field-badge optional">可选</span>
+                </span>
+                <small class="field-hint">新建时可留空，系统会自动生成；回填已有素材后可用于验证更新接口。</small>
+                <input name="materialId" placeholder="创建时可留空，更新时可回填" />
+              </label>
+              <label class="form-field">
+                <span class="form-label-row">
+                  <span>title</span>
+                  <span class="field-badge required">必填</span>
+                </span>
+                <small class="field-hint">素材组标题，会展示在网站列表和手机端素材列表中。</small>
+                <input name="title" value="OEM 素材演示" required />
+              </label>
+              <label class="form-field">
+                <span class="form-label-row">
+                  <span>customerId</span>
+                  <span class="field-badge optional">可选</span>
+                </span>
+                <small class="field-hint">如需按企业隔离素材，请填写我方交付的企业码。</small>
+                <input name="customerId" value="your_customer_id" />
+              </label>
+              <label class="form-field">
+                <span class="form-label-row">
+                  <span>channel</span>
+                  <span class="field-badge optional">可选</span>
+                </span>
+                <small class="field-hint">渠道标识，例如 release、gray；客户端可按企业规则使用。</small>
+                <input name="channel" value="release" />
+              </label>
+              <label class="form-field">
+                <span class="form-label-row">
+                  <span>tags（逗号分隔）</span>
+                  <span class="field-badge optional">可选</span>
+                </span>
+                <small class="field-hint">多个标签使用逗号分隔，常用于演示分类、业务线或触达场景。</small>
+                <input name="tags" value="演示,官网" />
+              </label>
+            </div>
+            <label class="form-field">
+              <span class="form-label-row">
+                <span>description</span>
+                <span class="field-badge optional">可选</span>
+              </span>
+              <small class="field-hint">素材组的补充说明，便于企业管理端或演示环境理解该组素材用途。</small>
+              <textarea name="description" rows="3">用于演示 OEM 素材库标准 CRUD 协议。</textarea>
+            </label>
+            <section class="parts-builder modal-builder">
+              <div class="part-builder-head">
+                <div>
+                  <strong>条目添加区</strong>
+                  <p class="part-builder-hint">每次只添加一种媒体类型。添加成功后会自动清空当前录入区，方便继续添加下一条。</p>
+                </div>
+                <div class="api-toolbar-actions">
+                  <button class="button secondary" type="button" id="fill-text-example">填充文案示例</button>
+                  <button class="button secondary" type="button" id="fill-group-example">填充编组示例</button>
+                </div>
+              </div>
+              <div class="type-radio-group" id="part-type-radio-group">
+                <label class="type-radio-option">
+                  <input type="radio" name="partType" value="text" checked />
+                  <span>文案</span>
+                </label>
+                <label class="type-radio-option">
+                  <input type="radio" name="partType" value="image" />
+                  <span>图片</span>
+                </label>
+                <label class="type-radio-option">
+                  <input type="radio" name="partType" value="video" />
+                  <span>视频</span>
+                </label>
+                <label class="type-radio-option">
+                  <input type="radio" name="partType" value="document" />
+                  <span>文档</span>
+                </label>
+              </div>
+              <div class="entry-editor-grid" id="entry-editor-grid">
+                <label class="form-field" id="text-entry-field">
+                  <span class="form-label-row">
+                    <span>text</span>
+                    <span class="field-badge required">必填</span>
+                  </span>
+                  <small class="field-hint">文案类型时填写发送内容，保存后会形成一个 text 条目。</small>
+                  <textarea id="material-entry-text" rows="4" placeholder="请输入素材文案"></textarea>
+                </label>
+                <div class="entry-asset-fields" id="asset-entry-fields" hidden>
+                  <label class="form-field">
+                    <span class="form-label-row">
+                      <span>关联附件</span>
+                      <span class="field-badge required">必填</span>
+                    </span>
+                    <small class="field-hint">请选择已上传的附件。列表会优先显示与当前媒体类型匹配的附件。</small>
+                    <select id="material-entry-asset-select">
+                      <option value="">请选择已上传附件</option>
+                    </select>
+                  </label>
+                  <div class="asset-selection-preview" id="material-entry-asset-preview">
+                    当前未选择附件。
+                  </div>
+                </div>
+              </div>
+              <div class="api-toolbar-actions">
+                <button class="button primary" type="button" id="append-material-entry">添加当前条目</button>
+                <button class="button secondary" type="button" id="clear-material-entries">清空已添加条目</button>
+              </div>
+              <div class="material-entry-board">
+                <div class="material-entry-board-head">
+                  <strong>素材条目列表</strong>
+                  <span class="material-entry-count" id="material-entry-count">已添加 0 条</span>
+                </div>
+                <div id="material-part-list" class="part-list"></div>
+              </div>
+            </section>
+            <label class="form-field">
+              <span class="form-label-row">
+                <span>生成的 parts JSON</span>
+                <span class="field-badge required">必填</span>
+              </span>
+              <small class="field-hint">该区域会根据已添加的素材条目自动生成，仅用于联调查看最终提交结构。</small>
+              <textarea class="material-parts-editor" id="material-parts-json" name="partsJson" rows="12" required>[
+  {
+    "partId": "part_text_demo",
+    "type": "text",
+    "text": "这是一条来自 OEM 官网 API 频道的素材演示文案。"
+  }
+]</textarea>
+            </label>
+            <div class="api-toolbar-actions">
+              <button class="button primary" type="button" id="create-material">保存素材组</button>
+              <button class="button secondary" type="button" id="update-material">验证更新接口</button>
+            </div>
+          </form>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" id="qa-demo">
+      <div class="section-head">
+        <p class="eyebrow">Input QA</p>
+        <h2>真实可写演示接口</h2>
+      </div>
+      <article class="card step-card">
+        <p>演示写入接口：`POST /api/v1/oem/input-qa-demo/sessions`，请求体会实时写入独立 JSON 存储，便于在线核对字段结构。</p>
+      </article>
+      <article class="card step-card">
+        <h3>四种模式怎么测</h3>
+        <ol>
+          <li>`CLOUD_ONLY`：只要本页“最近 10 条会话”出现新记录，即可判定云端上传链路正常。</li>
+          <li>`HOST_ONLY`：本页不会出现真实会话，应改看宿主 App 自己的会话接收列表、日志或落库表。</li>
+          <li>`DUAL_WRITE`：本页和宿主 App 两边都应出现同一时段的新记录，适合作为首次联调默认模式。</li>
+          <li>`LOCAL_ONLY`：本页不会出现真实会话，此模式仅用于本地排障或临时关闭外部流转。</li>
+        </ol>
+      </article>
+      <article class="card step-card">
+        <h3>真实联调建议</h3>
+        <ol>
+          <li>先把宿主 `apiBaseUrl` 指到企业联调域名，例如 `https://api.enterprise.example.com`；不要留空，也不要再依赖 `paopaoime` 域名默认值。</li>
+          <li>真实输入建议直接在微信、企业微信、浏览器等外部第三方 App 中输入一句固定文案。</li>
+          <li>若同时验证宿主回调，宿主侧记录里的 `targetPackageName / targetAppName` 应显示真实输入发生的外部第三方 App。</li>
+          <li>本页读取的是最近 10 条云端会话；宿主侧若配置了 `HOST_ONLY` 或 `DUAL_WRITE`，还应自行实现 `sessionArchiveListener` 用于展示或落库。</li>
+        </ol>
+      </article>
+      <article class="card step-card">
+        <h3>宿主回调和云端协议不是同一个对象</h3>
+        <ol>
+          <li>本页“请求体示例”展示的是云端输入质检写入协议，用于官网/API 页验证上传链路。</li>
+          <li>宿主 `sessionArchiveListener` 收到的是 `OemSessionArchiveEvent`，核心字段为 `eventId / sessionId / hostApplicationId / targetPackageName / targetAppName / maskedContent / inputSource / policyState / timestamp`。</li>
+          <li>`channel` 目前属于宿主初始化与 Manifest 配置维度，用来区分客户渠道/环境，不是当前云端输入质检请求体的必填字段。</li>
+          <li>验收时不要把官网最近 10 条和宿主回调对象混为一套口径；前者看云端上传，后者看宿主自管数据。</li>
+        </ol>
+      </article>
+      <article class="code-card step-code">
+        <div class="code-head">
+          <h3>请求体示例</h3>
+          <button class="copy-button" data-copy-target="qa-request-code">复制代码</button>
+        </div>
+        <pre id="qa-request-code"><code>{
+  "sessionId": "qa_demo_001",
+  "packageName": "com.example.host",
+  "appName": "企业输入法宿主",
+  "qaContent": "用户输入的候选词与会话内容",
+  "inputSource": "type",
+  "policyState": "DUAL_WRITE",
+  "timestamp": 1784448000000
+}</code></pre>
+      </article>
+      <article class="card step-card">
+        <form id="qa-demo-form" class="api-form">
+          <div class="form-grid">
+            <label class="form-field">
+              <span>sessionId</span>
+              <input name="sessionId" value="qa_demo_web" />
+            </label>
+            <label class="form-field">
+              <span>packageName</span>
+              <input name="packageName" value="com.example.host" required />
+            </label>
+            <label class="form-field">
+              <span>appName</span>
+              <input name="appName" value="企业输入法宿主" />
+            </label>
+            <label class="form-field">
+              <span>inputSource</span>
+              <input name="inputSource" value="type" />
+            </label>
+            <label class="form-field">
+              <span>policyState</span>
+              <input name="policyState" value="DUAL_WRITE" />
+            </label>
+            <label class="form-field">
+              <span>timestamp</span>
+              <input name="timestamp" />
+            </label>
+          </div>
+          <label class="form-field">
+            <span>qaContent</span>
+            <textarea name="qaContent" rows="6" required>这是一条来自 OEM 官网演示页的输入质检样例。</textarea>
+          </label>
+          <div class="hero-actions">
+            <button class="button primary" type="submit">提交演示数据</button>
+            <button class="button secondary" type="button" id="refresh-list">刷新列表</button>
+          </div>
+          <p class="api-status" id="submit-status">等待提交</p>
+        </form>
+      </article>
+    </section>
+
+    <section class="section" id="json-viewer">
+      <div class="section-head">
+        <p class="eyebrow">JSON</p>
+        <h2>在线查看</h2>
+      </div>
+      <article class="card step-card">
+        <p>下方表格直接读取最近 10 条输入会话。点击左侧任意一行，右侧会同步刷新对应 JSON；点击“刷新会话”即可重新拉取最新数据，无需整页刷新。</p>
+      </article>
+      <div class="qa-monitor">
+        <article class="card qa-monitor-card">
+          <div class="qa-toolbar">
+            <div>
+              <h3>最近 10 条会话</h3>
+              <p class="api-status" id="table-status">等待刷新</p>
+            </div>
+            <button class="button secondary" type="button" id="refresh-table">刷新会话</button>
+          </div>
+          <div class="qa-table-wrap">
+            <table class="qa-table">
+              <thead>
+                <tr>
+                  <th>输入文本</th>
+                  <th>宿主</th>
+                  <th>时间</th>
+                </tr>
+              </thead>
+              <tbody id="session-table-body">
+                <tr>
+                  <td colspan="3" class="qa-empty">当前还没有演示数据。</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+        <article class="code-card qa-json-card">
+          <div class="code-head">
+            <h3>会话 JSON</h3>
+          </div>
+          <pre class="json-viewer" id="session-json"><code>{}</code></pre>
+        </article>
+      </div>
+    </section>
+    </main>
+
+  </div>
+
+  <script src="../app.js"></script>
+  <script src="./api-channel.js"></script>
+  <script src="../md-copy.js"></script>
+</body>
+</html>

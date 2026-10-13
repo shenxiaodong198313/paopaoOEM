@@ -1,0 +1,37 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="81dp"
+    android:height="78dp"
+    android:viewportWidth="81"
+    android:viewportHeight="78">
+  <path
+      android:pathData="M0 39C0 17.4609 17.4609 0 39 0h3v78h-3C17.4609 78 0 60.5391 0 39z"
+      android:fillColor="#FFFFFF"/>
+  <path
+      android:pathData="M42 0h39v78H42z"
+      android:fillColor="#FFFFFF"/>
+  <!-- Simplified rect rotation and stroke logic -->
+  <path
+      android:pathData="M37.89 33.66l12.87 -11.04l2.84 3.32l-12.87 11.04z"
+      android:strokeColor="#262A2F"
+      android:strokeWidth="2.18"/>
+  <path
+      android:pathData="M28.3 48.7 l10 -8 l5 5 l-10 8 z"
+      android:strokeColor="#262A2F"
+      android:strokeWidth="2.18"/>
+  <!-- Replaced the complex rotated rect with a simplified approximation or just the path provided in SVG which was:
+       <rect x="24.5385" y="37.2645" width="21.0862" height="17.4123" rx="6.25684" transform="rotate(-40.6126 24.5385 37.2645)" stroke="#262A2F" stroke-width="2.18215"/>
+       Android Vector Drawable doesn't support 'transform' on paths easily without group.
+       I'll try to use a group rotation.
+  -->
+  <group android:rotation="-40.6126" android:pivotX="24.5385" android:pivotY="37.2645">
+      <path
+          android:pathData="M30.7953,37.2645h8.5725c3.4555,0 6.2568,2.8013 6.2568,6.2568v4.8987c0,3.4555 -2.8013,6.2568 -6.2568,6.2568h-8.5725c-3.4555,0 -6.2568,-2.8013 -6.2568,-6.2568v-4.8987c0,-3.4555 2.8013,-6.2568 6.2568,-6.2568z"
+          android:strokeColor="#262A2F"
+          android:strokeWidth="2.18215"/>
+  </group>
+  <path
+      android:pathData="M43.7891 44.1744L49.8426 51.2341"
+      android:strokeColor="#262A2F"
+      android:strokeWidth="2.18216"
+      android:strokeLineCap="round"/>
+</vector>

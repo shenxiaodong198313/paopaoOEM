@@ -1,0 +1,11 @@
+Android Code
+Copyright 2005-2008 The Android Open Source Project
+This product includes audio developed as part of The Android Open Source Project.
+License: Apache License, Version 2.0 (see key_click.LICENSE.txt).
+
+key_click.wav is the unchanged AOSP data/sounds/effects/KeypressStandard.wav.
+Source: https://android.googlesource.com/platform/frameworks/base/+/refs/heads/main/data/sounds/effects/KeypressStandard.wav
+Retrieved 2026-09-30. SHA-256:
+582cc6170c0988f8becee97908de92e24edb09ae7dfddc616f5f316528b09255
+Android PAOPAOIME uses AudioManager.FX_KEYPRESS_STANDARD. Manufacturer system
+sound variants can differ. This asset provides the standard AOSP keypress on Harmony.

@@ -1,0 +1,747 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_page_dark"
+    android:fitsSystemWindows="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <!-- 顶部导航 -->
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:paddingHorizontal="16dp">
+
+            <ImageView
+                android:id="@+id/iv_back"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_menu_close"
+                app:tint="#FFFFFF"
+                android:layout_centerVertical="true"/>
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_centerInParent="true"
+                android:gravity="center_vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="图片生成"
+                    android:textColor="#FFFFFF"
+                    android:textSize="18sp"
+                    android:textStyle="bold"/>
+                <ImageView
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:src="@drawable/ic_menu_arrow_down"
+                    app:tint="#FFFFFF"
+                    android:layout_marginStart="4dp"/>
+            </LinearLayout>
+            
+            <ImageView
+                android:id="@+id/btn_my_assets"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_toStartOf="@id/btn_model_select"
+                android:layout_centerVertical="true"
+                android:layout_marginEnd="12dp"
+                android:padding="4dp"
+                android:src="@android:drawable/ic_menu_gallery"
+                app:tint="#FFFFFF" />
+
+            <LinearLayout
+                 android:id="@+id/btn_model_select"
+                 android:layout_width="wrap_content"
+                 android:layout_height="wrap_content"
+                 android:layout_alignParentEnd="true"
+                 android:layout_centerVertical="true"
+                 android:background="@drawable/bg_card_dark_12dp"
+                 android:paddingHorizontal="8dp"
+                 android:paddingVertical="4dp"
+                 android:gravity="center_vertical">
+                 <ImageView
+                     android:id="@+id/iv_current_model_icon"
+                     android:layout_width="16dp"
+                     android:layout_height="16dp"
+                     android:layout_marginEnd="6dp"
+                     android:src="@drawable/ic_model_creative_default" />
+                 <TextView
+                     android:id="@+id/tv_current_model"
+                     android:layout_width="wrap_content"
+                     android:layout_height="wrap_content"
+                     android:text="图片2.1"
+                     android:textColor="#FFFFFF"
+                     android:textSize="12sp"/>
+                 <ImageView
+                     android:layout_width="12dp"
+                     android:layout_height="12dp"
+                     android:src="@drawable/ic_menu_arrow_down"
+                     app:tint="#FFFFFF"
+                     android:layout_marginStart="4dp"/>
+            </LinearLayout>
+        </RelativeLayout>
+
+        <!-- Tab 切换 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="12dp">
+            
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:background="@drawable/bg_pill_container_dark"
+                android:orientation="horizontal"
+                android:padding="2dp">
+
+                <TextView
+                    android:id="@+id/tab_text2img"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:text="文生图"
+                    android:textColor="#FFFFFF"
+                    android:textSize="14sp"
+                    android:background="@drawable/bg_pill_tab_selected_gray" />
+
+                <TextView
+                    android:id="@+id/tab_img2img"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:text="参考生图"
+                    android:textSize="14sp"
+                    android:textColor="#999999" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- 文生图面板 -->
+        <LinearLayout
+            android:id="@+id/panel_text2img"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp">
+            
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_card_dark_12dp"
+                android:padding="16dp">
+                
+                <EditText
+                    android:id="@+id/et_prompt_text2img"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@null"
+                    android:hint="可以直接描述想生成的图片内容。例如：美丽的油画少女，柔光落在她脸上"
+                    android:textColor="#FFFFFF"
+                    android:textColorHint="#666666"
+                    android:gravity="top|start"
+                    android:textSize="14sp"
+                    android:lineSpacingExtra="4dp"
+                    android:paddingBottom="60dp"/>
+                    
+                <!-- Style Button Overlay -->
+                <FrameLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="bottom|start"
+                    android:layout_marginBottom="0dp">
+                    
+                    <ImageView
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:src="@drawable/img_edit_profile_avatar_default" 
+                        android:scaleType="centerCrop"
+                        android:background="@drawable/bg_card_white_12dp"
+                        android:backgroundTint="#333333"/>
+                        
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="+ 风格"
+                        android:textColor="#FFFFFF"
+                        android:textSize="12sp"
+                        android:background="#4CAF50"
+                        android:paddingHorizontal="8dp"
+                        android:paddingVertical="2dp"
+                        android:layout_gravity="bottom|end"
+                        android:layout_marginStart="24dp"/>
+                </FrameLayout>
+                
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="bottom|end"
+                    android:orientation="horizontal">
+                     <ImageView
+                         android:layout_width="24dp"
+                         android:layout_height="24dp"
+                         android:src="@drawable/ic_skill_brain"
+                         app:tint="#FFFFFF"
+                         android:alpha="0.7"/>
+                </LinearLayout>
+            </FrameLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:paddingVertical="12dp"
+                android:gravity="center_vertical">
+                
+                <HorizontalScrollView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:scrollbars="none">
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="猫耳少年"
+                            android:textColor="#AAAAAA"
+                            android:background="@drawable/bg_tag_dark"
+                            android:paddingHorizontal="12dp"
+                            android:paddingVertical="8dp"
+                            android:layout_marginEnd="8dp"/>
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="怪诞虚实"
+                            android:textColor="#AAAAAA"
+                            android:background="@drawable/bg_tag_dark"
+                            android:paddingHorizontal="12dp"
+                            android:paddingVertical="8dp"
+                            android:layout_marginEnd="8dp"/>
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="午后心事"
+                            android:textColor="#AAAAAA"
+                            android:background="@drawable/bg_tag_dark"
+                            android:paddingHorizontal="12dp"
+                            android:paddingVertical="8dp"/>
+                    </LinearLayout>
+                </HorizontalScrollView>
+                
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_rotate_right_24"
+                    app:tint="#AAAAAA"
+                    android:layout_marginStart="8dp"/>
+            </LinearLayout>
+            
+            <TextView
+                 android:layout_width="match_parent"
+                 android:layout_height="wrap_content"
+                 android:text="① 内容由AI生成，禁止利用功能从事违法活动"
+                 android:textColor="#666666"
+                 android:textSize="12sp"
+                 android:layout_marginBottom="16dp"/>
+        </LinearLayout>
+
+        <!-- 图生图面板 -->
+        <LinearLayout
+            android:id="@+id/panel_img2img"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp"
+            android:visibility="gone">
+
+            <!-- 单图/多图 切换 -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="16dp">
+                
+                <TextView
+                    android:id="@+id/tab_single_ref"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="单图参考"
+                    android:textColor="#FFFFFF"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:paddingBottom="4dp"/>
+                    
+                <TextView
+                    android:id="@+id/tab_multi_ref"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="多图参考"
+                    android:textColor="#999999"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:layout_marginStart="24dp"
+                    android:paddingBottom="4dp"/>
+                
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="NEW"
+                    android:textColor="#4CAF50"
+                    android:textSize="10sp"
+                    android:textStyle="bold"
+                    android:layout_marginStart="2dp"
+                    android:layout_gravity="top"/>
+            </LinearLayout>
+            
+            <View
+                android:id="@+id/indicator_ref_tabs"
+                android:layout_width="64dp"
+                android:layout_height="2dp"
+                android:background="#FFFFFF"
+                android:layout_marginTop="4dp"/>
+
+            <TextView
+                 android:id="@+id/tv_ref_hint"
+                 android:layout_width="wrap_content"
+                 android:layout_height="wrap_content"
+                 android:text="请至少上传2张以上参考图（不限制类型）"
+                 android:textColor="#666666"
+                 android:textSize="12sp"
+                 android:layout_marginTop="8dp"
+                 android:visibility="gone"/>
+
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1">
+                
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <!-- 单图参考布局 -->
+                    <LinearLayout
+                        android:id="@+id/layout_single_ref"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <LinearLayout
+                            android:id="@+id/btn_add_reference_image"
+                            android:layout_width="match_parent"
+                            android:layout_height="100dp"
+                            android:orientation="horizontal"
+                            android:background="@drawable/bg_card_dark_12dp"
+                            android:layout_marginTop="16dp"
+                            android:gravity="center_vertical"
+                            android:paddingHorizontal="16dp">
+                            
+                            <ImageView
+                                android:layout_width="24dp"
+                                android:layout_height="24dp"
+                                android:src="@drawable/ic_menu_plus"
+                                app:tint="#4CAF50"/>
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="添加参考图"
+                                android:textColor="#4CAF50"
+                                android:textSize="16sp"
+                                android:layout_marginStart="8dp"/>
+                             
+                            <View android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1"/>
+                            
+                            <ImageView
+                                android:id="@+id/iv_reference_preview"
+                                android:layout_width="80dp"
+                                android:layout_height="80dp"
+                                android:scaleType="centerCrop"
+                                android:background="#333333"
+                                android:visibility="gone"/>
+                        </LinearLayout>
+                        
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="支持最大 10MB 的 jpg/png"
+                            android:textColor="#666666"
+                            android:textSize="12sp"
+                            android:layout_marginTop="8dp"/>
+                    </LinearLayout>
+
+                    <!-- 多图参考布局 -->
+                    <LinearLayout
+                        android:id="@+id/layout_multi_ref"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <!-- 主体 -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:background="@drawable/bg_card_dark_12dp"
+                            android:padding="12dp"
+                            android:layout_marginTop="12dp">
+                            
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="主体"
+                                    android:textColor="#FFFFFF"
+                                    android:textStyle="bold"/>
+                                <View android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1"/>
+                                <TextView
+                                    android:id="@+id/tv_subject_count"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="0/4"
+                                    android:textColor="#666666"
+                                    android:textSize="12sp"/>
+                            </LinearLayout>
+
+                            <LinearLayout
+                                android:id="@+id/container_subject_images"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:layout_marginTop="12dp">
+                                
+                                <!-- Add Button -->
+                                <LinearLayout
+                                    android:id="@+id/btn_add_subject"
+                                    android:layout_width="80dp"
+                                    android:layout_height="80dp"
+                                    android:background="#333333"
+                                    android:gravity="center"
+                                    android:orientation="vertical">
+                                    <ImageView
+                                        android:layout_width="24dp"
+                                        android:layout_height="24dp"
+                                        android:src="@drawable/ic_menu_plus"
+                                        app:tint="#4CAF50"/>
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="上传主体图"
+                                        android:textColor="#4CAF50"
+                                        android:textSize="10sp"
+                                        android:layout_marginTop="4dp"/>
+                                </LinearLayout>
+                            </LinearLayout>
+                        </LinearLayout>
+
+                        <!-- 场景 -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:background="@drawable/bg_card_dark_12dp"
+                            android:padding="12dp"
+                            android:layout_marginTop="12dp">
+                            
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="场景"
+                                    android:textColor="#FFFFFF"
+                                    android:textStyle="bold"/>
+                            </LinearLayout>
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:layout_marginTop="12dp">
+                                
+                                <!-- Add Button -->
+                                <LinearLayout
+                                    android:id="@+id/btn_add_scene"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="100dp"
+                                    android:background="#333333"
+                                    android:gravity="center"
+                                    android:orientation="horizontal">
+                                    <ImageView
+                                        android:layout_width="24dp"
+                                        android:layout_height="24dp"
+                                        android:src="@drawable/ic_menu_plus"
+                                        app:tint="#4CAF50"/>
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="上传场景图"
+                                        android:textColor="#4CAF50"
+                                        android:textSize="14sp"
+                                        android:layout_marginStart="8dp"/>
+                                </LinearLayout>
+                                
+                                 <!-- Preview Container (Hidden by default) -->
+                                 <FrameLayout
+                                     android:id="@+id/container_scene_preview"
+                                     android:layout_width="match_parent"
+                                     android:layout_height="100dp"
+                                     android:visibility="gone">
+                                     <ImageView
+                                         android:id="@+id/iv_scene_preview"
+                                         android:layout_width="match_parent"
+                                         android:layout_height="match_parent"
+                                         android:scaleType="centerCrop"/>
+                                     <LinearLayout
+                                         android:layout_width="match_parent"
+                                         android:layout_height="wrap_content"
+                                         android:layout_gravity="bottom"
+                                         android:background="#99000000"
+                                         android:padding="4dp">
+                                         <TextView
+                                             android:id="@+id/btn_replace_scene"
+                                             android:layout_width="0dp"
+                                             android:layout_height="wrap_content"
+                                             android:layout_weight="1"
+                                             android:text="替换"
+                                             android:textColor="#FFFFFF"
+                                             android:gravity="center"
+                                             android:textSize="12sp"/>
+                                          <View android:layout_width="1dp" android:layout_height="match_parent" android:background="#666666"/>
+                                         <TextView
+                                             android:id="@+id/btn_delete_scene"
+                                             android:layout_width="0dp"
+                                             android:layout_height="wrap_content"
+                                             android:layout_weight="1"
+                                             android:text="删除"
+                                             android:textColor="#FFFFFF"
+                                             android:gravity="center"
+                                             android:textSize="12sp"/>
+                                     </LinearLayout>
+                                 </FrameLayout>
+                            </LinearLayout>
+                        </LinearLayout>
+
+                        <!-- 风格 -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:background="@drawable/bg_card_dark_12dp"
+                            android:padding="12dp"
+                            android:layout_marginTop="12dp">
+                            
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical">
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="风格"
+                                    android:textColor="#FFFFFF"
+                                    android:textStyle="bold"/>
+                            </LinearLayout>
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:layout_marginTop="12dp">
+                                
+                                <!-- Add Button -->
+                                <LinearLayout
+                                    android:id="@+id/btn_add_style"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="100dp"
+                                    android:background="#333333"
+                                    android:gravity="center"
+                                    android:orientation="horizontal">
+                                    <ImageView
+                                        android:layout_width="24dp"
+                                        android:layout_height="24dp"
+                                        android:src="@drawable/ic_menu_plus"
+                                        app:tint="#4CAF50"/>
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="上传风格图"
+                                        android:textColor="#4CAF50"
+                                        android:textSize="14sp"
+                                        android:layout_marginStart="8dp"/>
+                                </LinearLayout>
+
+                                 <!-- Preview Container (Hidden by default) -->
+                                 <FrameLayout
+                                     android:id="@+id/container_style_preview"
+                                     android:layout_width="match_parent"
+                                     android:layout_height="100dp"
+                                     android:visibility="gone">
+                                     <ImageView
+                                         android:id="@+id/iv_style_preview"
+                                         android:layout_width="match_parent"
+                                         android:layout_height="match_parent"
+                                         android:scaleType="centerCrop"/>
+                                     <LinearLayout
+                                         android:layout_width="match_parent"
+                                         android:layout_height="wrap_content"
+                                         android:layout_gravity="bottom"
+                                         android:background="#99000000"
+                                         android:padding="4dp">
+                                         <TextView
+                                             android:id="@+id/btn_replace_style"
+                                             android:layout_width="0dp"
+                                             android:layout_height="wrap_content"
+                                             android:layout_weight="1"
+                                             android:text="替换"
+                                             android:textColor="#FFFFFF"
+                                             android:gravity="center"
+                                             android:textSize="12sp"/>
+                                          <View android:layout_width="1dp" android:layout_height="match_parent" android:background="#666666"/>
+                                         <TextView
+                                             android:id="@+id/btn_delete_style"
+                                             android:layout_width="0dp"
+                                             android:layout_height="wrap_content"
+                                             android:layout_weight="1"
+                                             android:text="删除"
+                                             android:textColor="#FFFFFF"
+                                             android:gravity="center"
+                                             android:textSize="12sp"/>
+                                     </LinearLayout>
+                                 </FrameLayout>
+                            </LinearLayout>
+                        </LinearLayout>
+
+                    </LinearLayout>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="创意描述"
+                        android:textColor="#FFFFFF"
+                        android:textSize="14sp"
+                        android:layout_marginTop="24dp"/>
+                        
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="120dp"
+                        android:background="@drawable/bg_card_dark_12dp"
+                        android:padding="16dp"
+                        android:layout_marginTop="8dp">
+                         <EditText
+                            android:id="@+id/et_prompt_img2img"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:background="@null"
+                            android:hint="描述你想生成的画面和动作..."
+                            android:textColor="#FFFFFF"
+                            android:textColorHint="#666666"
+                            android:gravity="top|start"
+                            android:textSize="14sp"/>
+                    </FrameLayout>
+                </LinearLayout>
+            </ScrollView>
+        </LinearLayout>
+
+        <!-- 底部生成栏 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="16dp"
+            android:gravity="center_vertical">
+            
+            <LinearLayout
+                android:id="@+id/btn_params_summary"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:background="@drawable/bg_card_dark_12dp"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="16dp"
+                android:orientation="horizontal">
+                
+                <TextView
+                    android:id="@+id/tv_summary_resolution"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="2k高清"
+                    android:textColor="#FFFFFF"
+                    android:textSize="12sp"/>
+                 <View
+                     android:layout_width="1dp"
+                     android:layout_height="12dp"
+                     android:background="#444444"
+                     android:layout_marginHorizontal="8dp"/>
+                 <TextView
+                     android:id="@+id/tv_summary_ratio"
+                     android:layout_width="wrap_content"
+                     android:layout_height="wrap_content"
+                     android:text="3:4"
+                     android:textColor="#FFFFFF"
+                     android:textSize="12sp"/>
+                 <View
+                     android:layout_width="1dp"
+                     android:layout_height="12dp"
+                     android:background="#444444"
+                     android:layout_marginHorizontal="8dp"/>
+                 <TextView
+                     android:id="@+id/tv_summary_count"
+                     android:layout_width="wrap_content"
+                     android:layout_height="wrap_content"
+                     android:text="2张"
+                     android:textColor="#FFFFFF"
+                     android:textSize="12sp"/>
+                     
+                 <ImageView
+                     android:layout_width="16dp"
+                     android:layout_height="16dp"
+                     android:src="@drawable/ic_menu_arrow_up"
+                     app:tint="#FFFFFF"
+                     android:layout_marginStart="8dp"/>
+            </LinearLayout>
+            
+            <View android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1"/>
+            
+            <Button
+                android:id="@+id/btn_generate_main"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:text="生成"
+                android:textColor="#000000"
+                android:textStyle="bold"
+                android:textSize="16sp"
+                android:background="@drawable/bg_btn_generate_gradient_green"
+                app:backgroundTint="@null"
+                android:paddingHorizontal="32dp"
+                android:minWidth="120dp"/>
+                
+        </LinearLayout>
+
+    </LinearLayout>
+
+</RelativeLayout>

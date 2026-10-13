@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:clickable="true"
+    android:focusable="true"
+    android:foreground="?attr/selectableItemBackgroundBorderless">
+
+    <View
+        android:id="@+id/view_skin_theme_palette_fill"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <ImageView
+        android:id="@+id/image_skin_theme_palette_selected"
+        android:layout_width="18dp"
+        android:layout_height="18dp"
+        android:layout_gravity="end|bottom"
+        android:layout_marginEnd="4dp"
+        android:layout_marginBottom="4dp"
+        android:background="@drawable/bg_skin_theme_check_badge"
+        android:padding="4dp"
+        android:src="@drawable/ic_menu_done"
+        android:visibility="gone" />
+</FrameLayout>

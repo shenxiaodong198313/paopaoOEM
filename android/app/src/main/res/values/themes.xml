@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Theme.AppTheme" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="colorSurface">#FFFFFFFF</item>
+        <item name="colorOnSurface">#FF111827</item>
+        <item name="colorSurfaceVariant">#FFF3F4F6</item>
+        <item name="colorOnSurfaceVariant">#FF6B7280</item>
+        <item name="colorPrimary">#FFFA6400</item>
+        <item name="colorOnPrimary">#FFFFFFFF</item>
+        <item name="colorSecondary">#FF3B82F6</item>
+        <item name="colorOnSecondary">#FFFFFFFF</item>
+        <item name="textAppearanceLabelSmall">@style/TextAppearance.MaterialComponents.Caption</item>
+        <item name="textAppearanceBodyMedium">@style/TextAppearance.MaterialComponents.Body1</item>
+        <item name="textAppearanceBodySmall">@style/TextAppearance.MaterialComponents.Body2</item>
+    </style>
+    <style name="Theme.AppTheme.Splash" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:windowBackground">@drawable/bg_splash_screen</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowFullscreen">false</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">true</item>
+    </style>
+    <style name="Theme.CropActivityTheme" parent="Theme.AppCompat.DayNight">
+        <item name="android:statusBarColor">?android:attr/colorPrimary</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">true</item>
+        <item name="android:windowTranslucentNavigation">true</item>
+    </style>
+    <style name="Theme.MaterialHubOverlay" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:colorBackgroundCacheHint">@null</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">true</item>
+    </style>
+
+    <style name="AnimationFavoriteAttachmentPreviewNoAnimation">
+        <item name="android:activityOpenEnterAnimation">@anim/auth_page_noop</item>
+        <item name="android:activityOpenExitAnimation">@anim/auth_page_noop</item>
+        <item name="android:activityCloseEnterAnimation">@anim/auth_page_noop</item>
+        <item name="android:activityCloseExitAnimation">@anim/auth_page_noop</item>
+    </style>
+
+    <style name="Theme.FavoriteAttachmentPreview" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowDisablePreview">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowAnimationStyle">@style/AnimationFavoriteAttachmentPreviewNoAnimation</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+
+    <style name="SettingsToolbarTitle" parent="TextAppearance.AppCompat.Large">
+        <item name="android:textColor">@color/settings_title</item>
+        <item name="android:textSize">20sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
+
+    <style name="RatioButtonStyle">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_columnWeight">1</item>
+        <item name="android:layout_margin">4dp</item>
+        <item name="android:paddingTop">8dp</item>
+        <item name="android:paddingBottom">8dp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:background">@drawable/bg_option_normal_dark</item>
+        <item name="android:textColor">#FFFFFF</item>
+        <item name="android:textSize">12sp</item>
+    </style>
+
+    <style name="ShapeAppearance.App.Circle" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
+
+</resources>

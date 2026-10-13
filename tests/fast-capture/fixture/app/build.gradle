@@ -1,0 +1,38 @@
+plugins { id 'com.android.application' }
+android {
+    namespace = 'com.paopaoime.captureregression'
+    compileSdk = 36
+    defaultConfig {
+        applicationId 'com.paopaoime.captureregression'
+        minSdk 26
+        targetSdk 36
+        versionCode 1
+        versionName '1.0'
+        testInstrumentationRunner 'com.paopaoime.captureregression.CaptureInstrumentation'
+        ndk { abiFilters 'arm64-v8a' }
+    }
+    buildTypes {
+        release {
+            minifyEnabled true
+            signingConfig signingConfigs.debug
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+    packaging {
+        resources { excludes += ['META-INF/INDEX.LIST','META-INF/io.netty.versions.properties','META-INF/DEPENDENCIES','META-INF/LICENSE','META-INF/MANIFEST.MF'] }
+        jniLibs { useLegacyPackaging true; pickFirsts += ['lib/**/libc++_shared.so','lib/**/libonnxruntime.so'] }
+    }
+}
+kotlin { compilerOptions { jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17 } }
+dependencies {
+    def sdk = findProperty('oemSdkVersion') ?: '1.0.0.202609081'
+    implementation "com.paopaoime.oem:oem-ime-host-bridge:$sdk"
+    implementation "com.paopaoime.oem:oem-ime-sdk-core:$sdk"
+    implementation "com.paopaoime.oem:oem-ime-sdk-material:$sdk"
+    implementation "com.paopaoime.oem:oem-ime-sdk-ai-reply:$sdk"
+    implementation "com.paopaoime.oem:oem-ime-sdk-automation:$sdk"
+    implementation 'org.fcitx.fcitx5.android:app:1.6'
+    implementation 'androidx.appcompat:appcompat:1.7.1'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2'
+}

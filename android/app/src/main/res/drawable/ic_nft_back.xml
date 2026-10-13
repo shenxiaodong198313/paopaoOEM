@@ -1,0 +1,10 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="78"
+    android:viewportHeight="108">
+    <!-- Simplified back arrow based on mloyrjlr-z9oe3jz.svg -->
+    <path
+        android:fillColor="#272727"
+        android:pathData="M41.3582 45.2073C41.7769 44.7968 42.455 44.7968 42.8738 45.2073C43.2553 45.5814 43.2898 46.1674 42.9773 46.5803L35.1511 54.2678L42.8738 61.8381C43.2553 62.2123 43.2898 62.7982 42.9773 63.2112C42.4929 63.7027 41.8978 63.7361 41.4783 63.4309L32.8757 55.0139C32.4942 54.6398 32.4596 54.0539 32.7722 53.6409L41.3582 45.2073Z"/>
+</vector>

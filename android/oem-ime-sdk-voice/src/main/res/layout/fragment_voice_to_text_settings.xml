@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:background="#F5F7F6">
+    <FrameLayout android:id="@+id/layout_voice_to_text_header" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingTop="10dp" android:paddingBottom="10dp">
+        <TextView android:layout_width="match_parent" android:layout_height="48dp" android:gravity="center" android:text="语音输入" android:textSize="18sp" android:textStyle="bold" android:textColor="#343837" />
+        <ImageButton android:id="@+id/btn_voice_to_text_back" android:src="@drawable/ic_voice_back" android:contentDescription="返回" android:background="@android:color/transparent" android:layout_width="wrap_content" android:layout_height="48dp" android:layout_marginStart="16dp" />
+    </FrameLayout>
+    <ScrollView android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:fillViewport="true">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="选择语音模式" android:textSize="18sp" android:textStyle="bold" android:textColor="#142344" android:layout_marginBottom="16dp" />
+            <RadioGroup android:id="@+id/voice_input_modes" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="@drawable/bg_voice_section_card" android:padding="12dp">
+                <RadioButton android:id="@+id/voice_mode_performance" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="96dp" android:padding="8dp" android:text="性能模式 · 约 102 MB\n更轻快，适合日常短句与低配设备" android:textSize="15sp" android:textColor="#142344" android:buttonTint="#0787FF" />
+                <RadioButton android:id="@+id/voice_mode_balanced" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="96dp" android:padding="8dp" android:text="均衡模式" android:textSize="15sp" android:textColor="#142344" android:buttonTint="#0787FF" />
+                <RadioButton android:id="@+id/voice_mode_quality" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="96dp" android:padding="8dp" android:text="质量模式" android:textSize="15sp" android:textColor="#142344" android:buttonTint="#0787FF" />
+            </RadioGroup>
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="首次使用需下载语音包。下载后可离线识别中文并自动添加标点，语音识别和标点处理均在本机完成。" android:textSize="14sp" android:textColor="#677487" android:lineSpacingExtra="5dp" />
+            <ProgressBar android:id="@+id/voice_input_progress" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="6dp" android:layout_marginTop="24dp" android:progressTint="#0787FF" android:max="1000" />
+            <TextView android:id="@+id/voice_input_download_status" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:gravity="center" android:textColor="#677487" android:textSize="13sp" />
+            <Button android:id="@+id/voice_input_download" android:layout_width="match_parent" android:layout_height="56dp" android:layout_marginTop="16dp" android:text="下载语音包" android:textColor="#FFFFFF" android:backgroundTint="#0787FF" />
+            <TextView android:id="@+id/voice_input_permission" android:layout_width="match_parent" android:layout_height="56dp" android:layout_marginTop="22dp" android:gravity="center" android:text="允许使用麦克风" android:textSize="15sp" android:textColor="#0787FF" android:clickable="true" android:focusable="true" />
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

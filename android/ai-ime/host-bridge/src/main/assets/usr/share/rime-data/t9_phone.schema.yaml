@@ -1,0 +1,147 @@
+# Rime schema
+# encoding: utf-8
+#
+# Minimal T9-compatible schema for the current fcitx5-android Rime plugin.
+# This keeps the core 9-key digit mapping and apostrophe split behavior while
+# reusing the existing luna_pinyin dictionary shipped in this repository.
+
+schema:
+  schema_id: t9_phone
+  name: 中文九键
+  version: "0.1.0"
+  author:
+    - Paopao
+    - Dvel
+    - "[morse.hsiao](https://github.com/imfuxiao)"
+  description: |
+    Minimal T9 schema for fcitx5-android.
+    Reuses the built-in luna_pinyin dictionary and keeps core 9-key behavior.
+
+switches:
+  - name: ascii_mode
+    reset: 0
+    states: [ 中文, 西文 ]
+    abbrev: [ 中, A ]
+  - name: full_shape
+    states: [ 半角, 全角 ]
+  - options:
+      - zh_hant
+      - zh_hans
+      - zh_hant_hk
+      - zh_hant_tw
+    states:
+      - 传统汉字
+      - 简化字
+      - 香港字形
+      - 台湾字形
+    abbrev: [ 汉, 简, 港, 台 ]
+  - name: ascii_punct
+    states: [ 。，, . , ]
+
+engine:
+  processors:
+    - ascii_composer
+    - recognizer
+    - key_binder
+    - speller
+    - punctuator
+    - selector
+    - navigator
+    - express_editor
+  segmentors:
+    - ascii_segmentor
+    - matcher
+    - abc_segmentor
+    - punct_segmentor
+    - fallback_segmentor
+  translators:
+    - punct_translator
+    - table_translator@custom_phrase
+    - script_translator
+  filters:
+    - simplifier@zh_hans
+    - simplifier@zh_hant_hk
+    - simplifier@zh_hant_tw
+    - uniquifier
+
+speller:
+  alphabet: zyxwvutsrqponmlkjihgfedcba9876543210
+  initials: zyxwvutsrqponmlkjihgfedcba9876543210
+  delimiter: " '"
+  algebra:
+    - abbrev/^([a-z]).+$/$1/
+    - abbrev/^([zcs]h).+$/$1/
+    - derive/^([nl])ve$/$1ue/
+    - derive/^([jqxy])u/$1v/
+    - derive/un$/uen/
+    - derive/ui$/uei/
+    - derive/iu$/iou/
+    - derive/([aeiou])ng$/$1gn/
+    - derive/([dtngkhrzcs])o(u|ng)$/$1o/
+    - derive/ong$/on/
+    - derive/ao$/oa/
+    - derive/([iu])a(o|ng?)$/a$1$2/
+    - derive/[abc]/2/
+    - derive/[def]/3/
+    - derive/[hgi]/4/
+    - derive/[jkl]/5/
+    - derive/[omn]/6/
+    - derive/[pqrs]/7/
+    - derive/[tuv]/8/
+    - derive/[wxyz]/9/
+
+translator:
+  prism: t9_phone
+  dictionary: luna_pinyin
+  spelling_hints: 100
+  always_show_comments: true
+  comment_format:
+    - xform/^(.+)$/$1/
+  preedit_format:
+    - xform/([nl])v/$1ü/
+    - xform/([nl])ue/$1üe/
+    - xform/([jqxy])v/$1u/
+
+custom_phrase:
+  dictionary: ""
+  user_dict: custom_phrase_t9
+  db_class: stabledb
+  enable_completion: false
+  enable_sentence: false
+  initial_quality: 99
+
+punctuator:
+  half_shape:
+    "1": ["，", "。", "？", "！", "、", "：", "；", "……", "——", "～"]
+    "@": [1, "@", ！, ：, 、, ……, ～]
+    "#": [0, "#", "$", "%", "^", "&", "*", "(", ")"]
+  ascii_style:
+    half_shape:
+      "1": [",", ".", "?", "!", "'", "\"", "-", "@", "/", ":"]
+
+key_binder:
+  import_preset: default
+  bindings:
+    - { when: has_menu, accept: 1, send: apostrophe }
+    - { when: has_menu, accept: Up, send: Page_Up }
+    - { when: has_menu, accept: Down, send: Page_Down }
+    - { when: has_menu, accept: Left, send: Up }
+    - { when: has_menu, accept: Right, send: Down }
+
+recognizer:
+  import_preset: default
+
+zh_hans:
+  option_name: zh_hans
+  opencc_config: t2s.json
+  tips: none
+
+zh_hant_hk:
+  option_name: zh_hant_hk
+  opencc_config: t2hk.json
+  tips: none
+
+zh_hant_tw:
+  option_name: zh_hant_tw
+  opencc_config: t2tw.json
+  tips: none

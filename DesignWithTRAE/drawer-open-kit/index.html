@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OEM 抽屉开放层 DrawerKit 产品设计图</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:"Microsoft YaHei","PingFang SC",sans-serif; background:#eef1f6; color:#1f2430; padding:32px 20px 80px; }
+  .wrap { max-width:1180px; margin:0 auto; }
+  header { text-align:center; margin-bottom:28px; }
+  header h1 { font-size:26px; }
+  header p { color:#667; margin-top:8px; font-size:13px; }
+  nav { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin:16px 0 8px; }
+  nav a { text-decoration:none; background:#fff; border:1px solid #d8dee9; border-radius:999px; padding:6px 14px; font-size:12px; color:#3557d4; }
+  section { background:#fff; border-radius:16px; padding:26px 26px 30px; margin-top:24px; box-shadow:0 2px 10px rgba(30,40,70,.06); }
+  h2 { font-size:18px; margin-bottom:6px; }
+  h2 .no { color:#3557d4; margin-right:6px; }
+  .sub { color:#778; font-size:12.5px; margin-bottom:18px; }
+  h3 { font-size:14px; margin:18px 0 10px; color:#334; }
+  .row { display:flex; gap:18px; flex-wrap:wrap; align-items:flex-start; }
+  .card { border:1px solid #e2e7f0; border-radius:12px; padding:14px 16px; background:#fafbfe; flex:1; min-width:220px; }
+  .card b { display:block; font-size:14px; margin-bottom:6px; }
+  .card .tag { display:inline-block; font-size:11px; border-radius:6px; padding:2px 8px; margin-bottom:8px; color:#fff; }
+  .t-l0 { background:#8a94a6; } .t-l1 { background:#3557d4; } .t-l2 { background:#0aa870; }
+  .card p { font-size:12.5px; color:#556; line-height:1.7; }
+  .phone { width:290px; background:#111; border-radius:26px; padding:10px; flex:none; box-shadow:0 8px 24px rgba(0,0,0,.25); }
+  .screen { background:#f2f4f8; border-radius:18px; overflow:hidden; height:560px; display:flex; flex-direction:column; position:relative; }
+  .chatbg { background:#ededed; padding:14px 12px 8px; flex:none; }
+  .bubble { background:#95ec69; border-radius:8px; padding:7px 10px; font-size:11px; margin:0 34px 8px 0; width:fit-content; max-width:80%; }
+  .drawer { margin-top:auto; background:linear-gradient(180deg,#fdf6ec,#eef3fb 30%,#f6f8fc); border-radius:18px 18px 0 0; flex:1; display:flex; flex-direction:column; padding:12px 12px 10px; box-shadow:0 -6px 18px rgba(0,0,0,.12); }
+  .dhead { display:flex; align-items:center; height:34px; flex:none; position:relative; }
+  .dhead .title { position:absolute; left:50%; transform:translateX(-50%); font-size:15px; font-weight:600; }
+  .dhead .slot { position:absolute; left:50%; transform:translateX(-50%); font-size:11px; color:#3557d4; border:1.5px dashed #7d95e8; border-radius:8px; padding:3px 12px; background:#fff; }
+  .iconbtn { width:26px; height:26px; border-radius:50%; border:1.6px solid #3a4356; color:#3a4356; display:flex; align-items:center; justify-content:center; font-size:13px; background:#fff; flex:none; }
+  .iconbtn.right { margin-left:auto; }
+  .iconbtn.left { margin-right:auto; }
+  .badge { font-size:9px; color:#e05a5a; border:1px solid #e05a5a; border-radius:5px; padding:0 4px; margin-left:4px; }
+  .dbody { flex:1; overflow:hidden; display:flex; flex-direction:column; gap:9px; padding-top:10px; }
+  .hintcard { background:#fff; border-radius:12px; padding:12px; text-align:center; box-shadow:0 1px 4px rgba(0,0,0,.05); }
+  .hintcard .t { font-size:12.5px; font-weight:600; }
+  .pill { display:inline-flex; align-items:center; gap:4px; background:#f2f3f7; border-radius:999px; font-size:10.5px; color:#889; padding:5px 12px; margin-top:8px; }
+  .bigcard { background:linear-gradient(135deg,#e7f7e9,#dff0fb); border-radius:12px; padding:12px; flex:1; }
+  .bigcard .t { font-size:13px; font-weight:700; }
+  .bigcard .s { font-size:10.5px; color:#667; margin-top:3px; }
+  .mockb1 { width:70%; height:16px; border-radius:8px; background:#7fd6a0; margin-top:26px; }
+  .mockb2 { width:88%; height:22px; border-radius:10px; background:#8ec3ef; margin-top:8px; }
+  .twocard { display:flex; gap:9px; }
+  .smallcard { flex:1; border-radius:12px; padding:10px; height:96px; }
+  .sc-y { background:linear-gradient(135deg,#ffe9a8,#ffd98e); }
+  .sc-b { background:linear-gradient(135deg,#dbe7fd,#cfd9f6); }
+  .smallcard .t { font-size:12px; font-weight:700; }
+  .smallcard .s { font-size:9.5px; color:#665; margin-top:2px; }
+  .footer { text-align:center; font-size:10px; color:#98a0ad; padding:6px 0 2px; flex:none; }
+  .hostzone { flex:1; border:2px dashed #7d95e8; border-radius:12px; background:#fff; padding:12px; display:flex; flex-direction:column; gap:8px; }
+  .hostzone .zt { font-size:11px; color:#3557d4; font-weight:600; }
+  .countcard { background:linear-gradient(135deg,#e8f0ff,#f3e8ff); border-radius:10px; padding:12px; text-align:center; }
+  .countcard .n { font-size:26px; font-weight:800; color:#3557d4; }
+  .countcard .s { font-size:10.5px; color:#667; margin-top:2px; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; }
+  .chip { font-size:10px; background:#eef3ff; color:#3557d4; border-radius:999px; padding:4px 10px; border:1px solid #c9d7ff; }
+  .chip.g { background:#e9f9f1; color:#0a8f60; border-color:#bfe9d6; }
+  .kbpanel { background:#2b2b2b; border-radius:14px; padding:16px 12px 10px; flex:1; display:flex; flex-direction:column; }
+  .kbhead { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; color:#eee; font-size:15px; padding:0 4px; }
+  .grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px 8px; }
+  .gitem { text-align:center; color:#cfd3da; font-size:10px; }
+  .gicon { width:52px; height:52px; border-radius:14px; background:#3d3d3d; margin:0 auto 6px; display:flex; align-items:center; justify-content:center; font-size:18px; color:#e8e8e8; }
+  .gitem.custom .gicon { border:2px dashed #0aa870; background:#2f3a36; color:#7ce0b6; }
+  .gitem.custom { color:#7ce0b6; }
+  .dots { text-align:center; color:#888; margin-top:auto; font-size:10px; letter-spacing:4px; }
+  .kb { background:#2b2b2b; border-radius:12px; padding:10px; flex:none; }
+  .bar { display:flex; align-items:center; gap:8px; height:40px; }
+  .barbtn { width:34px; height:34px; border-radius:50%; background:#3d3d3d; color:#ddd; display:flex; align-items:center; justify-content:center; font-size:14px; flex:none; }
+  .barzone { flex:1; border:2px solid #f5b301; border-radius:8px; height:34px; display:flex; align-items:center; gap:6px; padding:0 8px; }
+  .barzone .bi { width:22px; height:22px; border-radius:6px; background:#4a4a4a; color:#eee; display:flex; align-items:center; justify-content:center; font-size:10px; }
+  .barzone .bi.custom { border:1.5px dashed #0aa870; color:#7ce0b6; background:#33403a; }
+  .custui { background:#f6f7fa; border-radius:12px; padding:12px; margin-top:10px; }
+  .prevbar { display:flex; gap:6px; background:#fff; border-radius:10px; padding:8px; flex-wrap:wrap; }
+  .pitem { font-size:10px; background:#eef1f6; border-radius:8px; padding:6px 10px; color:#445; }
+  .pitem.custom { border:1.5px dashed #0aa870; color:#0a8f60; background:#effaf5; }
+  .flow { display:flex; align-items:stretch; gap:0; flex-wrap:wrap; }
+  .step { flex:1; min-width:130px; background:#f7f9ff; border:1px solid #dbe4f6; border-radius:10px; padding:10px 12px; font-size:11.5px; color:#334; position:relative; }
+  .step b { display:block; color:#3557d4; font-size:12px; margin-bottom:4px; }
+  .arrow { flex:none; width:34px; display:flex; align-items:center; justify-content:center; color:#93a2c8; font-size:18px; }
+  .timeline { display:flex; flex-direction:column; gap:0; }
+  .tl { display:flex; gap:12px; }
+  .tl .dot { width:26px; height:26px; border-radius:50%; background:#3557d4; color:#fff; font-size:12px; display:flex; align-items:center; justify-content:center; flex:none; }
+  .tl .dot.h { background:#0aa870; }
+  .tl .line { width:2px; background:#d5ddef; margin:2px 12px; height:16px; flex:none; }
+  .tl .body { font-size:12px; color:#334; padding-top:4px; }
+  .tl .body .who { font-size:10px; border-radius:5px; padding:1px 6px; margin-left:6px; color:#fff; }
+  .w-sdk { background:#8a94a6; } .w-host { background:#0aa870; }
+  .fields { display:flex; flex-wrap:wrap; gap:7px; }
+  .field { font-size:11px; border-radius:8px; padding:6px 10px; background:#f2f5ff; border:1px solid #d7e0fa; color:#2c3e8f; }
+  .field .fid { color:#8a94a6; font-size:9.5px; display:block; }
+  .field.m { background:#effaf5; border-color:#c9ecdc; color:#0a6b4c; }
+  .bound { display:flex; gap:16px; flex-wrap:wrap; }
+  .bcard { flex:1; min-width:260px; border-radius:12px; padding:16px; }
+  .bcard.no { background:#fff5f5; border:1px solid #f3d0d0; }
+  .bcard.yes { background:#f2fbf7; border:1px solid #cdeadd; }
+  .bcard b { font-size:13.5px; display:block; margin-bottom:8px; }
+  .bcard p { font-size:12px; color:#556; line-height:1.8; }
+  .legend { font-size:11px; color:#778; margin-top:10px; }
+  .split { display:flex; gap:0; border:1.5px solid #c9d3e8; border-radius:14px; overflow:hidden; max-width:760px; }
+  .split .col { flex:1; padding:14px; font-size:12px; }
+  .split .col.base { background:#eef3ff; }
+  .split .col.content { background:#effaf5; }
+  .split .col b { display:block; margin-bottom:8px; font-size:13px; }
+  .split .col li { margin-left:16px; line-height:1.9; color:#445; }
+  .split .mid { width:44px; background:#fff; display:flex; align-items:center; justify-content:center; color:#93a2c8; font-size:18px; flex:none; }
+  table { width:100%; border-collapse:collapse; font-size:12px; margin-top:8px; }
+  th,td { border:1px solid #e2e7f0; padding:7px 10px; text-align:left; }
+  th { background:#f5f7fc; }
+  .cap { font-size:11px; color:#889; margin-top:6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>OEM 抽屉开放层 DrawerKit · 产品设计图</h1>
+  <p>配套文档：OEM/Doc/12-抽屉开放层DrawerKit产品方案.md ｜ 仅 OEM 工程 ｜ 规划版本 R9</p>
+  <nav>
+    <a href="#s1">① 能力分层</a><a href="#s2">② 基座解耦</a><a href="#s3">③ 线框图</a><a href="#s4">④ 入口落位</a><a href="#s5">⑤ 流程</a><a href="#s6">⑥ 字段协议</a><a href="#s7">⑦ 边界</a>
+  </nav>
+</header>
+
+<section id="s1">
+  <h2><span class="no">①</span>三级能力模型（L0 / L1 / L2）</h2>
+  <p class="sub">内置功能保持默认为 L0；L1 让宿主替换内置抽屉的内容层；L2 让宿主新建抽屉。三者均不做新增鉴权。</p>
+  <div class="row">
+    <div class="card"><span class="tag t-l0">L0</span><b>默认UI（现状保留）</b><p>AI回复 / 素材库 现有固定界面与交互，作为开关关闭时的默认抽屉体验，视觉与行为零变化。</p></div>
+    <div class="card"><span class="tag t-l1">L1</span><b>内置抽屉 · 自定义UI交互</b><p>Manifest 增加「自定义UI交互」开关（默认关）。开启后 SDK 仅保留抽屉基座（容器/返回/关闭），基座头部完全复用现抽屉视觉（返回/关闭位置不变），返回按钮显隐可由宿主经 setBackVisible 配置（默认显示）；内容层由宿主自绘，并可调用抽离出的能力字段。</p></div>
+    <div class="card"><span class="tag t-l2">L2</span><b>自定义抽屉（新建）</b><p>宿主运行时注册新抽屉（id/标题/入口图标/内容工厂），数量上限 4 个。入口自动进入工具面板宫格末尾 + 顶部工具条（受定制工具栏排序/显隐管理）。</p></div>
+  </div>
+</section>
+
+<section id="s2">
+  <h2><span class="no">②</span>抽屉基座 与 内容层 解耦结构</h2>
+  <p class="sub">将现面板头部的「返回/关闭」上移为基座标准头部；内容层成为可替换插槽。</p>
+  <div class="split">
+    <div class="col base"><b>SDK 抽屉基座（保留）</b>
+      <ul>
+        <li>抽屉容器：80% 屏高 / 开合动画 / 下拉手势关闭</li>
+        <li>标准头部：返回（宿主经 setBackVisible 配置显隐，默认显示）+ 标题槽 + 关闭（恒显）</li>
+        <li>返回键分发：先内容层后基座</li>
+        <li>生命周期回调：opened / closed / back</li>
+        <li>主动开合：openDrawer(id) / closeDrawer(id)</li>
+        <li>状态栏安全区 / 主题查询</li>
+      </ul>
+    </div>
+    <div class="mid">＋</div>
+    <div class="col content"><b>内容层（可替换插槽）</b>
+      <ul>
+        <li>L0：SDK 默认UI（还原现状视觉）</li>
+        <li>L1：宿主自定义UI（AI回复/素材库）</li>
+        <li>L2：宿主自定义抽屉内容（空白基座交付）</li>
+        <li>宿主可调用能力字段 API 重排功能</li>
+        <li>异常时基座捕获并降级，不影响键盘主链</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="s3">
+  <h2><span class="no">③</span>抽屉线框对照</h2>
+  <p class="sub">左：L0 默认AI回复抽屉（现状）；中：L1 自定义UI抽屉（客户倒计时示例）；右：L2 自定义抽屉（空白基座）。</p>
+  <div class="row">
+    <div>
+      <div class="phone"><div class="screen">
+        <div class="chatbg"><div class="bubble">这是一条来自虚拟屏的自动消息 (v2)</div><div class="bubble">这是一条来自虚拟屏的自动消息 (v2)</div></div>
+        <div class="drawer">
+          <div class="dhead"><span class="title">AI回复</span><span class="iconbtn right">✕</span></div>
+          <div class="dbody">
+            <div class="hintcard"><div class="t">AI帮你理解内容，生成回复消息</div><span class="pill">＋ 点击复制，生成回复</span></div>
+            <div class="bigcard"><div class="t">极速生成</div><div class="s">自动多屏识别，结果更精准</div><div class="mockb1"></div><div class="mockb2"></div></div>
+            <div class="twocard">
+              <div class="smallcard sc-y"><div class="t">识屏回复</div><div class="s">理解屏幕生成回复</div></div>
+              <div class="smallcard sc-b"><div class="t">传图回复</div><div class="s">上传多图生成回复</div></div>
+            </div>
+          </div>
+          <div class="footer">回复内容由千问大模型生成</div>
+        </div>
+      </div></div>
+      <p class="cap">L0 默认UI：字段与布局固定（现状）</p>
+    </div>
+    <div>
+      <div class="phone"><div class="screen">
+        <div class="chatbg"><div class="bubble">客户聊天窗口（宿主App）</div></div>
+        <div class="drawer">
+          <div class="dhead"><span class="iconbtn left">‹</span><span class="slot">标题槽 · 宿主可配</span><span class="iconbtn right">✕</span><span class="badge">恒显</span></div>
+          <div class="dbody">
+            <div class="hostzone">
+              <div class="zt">宿主自定义内容层（示例：客户倒计时交互）</div>
+              <div class="countcard"><div class="n">3s</div><div class="s">倒计时结束后自动关闭抽屉并识屏</div></div>
+              <div class="chips">
+                <span class="chip">closeDrawer()</span><span class="chip">识屏回复能力</span><span class="chip">openDrawer()</span><span class="chip g">结果自绘</span>
+              </div>
+              <div class="chips"><span class="chip">语气切换</span><span class="chip">重新生成</span><span class="chip">填入输入框</span><span class="chip">传图回复</span></div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+      <p class="cap">L1 自定义UI：基座三件套 + 宿主内容 + 能力字段自由排版</p>
+    </div>
+    <div>
+      <div class="phone"><div class="screen">
+        <div class="chatbg"><div class="bubble">宿主App任意聊天/业务界面</div></div>
+        <div class="drawer">
+          <div class="dhead"><span class="iconbtn left">‹</span><span class="slot">自定义抽屉标题</span><span class="iconbtn right">✕</span><span class="badge">恒显</span></div>
+          <div class="dbody">
+            <div class="hostzone" style="align-items:center;justify-content:center;">
+              <div class="zt">空白内容基座</div>
+              <p style="font-size:10.5px;color:#8a94a6;text-align:center;line-height:1.8;">宿主经 contentFactory 加载自有页面<br>SDK 不感知内容、不鉴权、不纳入 R8</p>
+            </div>
+          </div>
+        </div>
+      </div></div>
+      <p class="cap">L2 自定义抽屉：仅交付基座承载页</p>
+    </div>
+  </div>
+</section>
+
+<section id="s4">
+  <h2><span class="no">④</span>入口落位：工具面板（宫格）与 顶部工具条</h2>
+  <p class="sub">自定义抽屉入口按注册顺序追加到宫格末尾（自定义抽屉数量上限 4 个）；工具条纳入「定制工具栏」排序/显示/隐藏体系（维持 6 个上限，自定义项占配额，未满6个默认显示末尾，已满进隐藏池）。</p>
+  <div class="row">
+    <div style="flex:1;min-width:300px;">
+      <div class="kbpanel">
+        <div class="kbhead"><span>←</span><span>⚙</span></div>
+        <div class="grid">
+          <div class="gitem"><div class="gicon">🎙</div>语音输入</div>
+          <div class="gitem"><div class="gicon">⌨</div>键盘选择</div>
+          <div class="gitem"><div class="gicon">AI</div>AI回复</div>
+          <div class="gitem"><div class="gicon"></div>素材库</div>
+          <div class="gitem"><div class="gicon">☺</div>表情</div>
+          <div class="gitem"><div class="gicon">📋</div>剪贴板</div>
+          <div class="gitem"><div class="gicon">🧰</div>定制工具栏</div>
+          <div class="gitem"><div class="gicon">简</div>繁体输入</div>
+          <div class="gitem"><div class="gicon">⚙</div>键盘调节</div>
+          <div class="gitem custom"><div class="gicon">★</div>自定义A</div>
+          <div class="gitem custom"><div class="gicon">◆</div>自定义B</div>
+        </div>
+        <div class="dots">● ○</div>
+      </div>
+      <p class="cap">工具面板：内置顺序不变，自定义项（绿虚线）按注册顺序追加到末尾并自动分页</p>
+    </div>
+    <div style="flex:1;min-width:300px;">
+      <div class="kb">
+        <div class="bar">
+          <span class="barbtn">⌂</span>
+          <div class="barzone"><span class="bi">AI</span><span class="bi">🗂</span><span class="bi custom">★</span></div>
+          <span class="barbtn">📋</span><span class="barbtn">▾</span>
+        </div>
+      </div>
+      <div class="custui">
+        <p style="font-size:11px;color:#556;margin-bottom:8px;">「定制工具栏」界面：自定义项与内置项同样可拖拽排序 / 点选显隐</p>
+        <div class="prevbar"><span class="pitem">AI回复</span><span class="pitem">素材库</span><span class="pitem custom">★ 自定义A</span><span class="pitem">剪贴板</span></div>
+        <div class="prevbar" style="margin-top:8px;background:#eef1f6;">
+          <span class="pitem">键盘选择</span><span class="pitem">表情</span><span class="pitem">皮肤</span><span class="pitem custom">◆ 自定义B（隐藏池）</span>
+        </div>
+      </div>
+      <p class="cap">顶部工具条（黄框）：自定义项受定制工具栏管理；持久化沿用 bridge_toolbar_* ，prefValue = custom_&lt;id&gt;</p>
+    </div>
+  </div>
+</section>
+
+<section id="s5">
+  <h2><span class="no">⑤</span>标准产品流程</h2>
+  <h3>5.1 L1 集成配置流程</h3>
+  <div class="flow">
+    <div class="step"><b>① 勾选功能</b>集成模板勾选 AI回复 / 素材库</div><div class="arrow">→</div>
+    <div class="step"><b>② 勾选开关</b>Manifest 写入 enable*CustomUi（默认 false）</div><div class="arrow">→</div>
+    <div class="step"><b>③ 初始化</b>OemImeSdk.initializeFromManifest</div><div class="arrow">→</div>
+    <div class="step"><b>④ 注册工厂</b>setDrawerContentFactory(id, factory)</div><div class="arrow">→</div>
+    <div class="step"><b>⑤ 生效</b>开+已注册→宿主内容；否则降级 L0</div>
+  </div>
+  <h3>5.2 客户示例：倒计时→关抽屉滑屏→截图发模型→再拉起抽屉（L1 能力映射）</h3>
+  <div class="timeline">
+    <div class="tl"><span class="dot">1</span><div class="body">用户点击键盘「AI回复」按钮，基座抽屉弹起<span class="who w-sdk">SDK入口</span></div></div><div class="tl"><span class="line"></span></div>
+    <div class="tl"><span class="dot h">2</span><div class="body">宿主内容层渲染倒计时卡片（自绘UI）<span class="who w-host">宿主</span></div></div><div class="tl"><span class="line"></span></div>
+    <div class="tl"><span class="dot h">3</span><div class="body">调用 controller.closeDrawer() 主动关闭抽屉，宿主执行滑屏<span class="who w-host">宿主</span></div></div><div class="tl"><span class="line"></span></div>
+    <div class="tl"><span class="dot h">4</span><div class="body">截图并发送大模型：可调用 ai_reply 识屏/极速能力，或宿主自有模型<span class="who w-host">宿主</span></div></div><div class="tl"><span class="line"></span></div>
+    <div class="tl"><span class="dot h">5</span><div class="body">调用 openDrawer("ai_reply") 再拉起抽屉<span class="who w-host">宿主</span></div></div><div class="tl"><span class="line"></span></div>
+    <div class="tl"><span class="dot h">6</span><div class="body">宿主自绘等待/结果页，或经结果回调渲染回复建议<span class="who w-host">宿主</span></div></div>
+  </div>
+  <h3>5.3 L2 自定义抽屉接入流程</h3>
+  <div class="flow">
+    <div class="step"><b>① 初始化</b>SDK 初始化成功（无需鉴权）</div><div class="arrow">→</div>
+    <div class="step"><b>② 注册</b>registerCustomDrawer(id/标题/图标/工厂)，上限 4 个</div><div class="arrow">→</div>
+    <div class="step"><b>③ 落位</b>宫格追加末尾；工具条未满6默认显示、已满进隐藏池</div><div class="arrow">→</div>
+    <div class="step"><b>④ 可管理</b>定制工具栏排序/显隐（含自定义项）</div><div class="arrow">→</div>
+    <div class="step"><b>⑤ 使用</b>点击入口→基座抽屉→宿主内容</div>
+  </div>
+  <h3>5.4 降级与容错</h3>
+  <table>
+    <tr><th>场景</th><th>行为</th></tr>
+    <tr><td>开关开 + 未注册工厂</td><td>降级 L0 默认UI，warn 日志</td></tr>
+    <tr><td>宿主内容抛异常</td><td>基座捕获：内置抽屉降级 L0 / 自定义抽屉关闭，回调 onHostContentError</td></tr>
+    <tr><td>旧宿主 + 新 SDK</td><td>无开关无注册，完全 L0，零影响</td></tr>
+    <tr><td>注销自定义抽屉</td><td>入口即时移除 + SP 持久化清理（custom_&lt;id&gt;）</td></tr>
+  </table>
+</section>
+
+<section id="s6">
+  <h2><span class="no">⑥</span>能力字段协议总览（交付宿主的字段清单）</h2>
+  <p class="sub">字段与 UI 解耦：宿主可任意排版以下字段，并经对应 API 触发底层能力。完整入参/回调见方案文档 4.2.3 / 4.2.4。</p>
+  <h3>AI回复（12 字段）</h3>
+  <div class="fields">
+    <span class="field">点击复制生成回复<span class="fid">ai_reply.entry.paste</span></span>
+    <span class="field">极速生成<span class="fid">ai_reply.entry.fast</span></span>
+    <span class="field">识屏回复<span class="fid">ai_reply.entry.ocr</span></span>
+    <span class="field">传图回复<span class="fid">ai_reply.entry.image</span></span>
+    <span class="field">截屏权限申请<span class="fid">ai_reply.permission.screen</span></span>
+    <span class="field">相册选图<span class="fid">ai_reply.picker.album</span></span>
+    <span class="field">生成进度时间轴<span class="fid">ai_reply.progress.timeline</span></span>
+    <span class="field">回复建议列表<span class="fid">ai_reply.result.list</span></span>
+    <span class="field">语气切换<span class="fid">ai_reply.result.tone</span></span>
+    <span class="field">重新生成<span class="fid">ai_reply.result.regenerate</span></span>
+    <span class="field">模型声明文案<span class="fid">ai_reply.meta.footer</span></span>
+    <span class="field">受限态<span class="fid">ai_reply.state.restricted</span></span>
+  </div>
+  <h3>素材库（11 字段）</h3>
+  <div class="fields">
+    <span class="field m">分类页签<span class="fid">material.tabs.category</span></span>
+    <span class="field m">文档子分类<span class="fid">material.tabs.file_sub</span></span>
+    <span class="field m">搜索<span class="fid">material.search</span></span>
+    <span class="field m">素材列表<span class="fid">material.list</span></span>
+    <span class="field m">预设文件夹<span class="fid">material.folders</span></span>
+    <span class="field m">发送素材<span class="fid">material.action.send</span></span>
+    <span class="field m">附件预览<span class="fid">material.action.preview</span></span>
+    <span class="field m">悬浮添加<span class="fid">material.fab.add</span></span>
+    <span class="field m">创作器<span class="fid">material.composer</span></span>
+    <span class="field m">远程素材同步<span class="fid">material.remote.sync</span></span>
+    <span class="field m">状态位<span class="fid">material.state.*</span></span>
+  </div>
+</section>
+
+<section id="s7">
+  <h2><span class="no">⑦</span>鉴权 与 R8 边界</h2>
+  <div class="bound">
+    <div class="bcard no"><b>不做什么</b><p>L1/L2 均不新增 license capability，不走我方鉴权开通；<br>宿主自研代码不纳入 SDK-R8 加密输入；<br>基座不对宿主内容做业务校验。</p></div>
+    <div class="bcard yes"><b>要做什么</b><p>DrawerKit 公开 API 加入 oem-ime-sdk-core 的 proguard keep 与 consumer-rules（宿主侧 R8 不误删）；<br>L1 能力调用仍受既有企业开关约束（事实状态）；<br>更新 02-分发与加固方案 的开放层 keep 清单。</p></div>
+  </div>
+  <p class="legend">Manifest 新增开关：com.paopaoime.oem.enableAiReplyCustomUi / com.paopaoime.oem.enableMaterialLibraryCustomUi（默认 false）</p>
+  <p class="legend">已确认产品规则：自定义抽屉数量上限 4 个（超出注册返回 QUOTA_EXCEEDED）；工具条维持 6 个上限（自定义项占配额，已满进隐藏池）；自定义图标默认原色渲染、不跟随内置 tint；L1 基座头部完全复用现抽屉视觉（返回/关闭按钮位置不变），返回按钮显隐由宿主经 setBackVisible 配置（默认显示）。</p>
+</section>
+
+</div>
+</body>
+</html>

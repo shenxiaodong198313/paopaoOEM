@@ -1,0 +1,132 @@
+import java.nio.file.Paths
+
+plugins {
+    id('com.android.library')
+    id('org.jetbrains.kotlin.plugin.compose')
+    id('com.google.devtools.ksp')
+    id('dev.rikka.tools.refine')
+}
+
+ext.stellarPublishVersion = '1.1'
+apply from: rootProject.file('third_party/stellar/publish-local.gradle')
+android {
+    namespace 'roro.stellar.manager'
+    compileSdk 36
+    defaultConfig {
+        minSdk 24
+        consumerProguardFiles 'consumer-rules.pro'
+        buildConfigField 'int', 'VERSION_CODE', '101000'
+        buildConfigField 'String', 'VERSION_NAME', '"1.1"'
+
+        ndk {
+            abiFilters 'arm64-v8a'
+        }
+
+        externalNativeBuild {
+            cmake {
+                arguments '-DANDROID_STL=none'
+                abiFilters 'arm64-v8a'
+            }
+        }
+    }
+
+    buildFeatures {
+        buildConfig true
+        prefab true
+        compose true
+    }
+
+    buildTypes {
+        debug {
+        }
+        release {
+            minifyEnabled false
+            shrinkResources false
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path 'src/main/jni/CMakeLists.txt'
+            version = "3.22.1+"
+        }
+    }
+
+    packagingOptions {
+        resources {
+            excludes += ['/META-INF/**']
+        }
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlin {
+        jvmToolchain(17)
+    }
+}
+def collapseReleaseResourceNames = task('collapseReleaseResourceNames').doLast {
+    def aapt2 = Paths.get(project.android.sdkDirectory.path, 'build-tools', project.android.buildToolsVersion, 'aapt2')
+    def zip = Paths.get(project.buildDir.path, 'intermediates',
+            'optimized_processed_res', 'release', 'optimizeReleaseResources', 'resources-release-optimize.ap_')
+    def optimized = new File("${zip}.opt")
+    def cmd = exec {
+        commandLine aapt2, 'optimize', '--collapse-resource-names',
+                '--resources-config-path', 'aapt2-resources.cfg',
+                '-o', optimized, zip
+        ignoreExitValue false
+    }
+    if (cmd.exitValue == 0) {
+        delete(zip)
+        optimized.renameTo("$zip")
+    }
+}
+afterEvaluate {
+    tasks.findByName('optimizeReleaseResources')?.finalizedBy(collapseReleaseResourceNames)
+}
+configurations.configureEach {
+    exclude group: 'androidx.profileinstaller', module: 'profileinstaller'
+}
+dependencies {
+    implementation managerLibs.bundles.kotlinxCoroutines
+
+    implementation project(':stellar-server')
+    implementation project(':stellar-api')
+    implementation project(':stellar-provider')
+
+    implementation libs.hidden.compat
+    compileOnly libs.hidden.stub
+
+    implementation managerLibs.bundles.core
+    implementation managerLibs.bundles.lifecycle
+
+    implementation managerLibs.material
+
+    def composeBom = platform(managerLibs.composeBom)
+    implementation composeBom
+    implementation managerLibs.bundles.composeUi
+    debugImplementation managerLibs.composeUiTooling
+
+    implementation managerLibs.libsuCore
+
+    implementation managerLibs.bundles.nativeCrypto
+
+    implementation managerLibs.appiconloader
+
+    implementation managerLibs.okhttp
+
+    implementation managerLibs.capsule
+
+    implementation managerLibs.composeMarkdown
+
+    implementation managerLibs.roomRuntime
+    implementation managerLibs.roomKtx
+    ksp managerLibs.roomCompiler
+    implementation managerLibs.gson
+    implementation managerLibs.workRuntimeKtx
+}

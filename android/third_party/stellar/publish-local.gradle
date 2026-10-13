@@ -1,0 +1,32 @@
+apply plugin: 'maven-publish'
+
+def stellarPublishGroup = project.ext.has('stellarPublishGroup') ? project.ext.stellarPublishGroup : 'com.paopaoime.oem.internal.stellar'
+def stellarPublishArtifactId = project.ext.has('stellarPublishArtifactId') ? project.ext.stellarPublishArtifactId : project.name
+def stellarPublishVersion = project.ext.has('stellarPublishVersion') ? project.ext.stellarPublishVersion : '1.0.0'
+
+android {
+    publishing {
+        singleVariant('release') {
+            withSourcesJar()
+        }
+    }
+}
+
+afterEvaluate {
+    publishing {
+        publications {
+            release(MavenPublication) {
+                from components.release
+                groupId = stellarPublishGroup
+                artifactId = stellarPublishArtifactId
+                version = stellarPublishVersion
+            }
+        }
+        repositories {
+            maven {
+                name = 'oemLocal'
+                url = uri(rootProject.layout.buildDirectory.dir('oem-sdk-repo'))
+            }
+        }
+    }
+}

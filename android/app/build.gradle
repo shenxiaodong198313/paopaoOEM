@@ -1,0 +1,388 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.plugin.serialization'
+    id 'kotlin-parcelize'
+    id 'com.google.devtools.ksp'
+    id 'com.google.dagger.hilt.android'
+    id 'io.objectbox'
+}
+
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(localPropertiesFile.newInputStream())
+}
+def resolveBuildProperty = { String key, String fallback ->
+    def envValue = System.getenv(key)
+    if (envValue != null && envValue.toString().trim()) return envValue.toString()
+    def localValue = localProperties.getProperty(key)
+    if (localValue != null && localValue.toString().trim()) return localValue.toString()
+    def projectValue = project.findProperty(key)
+    if (projectValue != null && projectValue.toString().trim()) return projectValue.toString()
+    return fallback
+}
+def withoutEmbeddedModelAssets = resolveBuildProperty("WITHOUT_EMBEDDED_MODEL_ASSETS", "true")
+    .toBoolean()
+def filteredNoModelAssetsDir = layout.buildDirectory.dir("generated/noModelAssets").get().asFile
+
+def prepareNoModelAssets = tasks.register("prepareNoModelAssets", Copy) {
+    from("../assets")
+    into(filteredNoModelAssetsDir)
+    exclude("sherpa_model/**")
+}
+android {
+    def androidConfig = rootProject.ext.androidConfig
+    def serverConfig = rootProject.ext.serverConfig
+    compileSdk = androidConfig.compileSdk
+    namespace = 'com.paopaoime.aikeyboard.ime'
+    dynamicFeatures = []
+    lint {
+        checkDependencies = false
+        abortOnError = false
+    }
+    defaultConfig {
+        applicationId "tanke.keyboard.ime"
+        minSdk = androidConfig.minSdkIme
+        targetSdk = androidConfig.targetSdk
+        versionCode Integer.valueOf(versionCodeDate())
+        versionName versionNameDate()
+        manifestPlaceholders["appAuthRedirectScheme"] = applicationId
+
+        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+        ndk {
+            abiFilters 'arm64-v8a'
+        }
+
+        javaCompileOptions {
+            annotationProcessorOptions {
+                arguments = [AROUTER_MODULE_NAME: project.getName()]
+            }
+        }
+
+        buildConfigField "String", "versionName", "\"${versionNameDate()}\""
+        buildConfigField "String", "AppCommitHead", "\"${getAppGitHead()}\""
+        buildConfigField "String", "AppBuildTime", "\"${getAppBuildTime()}\""
+        buildConfigField "String", "AUTH_BASE_URL", "\"${serverConfig.authBaseUrl}\""
+        def authSecret = resolveBuildProperty("AUTH_SECRET", "")
+        buildConfigField "String", "AUTH_SECRET", "\"${authSecret}\""
+        def wechatAppId = resolveBuildProperty("WECHAT_APP_ID", "wx51af2f10bf8fd24d")
+        buildConfigField "String", "WECHAT_APP_ID", "\"${wechatAppId}\""
+    }
+
+    buildFeatures {
+        viewBinding = true
+        buildConfig = true
+    }
+
+    sourceSets {
+        main {
+            jniLibs.srcDirs = ['libs']
+            assets.srcDirs += [withoutEmbeddedModelAssets ? filteredNoModelAssetsDir : '../assets']
+            if (withoutEmbeddedModelAssets) {
+                assets.exclude 'sherpa_model/**'
+            }
+            java.exclude(
+                    'com/paopaoime/aikeyboard/ime/ui/activity/MarketingOperationActivity.kt',
+                    'com/paopaoime/aikeyboard/ime/ui/activity/MarketingPromptEditActivity.kt',
+                    'com/paopaoime/aikeyboard/ime/ui/activity/MarketingPromptListActivity.kt',
+                    'com/paopaoime/aikeyboard/ime/ui/fragment/HomeFragment.kt',
+                    'com/paopaoime/aikeyboard/ime/ui/fragment/MineFragment.kt',
+                    'com/paopaoime/aikeyboard/ime/ui/fragment/NftAuctionFragment.kt',
+                    'com/paopaoime/aikeyboard/ime/ui/fragment/HomeModelSelectorBottomSheet.kt',
+                    'com/paopaoime/aikeyboard/ime/data/LocalModelSkillService.kt',
+                    'com/paopaoime/aikeyboard/ime/data/NpcIdleChatSessionManager.kt',
+                    'com/paopaoime/aikeyboard/ime/data/NpcLocalMnnTaskExecutor.kt',
+                    'com/paopaoime/aikeyboard/ime/data/NpcLocalMediaTaskExecutor.kt',
+                    'com/paopaoime/aikeyboard/automation/**',
+                    'com/paopaoime/aikeyboard/midscene/agent/**',
+                    'com/paopaoime/aikeyboard/midscene/automation/**',
+                    'com/paopaoime/aikeyboard/midscene/overlay/**',
+                    'com/paopaoime/aikeyboard/midscene/shizuku/**',
+                    'com/paopaoime/aikeyboard/midscene/bridge/MidsceneBridgeJavascriptInterface.kt',
+                    'com/paopaoime/aikeyboard/midscene/bridge/MidsceneBridgeFacade.kt',
+                    'com/paopaoime/aikeyboard/midscene/bridge/model/**',
+                    'com/paopaoime/aikeyboard/sdk/core/OemAddons.kt',
+                    'com/paopaoime/aikeyboard/materialhub/MaterialHubActivity.kt',
+                    'com/paopaoime/aikeyboard/materialhub/MaterialHubLaunchAuthorizer.kt',
+                    'com/paopaoime/aikeyboard/materialhub/CustomDrawerContentHost.kt',
+                    'com/paopaoime/aikeyboard/materialhub/OemDrawerCapabilities.kt',
+                    'com/paopaoime/aikeyboard/materialhub/OemRemoteMaterialAutoSync.kt',
+                    'com/paopaoime/aikeyboard/materialhub/OemRemoteMaterialService.kt',
+                    'com/paopaoime/aikeyboard/materialhub/OemRemoteMaterialSyncScheduler.kt',
+                    'com/paopaoime/aikeyboard/materialhub/AiCommunicateLaunchGate.kt',
+                    'com/paopaoime/aikeyboard/materialhub/AiCommunicateOcrCacheStore.kt',
+                    'com/paopaoime/aikeyboard/materialhub/AiCommunicateReplyService.kt',
+                    'com/paopaoime/aikeyboard/materialhub/AiCommunicateScreenCaptureManager.kt',
+                    'com/paopaoime/aikeyboard/materialhub/AiScreenCaptureForegroundService.kt',
+                    'com/paopaoime/aikeyboard/oem/debug/**',
+                    'com/paopaoime/aikeyboard/ime/ui/fragment/DeveloperSettingsFragment.kt',
+                    'com/paopaoime/aikeyboard/ime/ui/fragment/DeveloperAiModelConfigFragment.kt',
+                    'com/paopaoime/aikeyboard/ime/ui/fragment/DeveloperAiReplyConfigFragment.kt',
+                    'com/paopaoime/aikeyboard/ime/ui/fragment/DeveloperMaterialCallbackFragment.kt',
+                    'com/paopaoime/aikeyboard/ime/ui/fragment/DeveloperSessionArchiveFragment.kt'
+            )
+            kotlin.exclude(
+                    'com/paopaoime/aikeyboard/ime/ui/activity/MarketingOperationActivity.kt',
+                    'com/paopaoime/aikeyboard/ime/ui/activity/MarketingPromptEditActivity.kt',
+                    'com/paopaoime/aikeyboard/ime/ui/activity/MarketingPromptListActivity.kt',
+                    'com/paopaoime/aikeyboard/ime/ui/fragment/HomeFragment.kt',
+                    'com/paopaoime/aikeyboard/ime/ui/fragment/MineFragment.kt',
+                    'com/paopaoime/aikeyboard/ime/ui/fragment/NftAuctionFragment.kt',
+                    'com/paopaoime/aikeyboard/ime/ui/fragment/HomeModelSelectorBottomSheet.kt',
+                    'com/paopaoime/aikeyboard/ime/data/LocalModelSkillService.kt',
+                    'com/paopaoime/aikeyboard/ime/data/NpcIdleChatSessionManager.kt',
+                    'com/paopaoime/aikeyboard/ime/data/NpcLocalMnnTaskExecutor.kt',
+                    'com/paopaoime/aikeyboard/ime/data/NpcLocalMediaTaskExecutor.kt',
+                    'com/paopaoime/aikeyboard/automation/**',
+                    'com/paopaoime/aikeyboard/midscene/agent/**',
+                    'com/paopaoime/aikeyboard/midscene/automation/**',
+                    'com/paopaoime/aikeyboard/midscene/overlay/**',
+                    'com/paopaoime/aikeyboard/midscene/shizuku/**',
+                    'com/paopaoime/aikeyboard/midscene/bridge/MidsceneBridgeJavascriptInterface.kt',
+                    'com/paopaoime/aikeyboard/midscene/bridge/MidsceneBridgeFacade.kt',
+                    'com/paopaoime/aikeyboard/midscene/bridge/model/**',
+                    'com/paopaoime/aikeyboard/sdk/core/OemAddons.kt',
+                    'com/paopaoime/aikeyboard/materialhub/MaterialHubActivity.kt',
+                    'com/paopaoime/aikeyboard/materialhub/MaterialHubLaunchAuthorizer.kt',
+                    'com/paopaoime/aikeyboard/materialhub/CustomDrawerContentHost.kt',
+                    'com/paopaoime/aikeyboard/materialhub/OemDrawerCapabilities.kt',
+                    'com/paopaoime/aikeyboard/materialhub/OemRemoteMaterialAutoSync.kt',
+                    'com/paopaoime/aikeyboard/materialhub/OemRemoteMaterialService.kt',
+                    'com/paopaoime/aikeyboard/materialhub/OemRemoteMaterialSyncScheduler.kt',
+                    'com/paopaoime/aikeyboard/materialhub/AiCommunicateLaunchGate.kt',
+                    'com/paopaoime/aikeyboard/materialhub/AiCommunicateOcrCacheStore.kt',
+                    'com/paopaoime/aikeyboard/materialhub/AiCommunicateReplyService.kt',
+                    'com/paopaoime/aikeyboard/materialhub/AiCommunicateScreenCaptureManager.kt',
+                    'com/paopaoime/aikeyboard/materialhub/AiScreenCaptureForegroundService.kt',
+                    'com/paopaoime/aikeyboard/oem/debug/**',
+                    'com/paopaoime/aikeyboard/ime/ui/fragment/DeveloperSettingsFragment.kt',
+                    'com/paopaoime/aikeyboard/ime/ui/fragment/DeveloperAiModelConfigFragment.kt',
+                    'com/paopaoime/aikeyboard/ime/ui/fragment/DeveloperAiReplyConfigFragment.kt',
+                    'com/paopaoime/aikeyboard/ime/ui/fragment/DeveloperMaterialCallbackFragment.kt',
+                    'com/paopaoime/aikeyboard/ime/ui/fragment/DeveloperSessionArchiveFragment.kt'
+            )
+        }
+    }
+
+    androidResources {
+        noCompress 'onnx', 'txt', 'json', 'nb'
+    }
+    
+    packagingOptions {
+        resources {
+            excludes.addAll([
+                    'META-INF/INDEX.LIST',
+                    'META-INF/io.netty.versions.properties',
+                    'META-INF/DEPENDENCIES',
+                    'META-INF/LICENSE',
+                    'META-INF/MANIFEST.MF'
+            ])
+        }
+        jniLibs {
+            useLegacyPackaging = true
+            pickFirst 'lib/**/libonnxruntime.so'
+            pickFirst 'lib/**/libc++_shared.so'
+            excludes += [
+                    'lib/**/libonnxruntime.so',
+                    'lib/**/libonnxruntime4j_jni.so'
+            ]
+        }
+    }
+
+    def keystorePropsFile = rootProject.file("keystore/keystore.properties")
+    def keystoreProps = new Properties()
+    def keystoreStoreFile = null
+    def hasValidKeystore = false
+    if (keystorePropsFile.exists()) {
+        keystoreProps.load(new FileInputStream(keystorePropsFile))
+        keystoreStoreFile = file("${rootProject.projectDir}/keystore/" + keystoreProps["storeFile"])
+        hasValidKeystore = keystoreStoreFile.exists()
+    }
+
+    signingConfigs {
+        release {
+            if (hasValidKeystore) {
+                storeFile keystoreStoreFile
+                storePassword keystoreProps["storePassword"]
+                keyAlias keystoreProps["keyAlias"]
+                keyPassword keystoreProps["keyPassword"]
+                v1SigningEnabled = true
+                v2SigningEnabled = true
+            }
+        }
+        debug {
+            if (hasValidKeystore) {
+                storeFile keystoreStoreFile
+                storePassword keystoreProps["storePassword"]
+                keyAlias keystoreProps["keyAlias"]
+                keyPassword keystoreProps["keyPassword"]
+                v1SigningEnabled = true
+                v2SigningEnabled = true
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            // Keep release behavior close to debug for runtime stability:
+            // several dynamic feature paths (IME / model loaders / voice chain)
+            // are sensitive to aggressive shrinking/obfuscation.
+            minifyEnabled = false
+            shrinkResources = false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard.cfg'
+            if (hasValidKeystore) {
+                signingConfig = signingConfigs.release
+            }
+        }
+
+        debug {
+            if (hasValidKeystore) {
+                signingConfig = signingConfigs.debug
+            }
+        }
+
+    }
+    //    第三方库使用java1.8
+    compileOptions {
+        sourceCompatibility 17
+        targetCompatibility 17
+    }
+    applicationVariants.configureEach { variant ->
+        if (withoutEmbeddedModelAssets) {
+            def variantName = variant.name.capitalize()
+            [
+                "merge${variantName}Assets",
+                "compress${variantName}Assets",
+                "map${variantName}SourceSetPaths",
+                "generate${variantName}LintModel",
+                "generate${variantName}LintVitalModel",
+                "generate${variantName}LintVitalReportModel",
+                "lintAnalyze${variantName}",
+                "lintVitalAnalyze${variantName}",
+                "lintVital${variantName}"
+            ].each { taskName ->
+                tasks.matching { it.name == taskName }.configureEach {
+                    dependsOn(prepareNoModelAssets)
+                }
+            }
+        }
+        variant.outputs.configureEach {
+            if (variant.buildType.name == "debug") {
+                outputFileName = withoutEmbeddedModelAssets ? "tankeIme_debug_nomodel.apk" : "tankeIme_debug.apk"
+            } else {
+                def packageSuffix = withoutEmbeddedModelAssets ? "_nomodel" : ""
+                outputFileName = "tankeIme_${versionCodeDate()}_${variant.buildType.name}${packageSuffix}.apk"
+            }
+        }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+    }
+}
+
+configurations.configureEach {
+    exclude group: 'com.atlassian.commonmark', module: 'commonmark'
+    exclude group: 'com.atlassian.commonmark', module: 'commonmark-ext-gfm-tables'
+    exclude group: 'com.atlassian.commonmark', module: 'commonmark-ext-gfm-strikethrough'
+    exclude group: 'org.bouncycastle', module: 'bcpkix-jdk15to18'
+    exclude group: 'org.bouncycastle', module: 'bcprov-jdk15to18'
+    exclude group: 'org.bouncycastle', module: 'bcutil-jdk15to18'
+}
+
+static def versionCodeDate() {
+    def now = new Date()
+    def tz = TimeZone.getTimeZone("GMT+8")
+    def yearOffset = Integer.valueOf(now.format("yyyy", tz)) - 2026
+    def dayOfYear = Integer.valueOf(now.format("DDD", tz))
+    def hour = Integer.valueOf(now.format("HH", tz))
+    def minute = Integer.valueOf(now.format("mm", tz))
+    def minuteOfYear = ((dayOfYear - 1) * 24 * 60) + (hour * 60) + minute
+    def versionCode = 2100000000 + (yearOffset * 600000) + minuteOfYear
+    return String.valueOf(versionCode)
+}
+
+static def versionNameDate() {
+    return new Date().format("yyyyMMdd.HHmm", TimeZone.getTimeZone("GMT+8"))
+}
+
+static def getAppGitHead() {
+    return ""
+}
+
+static def getAppBuildTime() {
+    return new Date().format("yyyy-MM-dd HH:mm:ss", TimeZone.getTimeZone("GMT+8"))
+}
+
+dependencies {
+    implementation project(':oem-ime-sdk-voice')
+    def versions = rootProject.ext.versions
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    // Copied from ime-core dependencies
+    implementation fileTree(dir: 'libs', include: ['*.aar']) // Ensure local aars are picked up
+    implementation project(':oem-ime-sdk-core')
+    implementation project(':oem-ime-sdk-automation')
+    implementation project(':oem-ime-sdk-ai-reply')
+    implementation project(':oem-ime-sdk-material')
+    implementation project(':oem-ime-sdk-developer')
+    
+    implementation "androidx.core:core-ktx:${versions.androidxCoreKtx}"
+    implementation "androidx.activity:activity-ktx:${versions.activityKtx}"
+    implementation "androidx.appcompat:appcompat:${versions.appcompat}"
+    implementation "androidx.fragment:fragment-ktx:${versions.fragmentKtx}"
+    implementation "androidx.lifecycle:lifecycle-runtime-ktx:${versions.lifecycle}"
+    implementation "androidx.recyclerview:recyclerview:${versions.recyclerview}"
+    implementation "androidx.media3:media3-exoplayer:${versions.media3}"
+    implementation "androidx.media3:media3-ui:${versions.media3}"
+    implementation "androidx.swiperefreshlayout:swiperefreshlayout:1.1.0"
+    implementation "androidx.preference:preference-ktx:${versions.preference}"
+    implementation "com.google.android.material:material:${versions.material}"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:${versions.coroutines}"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:${versions.coroutines}"
+    implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:${versions.serializationJson}"
+    implementation "androidx.room:room-runtime:${versions.room}"
+    implementation "androidx.room:room-ktx:${versions.room}"
+    ksp "androidx.room:room-compiler:${versions.room}"
+    
+    // Dependencies from ime-core
+    implementation "androidx.constraintlayout:constraintlayout:${versions.constraintlayout}"
+    implementation 'org.fcitx.fcitx5.android:app:1.10'
+    implementation "com.google.android.flexbox:flexbox:${versions.flexbox}"
+    implementation "androidx.emoji2:emoji2:${versions.emoji2}"
+    implementation "androidx.emoji2:emoji2-views:${versions.emoji2}"
+    implementation "androidx.navigation:navigation-fragment-ktx:${versions.navigation}"
+    implementation "androidx.navigation:navigation-ui-ktx:${versions.navigation}"
+    implementation "com.louiscad.splitties:splitties-resources:${versions.splitties}"
+    implementation "com.louiscad.splitties:splitties-views-dsl-recyclerview:${versions.splitties}"
+    implementation "com.louiscad.splitties:splitties-views-dsl-constraintlayout:${versions.splitties}"
+    implementation "com.louiscad.splitties:splitties-views-dsl-appcompat:${versions.splitties}"
+    implementation "androidx.exifinterface:exifinterface:${versions.exifinterface}"
+    implementation "androidx.work:work-runtime-ktx:${versions.work}"
+    implementation "com.tom-roush:pdfbox-android:${versions.pdfboxAndroid}"
+    implementation "org.apache.poi:poi-ooxml:${versions.poi}"
+    implementation "org.apache.poi:poi-scratchpad:${versions.poi}"
+    implementation "com.fasterxml:aalto-xml:${versions.aaltoXml}"
+    implementation "stax:stax-api:${versions.staxApi}"
+    implementation "org.apache.logging.log4j:log4j-api:${versions.log4jApi}"
+    implementation "com.squareup.okhttp3:okhttp:${versions.okhttp}"
+    implementation "com.squareup.retrofit2:retrofit:${versions.retrofit}"
+    implementation "com.squareup.retrofit2:converter-gson:${versions.retrofit}"
+    implementation "com.google.code.gson:gson:${versions.gson}"
+    implementation "com.google.dagger:hilt-android:2.57.2"
+    ksp "com.google.dagger:hilt-android-compiler:2.57.2"
+    implementation "com.jakewharton.timber:timber:${versions.timber}"
+    implementation "com.google.zxing:core:3.5.3"
+    implementation "net.dankito.readability4j:readability4j:${versions.readability4j}"
+    // Modules
+    // implementation project(':ime-core') // Removed
+    implementation project(':paddleocr4android')
+
+    // Force Compose version to match OEM host dependencies
+    implementation platform("androidx.compose:compose-bom:${versions.composeBom}")
+    implementation "androidx.compose.ui:ui"
+    implementation "androidx.compose.ui:ui-graphics"
+    implementation "androidx.compose.foundation:foundation"
+    implementation "androidx.compose.material3:material3"
+}

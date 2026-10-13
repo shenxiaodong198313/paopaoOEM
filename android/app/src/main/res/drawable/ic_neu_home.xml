@@ -1,0 +1,15 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FF111111"
+        android:pathData="M12,3L4,9v10c0,1.1 0.9,2 2,2h12c1.1,0 2,-0.9 2,-2V9L12,3z M12,16c-1.1,0 -2,-0.9 -2,-2s0.9,-2 2,-2s2,0.9 2,2S13.1,16 12,16z" />
+    <!-- 覆盖一个小圆点或弧线来模拟原图的拱门开口感，这里简化为实心圆润图标 -->
+    <path
+        android:pathData="M10,14 C10,12.89 10.89,12 12,12 C13.11,12 14,12.89 14,14"
+        android:strokeWidth="1.5"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round"/>
+</vector>

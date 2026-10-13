@@ -1,0 +1,160 @@
+{
+  "version": "2.9",
+  "name": "daylight_porcelain",
+  "isDark": false,
+  "backgroundImage": null,
+  "toolbarImage": {
+    "croppedFilePath": "normal.png",
+    "srcFilePath": "normal.png",
+    "brightness": 100,
+    "cropRect": null,
+    "slice": {
+      "left": 56,
+      "top": 56,
+      "right": 56,
+      "bottom": 64,
+      "sourceDensityDpi": 1280
+    }
+  },
+  "sidebarImage": {
+    "croppedFilePath": "normal.png",
+    "srcFilePath": "normal.png",
+    "brightness": 100,
+    "cropRect": null,
+    "slice": {
+      "left": 56,
+      "top": 56,
+      "right": 56,
+      "bottom": 64,
+      "sourceDensityDpi": 1280
+    }
+  },
+  "keyImage": {
+    "croppedFilePath": "normal.png",
+    "srcFilePath": "normal.png",
+    "brightness": 100,
+    "cropRect": null,
+    "slice": {
+      "left": 56,
+      "top": 56,
+      "right": 56,
+      "bottom": 64,
+      "sourceDensityDpi": 1280
+    }
+  },
+  "altKeyImage": {
+    "croppedFilePath": "function.png",
+    "srcFilePath": "function.png",
+    "brightness": 100,
+    "cropRect": null,
+    "slice": {
+      "left": 56,
+      "top": 56,
+      "right": 56,
+      "bottom": 64,
+      "sourceDensityDpi": 1280
+    }
+  },
+  "spaceBarImage": {
+    "croppedFilePath": "normal.png",
+    "srcFilePath": "normal.png",
+    "brightness": 100,
+    "cropRect": null,
+    "slice": {
+      "left": 56,
+      "top": 56,
+      "right": 56,
+      "bottom": 64,
+      "sourceDensityDpi": 1280
+    }
+  },
+  "enterKeyImage": {
+    "croppedFilePath": "enter.png",
+    "srcFilePath": "enter.png",
+    "brightness": 100,
+    "cropRect": null,
+    "slice": {
+      "left": 56,
+      "top": 56,
+      "right": 56,
+      "bottom": 64,
+      "sourceDensityDpi": 1280
+    }
+  },
+  "backgroundColor": -2170393,
+  "barColor": -2170393,
+  "keyboardColor": -2170393,
+  "keyBackgroundColor": -460555,
+  "keyTextColor": -14538955,
+  "candidateTextColor": -14538955,
+  "candidateLabelColor": -9932413,
+  "candidateCommentColor": -9932413,
+  "altKeyBackgroundColor": -8025707,
+  "altKeyTextColor": -1,
+  "accentKeyBackgroundColor": -13469441,
+  "accentKeyTextColor": -1,
+  "keyPressHighlightColor": 1431990942,
+  "keyShadowColor": 0,
+  "popupBackgroundColor": -2299393,
+  "popupTextColor": -14394440,
+  "spaceBarColor": -14538955,
+  "dividerColor": -4406579,
+  "clipboardEntryColor": -460555,
+  "genericActiveBackgroundColor": -13469441,
+  "genericActiveForegroundColor": -1,
+  "renderStyle": {
+    "clipKeyImagesToOutline": false,
+    "centerKeyGlyphs": true,
+    "keyTextScale": 0.8,
+    "uppercaseLatinLabels": true,
+    "alignToolbarToKeyFaces": true,
+    "digitHintsOnly": true,
+    "keyVisualHorizontalInsetDp": 3,
+    "keyVisualVerticalInsetDp": 5,
+    "keyTextScaleByLayout": {
+      "t9": 0.85
+    },
+    "sidebarTextColor": -14538955,
+    "keyHintTextScale": 0.9,
+    "keyLabelCenterY": 0.49,
+    "keyLabelWithHintCenterY": 0.62,
+    "keyHintCenterY": 0.23,
+    "keyContentInsets": {
+      "leftDp": 1,
+      "rightDp": 1,
+      "topDp": 1,
+      "bottomDp": 2
+    },
+    "keyIconSizeDp": 20,
+    "functionKeyTextSizeDp": 13,
+    "toolbarHeightDp": 40,
+    "preeditOutsideBar": true,
+    "preeditHeightDp": 20,
+    "toolbarIconTint": -11182737,
+    "toolbarButtonBackground": false,
+    "toolbarIconSizeDp": 23,
+    "unifiedSidebar": true,
+    "gridKeyVerticalCompensation": false,
+    "keyTextBold": false,
+    "spaceKeyTextColor": -14538955,
+    "layout": {
+      "keyboardHeightDp": 240,
+      "keyboardHeightLandscapeDp": 160,
+      "sidePaddingDp": 3,
+      "sidePaddingLandscapeDp": 6,
+      "bottomPaddingDp": 6,
+      "bottomPaddingLandscapeDp": 6,
+      "keyBorder": true,
+      "keyRadiusDp": 7,
+      "keyHorizontalMarginDp": 3,
+      "keyHorizontalMarginLandscapeDp": 4,
+      "keyVerticalMarginDp": 5,
+      "keyVerticalMarginLandscapeDp": 4
+    },
+    "keyPressScale": 0.97,
+    "equalToolbarSlots": true,
+    "skinLabStandard": true,
+    "toolbarShortcutLimit": 4
+  },
+  "revision": 9
+}

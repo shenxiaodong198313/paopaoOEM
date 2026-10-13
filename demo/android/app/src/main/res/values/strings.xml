@@ -1,0 +1,12 @@
+<resources>
+    <!-- company_app_name 由 app/build.gradle 的 resValue 按 demoProfile 注入 -->
+    <string name="company_ime_display_name">@string/company_app_name</string>
+    <item name="app_name" type="string">@string/company_ime_display_name</item>
+    <item name="paopao_app_name" type="string">@string/company_ime_display_name</item>
+    <item name="ime_app_name" type="string">@string/company_ime_display_name</item>
+    <item name="material_hub_title" type="string">@string/company_ime_display_name</item>
+    <item name="splash_title_paopao" type="string">@string/company_ime_display_name</item>
+    <item name="input_method_settings_page_title" type="string">@string/company_ime_display_name</item>
+    <string name="open_settings_failed">打开输入法页面失败</string>
+    <string name="input_method_entry_missing">未找到 OEM 输入法页面入口，请先更新 OEM 包。</string>
+</resources>

@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "enabled": true,
+  "defaultMode": "performance",
+  "punctuationThreads": 1,
+  "maxRecordingSeconds": 180,
+  "silenceTimeoutSeconds": 30,
+  "finishTimeoutMs": 4000,
+  "speechRmsThreshold": 0.01,
+  "models": {
+    "performance": {
+      "numThreads": 2,
+      "decodingMethod": "greedy_search",
+      "maxActivePaths": 4,
+      "blankPenalty": 0.0,
+      "endpointSilenceSeconds": 2.4,
+      "endpointSpeechSilenceSeconds": 0.7,
+      "endpointMaxUtteranceSeconds": 15.0
+    },
+    "quality": {
+      "numThreads": 2,
+      "decodingMethod": "greedy_search",
+      "maxActivePaths": 4,
+      "blankPenalty": 0.0,
+      "endpointSilenceSeconds": 2.4,
+      "endpointSpeechSilenceSeconds": 0.7,
+      "endpointMaxUtteranceSeconds": 15.0
+    },
+    "quality_xl": {
+      "numThreads": 2,
+      "decodingMethod": "greedy_search",
+      "maxActivePaths": 4,
+      "blankPenalty": 0.0,
+      "endpointSilenceSeconds": 2.4,
+      "endpointSpeechSilenceSeconds": 0.7,
+      "endpointMaxUtteranceSeconds": 15.0
+    }
+  },
+  "downloadUrlTemplates": [
+    "https://hf-mirror.com/{repo}/resolve/{revision}/{name}",
+    "https://huggingface.co/{repo}/resolve/{revision}/{name}"
+  ],
+  "fileUrls": {}
+}

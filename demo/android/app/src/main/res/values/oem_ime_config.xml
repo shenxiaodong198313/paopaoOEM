@@ -1,0 +1,9 @@
+<resources>
+    <!--
+      OEM 输入法显示名配置：
+      1. 该名称会用于系统输入法列表、启用提示、设置页标题等统一品牌入口。
+      2. 企业可直接改成固定名称，例如“XX企业输入法”。
+      3. 如希望与宿主 App 名称保持一致，可像当前示例一样引用 company_app_name。
+    -->
+    <item name="oem_ime_display_name" type="string">@string/company_app_name</item>
+</resources>

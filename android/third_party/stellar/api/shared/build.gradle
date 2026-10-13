@@ -1,0 +1,55 @@
+plugins {
+    id('com.android.library')
+}
+
+def configuredAutomationEngineApplicationId = (rootProject.findProperty('automationEngineApplicationId')
+        ?: System.getenv('AUTOMATION_ENGINE_APPLICATION_ID')
+        ?: rootProject.findProperty('stellarManagerApplicationId')
+        ?: System.getenv('STELLAR_MANAGER_APPLICATION_ID')
+        ?: '').toString().trim()
+if (!configuredAutomationEngineApplicationId) {
+    throw new GradleException("缺少必填配置 automationEngineApplicationId，请在 OEM/android/gradle.properties 中显式填写企业宿主 applicationId。")
+}
+def stellarManagerApplicationId = configuredAutomationEngineApplicationId
+def stellarDefaultAllowedPackages = (rootProject.findProperty('automationEngineDefaultAllowedPackages')
+        ?: System.getenv('AUTOMATION_ENGINE_DEFAULT_ALLOWED_PACKAGES')
+        ?: rootProject.findProperty('stellarDefaultAllowedPackages')
+        ?: System.getenv('STELLAR_DEFAULT_ALLOWED_PACKAGES')
+        ?: stellarManagerApplicationId).toString().trim()
+
+ext.stellarPublishVersion = '1.1'
+apply from: rootProject.file('third_party/stellar/publish-local.gradle')
+
+android {
+    namespace 'roro.stellar.shared'
+    compileSdk 36
+    buildFeatures {
+        buildConfig true
+    }
+    defaultConfig {
+        minSdk 24
+        buildConfigField 'int', 'SERVER_API_VERSION', "${rootProject.ext.api_version_code}"
+        buildConfigField 'String', 'SERVER_API_VERSION_NAME', "\"${rootProject.ext.api_version_name}\""
+        buildConfigField 'String', 'STELLAR_MANAGER_APPLICATION_ID', "\"${stellarManagerApplicationId}\""
+        buildConfigField 'String', 'STELLAR_DEFAULT_ALLOWED_PACKAGES', "\"${stellarDefaultAllowedPackages}\""
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlin {
+        jvmToolchain(17)
+    }
+}
+
+dependencies {
+    implementation project(':stellar-aidl')
+
+    implementation apiLibs.androidxAnnotation
+}
+

@@ -1,0 +1,47 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application
+        android:name=".HostApp"
+        android:allowBackup="true"
+        android:icon="@drawable/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@drawable/ic_launcher"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Tankeyunke"
+        tools:replace="android:name,android:label,android:theme,android:icon,android:roundIcon">
+
+        <meta-data android:name="com.paopaoime.oem.customerId" android:value="YOUR_CUSTOMER_ID" />
+        <meta-data android:name="com.paopaoime.oem.appKey" android:value="YOUR_CUSTOMER_ID" />
+        <meta-data android:name="com.paopaoime.oem.channel" android:value="release" />
+        <meta-data android:name="com.paopaoime.oem.environment" android:value="prod" />
+        <meta-data android:name="com.paopaoime.oem.apiBaseUrl" android:value="https://paopaoime.com" />
+        <meta-data android:name="com.paopaoime.oem.enableUi" android:value="true" />
+        <meta-data android:name="com.paopaoime.oem.sessionArchiveMode" android:value="CLOUD_ONLY" />
+        <meta-data android:name="com.paopaoime.oem.enableAi" android:value="true" />
+        <meta-data android:name="com.paopaoime.oem.enableAiReply" android:value="true" />
+        <meta-data android:name="com.paopaoime.oem.enableQaSession" android:value="true" />
+        <meta-data android:name="com.paopaoime.oem.aiMode" android:value="proxy" />
+        <meta-data android:name="com.paopaoime.oem.aiReplyDispatchMode" android:value="CLOUD_ONLY" />
+        <meta-data android:name="com.paopaoime.oem.enableAiReplyCustomUi" android:value="false" />
+        <meta-data android:name="com.paopaoime.oem.enableMaterialLibrary" android:value="true" />
+        <meta-data android:name="com.paopaoime.oem.materialDispatchMode" android:value="CLOUD_ONLY" />
+        <meta-data android:name="com.paopaoime.oem.enableMaterialLibraryCustomUi" android:value="false" />
+        <meta-data android:name="com.paopaoime.oem.enableCustomDrawers" android:value="false" />
+        <meta-data android:name="com.paopaoime.oem.enableAutomation" android:value="true" />
+        <meta-data android:name="com.paopaoime.oem.enableAutomationSettingsEntry" android:value="false" />
+        <meta-data android:name="roro.stellar.permissions" android:value="stellar,follow_stellar_startup" tools:replace="android:value" />
+        <meta-data android:name="com.paopaoime.oem.enable_developer" android:value="true" />
+        <meta-data android:name="com.paopaoime.oem.enable_developer_entry" android:value="true" tools:replace="android:value" />
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:noHistory="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

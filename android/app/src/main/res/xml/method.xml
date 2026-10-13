@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--系统输入法设置定义字段-->
+<input-method xmlns:android="http://schemas.android.com/apk/res/android"
+    android:label="@string/paopao_app_name">
+    <subtype
+             android:icon="@drawable/app_icon"
+             android:imeSubtypeMode="keyboard"
+             android:imeSubtypeExtraValue="AsciiCapable,EmojiCapable"
+             android:overridesImplicitlyEnabledSubtype="true"  />
+    </input-method>
+

@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="12dp"
+    android:background="@drawable/bg_card_dark_12dp"
+    android:padding="12dp">
+
+    <TextView
+        android:id="@+id/tv_memory_title"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="Memory"
+        android:textColor="#FFFFFF"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <TextView
+        android:id="@+id/tv_memory_meta"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="meta"
+        android:textColor="#9CA3AF"
+        android:textSize="11sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tv_memory_title"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <TextView
+        android:id="@+id/tv_memory_content"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="Content"
+        android:textColor="#C4C4C6"
+        android:textSize="13sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tv_memory_meta"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <TextView
+        android:id="@+id/btn_memory_edit"
+        android:layout_width="wrap_content"
+        android:layout_height="32dp"
+        android:layout_marginTop="10dp"
+        android:paddingHorizontal="12dp"
+        android:gravity="center"
+        android:text="@string/memory_edit"
+        android:textColor="#FFFFFF"
+        android:background="@drawable/bg_btn_generate_green"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tv_memory_content" />
+
+    <TextView
+        android:id="@+id/btn_memory_delete"
+        android:layout_width="wrap_content"
+        android:layout_height="32dp"
+        android:layout_marginStart="8dp"
+        android:paddingHorizontal="12dp"
+        android:gravity="center"
+        android:text="@string/memory_delete"
+        android:textColor="#FFFFFF"
+        android:background="@drawable/bg_btn_generate_red"
+        app:layout_constraintStart_toEndOf="@id/btn_memory_edit"
+        app:layout_constraintTop_toTopOf="@id/btn_memory_edit" />
+</androidx.constraintlayout.widget.ConstraintLayout>

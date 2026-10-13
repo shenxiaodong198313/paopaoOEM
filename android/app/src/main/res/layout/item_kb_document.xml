@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp"
+    android:paddingTop="12dp"
+    android:paddingBottom="12dp"
+    android:layout_marginBottom="10dp"
+    android:foreground="?attr/selectableItemBackground"
+    android:background="@drawable/bg_card_white_12dp">
+
+    <androidx.cardview.widget.CardView
+        android:id="@+id/card_kb_doc_thumb"
+        android:layout_width="@dimen/kb_doc_thumb_size"
+        android:layout_height="@dimen/kb_doc_thumb_size"
+        android:layout_marginStart="12dp"
+        app:cardCornerRadius="10dp"
+        app:cardElevation="0dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <ImageView
+            android:id="@+id/iv_kb_doc_thumb"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:src="@drawable/bg_placeholder_gray"
+            android:contentDescription="@null" />
+    </androidx.cardview.widget.CardView>
+
+    <TextView
+        android:id="@+id/tv_kb_doc_title"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="文档标题"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        android:textColor="@color/text_title_primary"
+        android:ellipsize="end"
+        android:maxLines="1"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/tv_kb_doc_error"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/tv_kb_doc_error"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="向量化失败"
+        android:textSize="12sp"
+        android:textColor="@color/red_400"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:visibility="gone"
+        app:layout_constraintEnd_toStartOf="@id/card_kb_doc_thumb"
+        app:layout_constraintBaseline_toBaselineOf="@id/tv_kb_doc_title"
+        android:layout_marginStart="8dp" />
+
+    <TextView
+        android:id="@+id/tv_kb_doc_subtitle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="摘要内容"
+        android:textSize="12sp"
+        android:textColor="@color/text_time_secondary"
+        android:ellipsize="end"
+        android:maxLines="2"
+        app:layout_constraintStart_toStartOf="@id/tv_kb_doc_title"
+        app:layout_constraintEnd_toStartOf="@id/card_kb_doc_thumb"
+        app:layout_constraintTop_toBottomOf="@id/tv_kb_doc_title"
+        android:layout_marginTop="6dp" />
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_kb_doc_footer"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        app:layout_constraintStart_toStartOf="@id/tv_kb_doc_title"
+        app:layout_constraintEnd_toStartOf="@id/card_kb_doc_thumb"
+        app:layout_constraintTop_toBottomOf="@id/tv_kb_doc_subtitle"
+        android:layout_marginTop="8dp">
+
+        <LinearLayout
+            android:id="@+id/layout_kb_doc_meta"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/layout_kb_doc_tags"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent">
+
+            <ImageView
+                android:id="@+id/iv_kb_doc_icon"
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:src="@drawable/ic_neu_target"
+                android:alpha="0.65"
+                android:contentDescription="@null" />
+
+            <TextView
+                android:id="@+id/tv_kb_doc_type"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:text="PDF"
+                android:textSize="11sp"
+                android:textColor="@color/text_time_secondary" />
+
+            <TextView
+                android:id="@+id/tv_kb_doc_size"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="0.0 MB"
+                android:textSize="11sp"
+                android:textColor="@color/text_time_secondary" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/layout_kb_doc_tags"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent">
+
+            <TextView
+                android:id="@+id/tv_kb_doc_tag_1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:paddingTop="3dp"
+                android:paddingBottom="3dp"
+                android:text="标签1"
+                android:textSize="11sp"
+                android:textColor="@color/text_cyan"
+                android:background="@drawable/bg_tag_cyan" />
+
+            <TextView
+                android:id="@+id/tv_kb_doc_tag_2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:paddingTop="3dp"
+                android:paddingBottom="3dp"
+                android:text="标签2"
+                android:textSize="11sp"
+                android:textColor="@color/text_cyan"
+                android:background="@drawable/bg_tag_cyan" />
+        </LinearLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <ProgressBar
+        android:id="@+id/pb_kb_doc_parse"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="0dp"
+        android:layout_height="4dp"
+        android:max="100"
+        android:indeterminate="false"
+        android:progress="0"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="@id/tv_kb_doc_title"
+        app:layout_constraintEnd_toStartOf="@id/card_kb_doc_thumb"
+        app:layout_constraintTop_toBottomOf="@id/layout_kb_doc_footer"
+        android:layout_marginTop="8dp" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
+

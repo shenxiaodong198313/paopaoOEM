@@ -1,0 +1,105 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application
+        android:name=".CompanyApplication"
+        android:allowBackup="true"
+        android:icon="@drawable/ic_company_launcher"
+        android:label="@string/company_app_name"
+        android:roundIcon="@drawable/ic_company_launcher"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.CompanyHost"
+        tools:replace="android:name,android:icon,android:roundIcon,android:theme,android:label">
+
+        <!-- 企业客户标识：当前演示环境指向企业码 YOUR_CUSTOMER_ID -->
+        <meta-data
+            android:name="com.paopaoime.oem.customerId"
+            android:value="YOUR_CUSTOMER_ID" />
+        <!-- 企业应用密钥：必须与 customerId 对应，才能命中企业授权限制链路 -->
+        <meta-data
+            android:name="com.paopaoime.oem.appKey"
+            android:value="${oemDemoAppKey}" />
+        <!-- 渠道标识：用于区分 release / demo / 灰度等发布渠道 -->
+        <meta-data
+            android:name="com.paopaoime.oem.channel"
+            android:value="release" />
+        <!-- 环境标识：支持 prod / staging / dev，正式环境建议使用 prod -->
+        <meta-data
+            android:name="com.paopaoime.oem.environment"
+            android:value="prod" />
+        <!-- 企业后端基础域名：AI 代理、素材库同步、输入质检云端上传等能力统一走这个域名；禁止回退到 paopaoime 域名 -->
+        <meta-data
+            android:name="com.paopaoime.oem.apiBaseUrl"
+            android:value="https://paopaoime.com" />
+        <!-- AI 总开关：关闭后，AI 回复相关能力不会对宿主开放 -->
+        <meta-data
+            android:name="com.paopaoime.oem.enableAi"
+            android:value="true" />
+        <!-- 自动化总开关：只有交付自动化套餐时才打开 -->
+        <meta-data
+            android:name="com.paopaoime.oem.enableAutomation"
+            android:value="true" />
+        <meta-data
+            android:name="com.paopaoime.oem.enableAutomationSettingsEntry"
+            android:value="false" />
+        <!-- UI 总开关：关闭后，输入法设置页、素材库承载页等 UI 能力不会对宿主开放 -->
+        <meta-data
+            android:name="com.paopaoime.oem.enableUi"
+            android:value="true" />
+        <!-- 细粒度功能开关：是否启用 AI 回复 -->
+        <meta-data
+            android:name="com.paopaoime.oem.enableAiReply"
+            android:value="true" />
+        <!-- 细粒度功能开关：是否启用素材库 -->
+        <meta-data
+            android:name="com.paopaoime.oem.enableMaterialLibrary"
+            android:value="true" />
+        <!-- 细粒度功能开关：是否启用企业质检会话 -->
+        <meta-data
+            android:name="com.paopaoime.oem.enableQaSession"
+            android:value="true" />
+        <!-- 输入质检会话分发模式：
+             CLOUD_ONLY = 仅上传企业服务端
+             HOST_ONLY = 仅回调宿主 App
+             DUAL_WRITE = 同时上传服务端并回调宿主
+             LOCAL_ONLY = 仅本地留存 -->
+        <meta-data
+            android:name="com.paopaoime.oem.sessionArchiveMode"
+            android:value="DUAL_WRITE" />
+        <meta-data
+            android:name="roro.stellar.permissions"
+            android:value="stellar,follow_stellar_startup"
+            tools:replace="android:value" />
+        <meta-data
+            android:name="com.yingxiaoime.enterprise.targetImeService"
+            android:value="com.paopaoime.aikeyboard.ime.service.AiInputMethodService" />
+        <meta-data
+            android:name="com.yingxiaoime.enterprise.targetImeSetupActivity"
+            android:value="com.paopaoime.aikeyboard.ime.ui.setup.SetupActivity" />
+        <meta-data
+            android:name="com.yingxiaoime.enterprise.targetImeCenterActivity"
+            android:value="com.paopaoime.aikeyboard.ime.ui.activity.OemMainActivity" />
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:noHistory="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name="com.paopaoime.aikeyboard.ime.ui.activity.SplashActivity"
+            android:exported="false"
+            tools:node="merge"
+            tools:replace="android:exported">
+            <intent-filter tools:node="removeAll" />
+        </activity>
+
+    </application>
+
+</manifest>

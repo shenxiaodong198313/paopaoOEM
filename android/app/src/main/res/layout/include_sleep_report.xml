@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_card_dark_12dp"
+    android:backgroundTint="#191b20"
+    android:padding="16dp">
+
+    <!-- Header -->
+    <LinearLayout
+        android:id="@+id/header_row"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Daily"
+            android:textColor="#f9fafb"
+            android:textSize="16sp" />
+        
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_arrow_drop_down"
+            app:tint="#f9fafb"/>
+    </LinearLayout>
+
+    <!-- Chart Area (Simplified) -->
+    <LinearLayout
+        android:id="@+id/chart_container"
+        android:layout_width="match_parent"
+        android:layout_height="180dp"
+        android:orientation="horizontal"
+        android:layout_marginTop="16dp"
+        app:layout_constraintTop_toBottomOf="@+id/header_row">
+        
+        <!-- Y Axis -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:gravity="end"
+            android:paddingEnd="8dp">
+            <!-- Approximated Y labels -->
+            <TextView android:layout_width="wrap_content" android:text="12Hour" android:textSize="10sp" android:textColor="#5d5d5d" android:layout_height="0dp" android:layout_weight="1"/>
+            <TextView android:layout_width="wrap_content" android:text="8Hour" android:textSize="10sp" android:textColor="#16a34a" android:layout_height="0dp" android:layout_weight="1"/>
+            <TextView android:layout_width="wrap_content" android:text="6Hour" android:textSize="10sp" android:textColor="#5d5d5d" android:layout_height="0dp" android:layout_weight="1"/>
+            <TextView android:layout_width="wrap_content" android:text="4Hour" android:textSize="10sp" android:textColor="#5d5d5d" android:layout_height="0dp" android:layout_weight="1"/>
+            <TextView android:layout_width="wrap_content" android:text="0" android:textSize="10sp" android:textColor="#5d5d5d" android:layout_height="wrap_content"/>
+        </LinearLayout>
+        
+        <!-- Bars Container -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:orientation="horizontal"
+            android:gravity="bottom"
+            android:baselineAligned="false">
+            
+            <!-- Sat -->
+            <LinearLayout android:orientation="vertical" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:gravity="bottom|center_horizontal">
+                <View android:layout_width="16dp" android:layout_height="100dp" android:background="@drawable/bg_rounded_8dp" android:backgroundTint="#4ade80"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Sat" android:textSize="10sp" android:textColor="#7b7b7b" android:layout_marginTop="4dp"/>
+            </LinearLayout>
+            <!-- Sun -->
+            <LinearLayout android:orientation="vertical" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:gravity="bottom|center_horizontal">
+                <View android:layout_width="16dp" android:layout_height="80dp" android:background="@drawable/bg_rounded_8dp" android:backgroundTint="#23262f"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Sun" android:textSize="10sp" android:textColor="#7b7b7b" android:layout_marginTop="4dp"/>
+            </LinearLayout>
+            <!-- Mon -->
+            <LinearLayout android:orientation="vertical" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:gravity="bottom|center_horizontal">
+                <View android:layout_width="16dp" android:layout_height="70dp" android:background="@drawable/bg_rounded_8dp" android:backgroundTint="#4ade80"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Mon" android:textSize="10sp" android:textColor="#7b7b7b" android:layout_marginTop="4dp"/>
+            </LinearLayout>
+             <!-- Tue -->
+            <LinearLayout android:orientation="vertical" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:gravity="bottom|center_horizontal">
+                <View android:layout_width="16dp" android:layout_height="90dp" android:background="@drawable/bg_rounded_8dp" android:backgroundTint="#4ade80"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Tue" android:textSize="10sp" android:textColor="#7b7b7b" android:layout_marginTop="4dp"/>
+            </LinearLayout>
+             <!-- Wed -->
+            <LinearLayout android:orientation="vertical" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:gravity="bottom|center_horizontal">
+                <View android:layout_width="16dp" android:layout_height="80dp" android:background="@drawable/bg_rounded_8dp" android:backgroundTint="#23262f"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Web" android:textSize="10sp" android:textColor="#7b7b7b" android:layout_marginTop="4dp"/>
+            </LinearLayout>
+             <!-- Thu -->
+            <LinearLayout android:orientation="vertical" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:gravity="bottom|center_horizontal">
+                <View android:layout_width="16dp" android:layout_height="85dp" android:background="@drawable/bg_rounded_8dp" android:backgroundTint="#4ade80"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Thu" android:textSize="10sp" android:textColor="#7b7b7b" android:layout_marginTop="4dp"/>
+            </LinearLayout>
+             <!-- Fri -->
+            <LinearLayout android:orientation="vertical" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:gravity="bottom|center_horizontal">
+                <View android:layout_width="16dp" android:layout_height="0dp" android:background="@drawable/bg_rounded_8dp" android:backgroundTint="#4ade80"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Fri" android:textSize="10sp" android:textColor="#7b7b7b" android:layout_marginTop="4dp"/>
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Average Sleep -->
+    <TextView
+        android:id="@+id/tv_average_sleep"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Average Sleep: 6.5 Hours"
+        android:textColor="#16a34a"
+        android:textSize="16sp"
+        android:layout_marginTop="16dp"
+        app:layout_constraintTop_toBottomOf="@+id/chart_container"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 1. 最底层：白色边框 (Outer White Border) -->
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="40dp" />
+            <solid android:color="#FFFFFF" />
+        </shape>
+    </item>
+
+    <!-- 2. 主背景：浅灰色 (缩小，露出4dp的白边) -->
+    <!-- 内缩从2dp增加到4dp，实现白边加粗一倍 -->
+    <item android:top="4dp" android:left="4dp" android:right="4dp" android:bottom="4dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="36dp" />
+            <solid android:color="#EFF1F3" /> 
+        </shape>
+    </item>
+    
+    <!-- 已移除：顶部内阴影、底部反光、中间平坦层等复杂结构 -->
+    <!-- 用户要求：去掉白色边框内的一层渐变灰色边框 -->
+    
+</layer-list>

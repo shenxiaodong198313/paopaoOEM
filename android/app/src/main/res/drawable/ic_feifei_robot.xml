@@ -1,0 +1,96 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="200dp"
+    android:viewportWidth="200"
+    android:viewportHeight="200">
+
+    <!-- Legs -->
+    <path
+        android:pathData="M70,160 L70,180 A10,10 0 0,0 90,180 L90,160 Z"
+        android:fillColor="#9E9E9E"/>
+    <path
+        android:pathData="M110,160 L110,180 A10,10 0 0,0 130,180 L130,160 Z"
+        android:fillColor="#9E9E9E"/>
+
+    <!-- Feet Shadows -->
+    <path
+        android:pathData="M60,190 L140,190"
+        android:strokeColor="#20000000"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"/>
+
+    <!-- Body (Grey Armor) -->
+    <path
+        android:pathData="M50,110 C50,150 150,150 150,110 L150,100 L50,100 Z"
+        android:fillColor="#E0E0E0"/>
+    
+    <!-- Body Button -->
+    <group>
+        <path
+            android:pathData="M100,125 m-12,0 a12,12 0 1,1 24,0 a12,12 0 1,1 -24,0"
+            android:fillColor="#FFFFFF"/>
+        <path
+            android:pathData="M100,125 m-8,0 a8,8 0 1,1 16,0 a8,8 0 1,1 -16,0"
+            android:strokeColor="#BDBDBD"
+            android:strokeWidth="2"/>
+    </group>
+
+    <!-- Head (Yellow) -->
+    <path
+        android:pathData="M100,110 C140,110 145,70 145,70 C145,30 100,30 100,30 C100,30 55,30 55,70 C55,70 60,110 100,110 Z"
+        android:fillColor="#FFEB3B"/>
+
+    <!-- Eyes (Big White) -->
+    <path
+        android:pathData="M75,70 m-15,0 a15,18 0 1,1 30,0 a15,18 0 1,1 -30,0"
+        android:fillColor="#FFFFFF"/>
+    <path
+        android:pathData="M125,70 m-15,0 a15,18 0 1,1 30,0 a15,18 0 1,1 -30,0"
+        android:fillColor="#FFFFFF"/>
+
+    <!-- Pupils (Brown/Dark) -->
+    <path
+        android:pathData="M75,70 m-8,0 a8,10 0 1,1 16,0 a8,10 0 1,1 -16,0"
+        android:fillColor="#5D4037"/>
+    <path
+        android:pathData="M125,70 m-8,0 a8,10 0 1,1 16,0 a8,10 0 1,1 -16,0"
+        android:fillColor="#5D4037"/>
+        
+    <!-- Eye Highlight -->
+    <path
+        android:pathData="M78,65 m-3,0 a3,3 0 1,1 6,0 a3,3 0 1,1 -6,0"
+        android:fillColor="#FFFFFF"/>
+    <path
+        android:pathData="M128,65 m-3,0 a3,3 0 1,1 6,0 a3,3 0 1,1 -6,0"
+        android:fillColor="#FFFFFF"/>
+
+    <!-- Beak (Orange) -->
+    <path
+        android:pathData="M100,90 L95,85 L105,85 Z"
+        android:fillColor="#FF9800"/>
+
+    <!-- Hair Tuft (Yellow) -->
+    <path
+        android:pathData="M100,30 Q90,10 110,15"
+        android:strokeColor="#FFEB3B"
+        android:strokeWidth="8"
+        android:strokeLineCap="round"/>
+        
+    <!-- Blue Ball on Tuft -->
+    <path
+        android:pathData="M110,15 m-3,0 a3,3 0 1,1 6,0 a3,3 0 1,1 -6,0"
+        android:fillColor="#2196F3"/>
+        
+    <!-- Eyebrows -->
+    <path
+        android:pathData="M65,50 L85,55"
+        android:strokeColor="#5D4037"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"/>
+    <path
+        android:pathData="M135,50 L115,55"
+        android:strokeColor="#5D4037"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"/>
+
+</vector>

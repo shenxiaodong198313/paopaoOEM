@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/white"
+    tools:context=".ui.setup.SetupActivity">
+
+    <ImageView
+        android:id="@+id/setup_logo"
+        android:layout_width="112dp"
+        android:layout_height="112dp"
+        android:adjustViewBounds="true"
+        android:contentDescription="@null"
+        android:scaleType="fitCenter"
+        android:src="@drawable/oem_brand_logo"
+        app:layout_constraintBottom_toTopOf="@+id/setup_title"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.88" />
+
+    <TextView
+        android:id="@+id/setup_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:text="@string/paopao_app_name"
+        android:textColor="@color/settings_title"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toTopOf="@+id/btn_enable"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/setup_logo" />
+
+    <Button
+        android:id="@+id/btn_enable"
+        android:layout_width="0dp"
+        android:layout_height="52dp"
+        android:text="@string/setup_step1_enable"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="@android:color/white"
+        android:background="@drawable/bg_btn_primary_blue"
+        android:layout_marginHorizontal="32dp"
+        android:layout_marginBottom="16dp"
+        android:stateListAnimator="@null"
+        android:elevation="0dp"
+        app:layout_constraintBottom_toTopOf="@+id/btn_select"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <Button
+        android:id="@+id/btn_select"
+        android:layout_width="0dp"
+        android:layout_height="52dp"
+        android:text="@string/setup_step2_select"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="@color/settings_text"
+        android:background="@drawable/bg_btn_secondary_gray"
+        android:layout_marginHorizontal="32dp"
+        android:layout_marginBottom="64dp"
+        android:stateListAnimator="@null"
+        android:elevation="0dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
