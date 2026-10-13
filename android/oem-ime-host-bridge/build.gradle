@@ -67,7 +67,8 @@ android {
         buildConfigField "String", "AUTH_BASE_URL", "\"${serverConfig.authBaseUrl}\""
         def authSecret = resolveBuildProperty("AUTH_SECRET", "")
         buildConfigField "String", "AUTH_SECRET", "\"${authSecret}\""
-        def wechatAppId = resolveBuildProperty("WECHAT_APP_ID", "wx51af2f10bf8fd24d")
+        // Configure WECHAT_APP_ID locally or through the build environment.
+        def wechatAppId = resolveBuildProperty("WECHAT_APP_ID", "")
         buildConfigField "String", "WECHAT_APP_ID", "\"${wechatAppId}\""
     }
 
