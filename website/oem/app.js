@@ -513,6 +513,8 @@
     closureMods.forEach(function (m) {
       (m.artifacts || []).forEach(function (a) { if (allArtifacts.indexOf(a) < 0) allArtifacts.push(a); });
     });
+    var release = catalog.release;
+    var runtime = allArtifacts.find(function (a) { return a.indexOf('org.fcitx.fcitx5.android:app:') === 0; });
     var L = [];
     L.push('# 泡泡输入法企业版 · AI 一键安装 SOP（v2 · 模块直链版）');
     L.push('');
@@ -522,10 +524,16 @@
     L.push('> 本文档面向 AI 编程工具：目标是从 0 开始，把泡泡输入法 OEM SDK 集成到企业 Android 宿主工程（允许是空白目录），并构建出可安装的 release APK。');
     L.push('> 推荐使用 ECS Maven 仓库按模块集成；§3 提供仓库与各模块直链，完整交付归档另见官网 SDK 下载。');
     L.push('');
-    L.push('> 本版更新：新增自定义抽屉 entryHandler 和剪贴板 OemClipboardQuickReplyHandler，支持宿主完全接管入口：主线程回调、忽略返回值、异常静默，不收键盘或启动 SDK 页面。OEM 剪贴板去掉标题与叉号，按钮改“智能回复”，工具条加高 12 布局单位。未注册保持原 SDK 流程；八公开 SDK Release/R8，runtime app:1.13。 SDK `1.0.0.20261012`；保持 `targetSdk 36` 与 HTTPS 策略。');
+    L.push(release ? '> 本版更新：' + release.summary + ' SDK `' + catalog.sdkVersion + '`。' : '> 本版更新：新增自定义抽屉 entryHandler 和剪贴板 OemClipboardQuickReplyHandler，支持宿主完全接管入口：主线程回调、忽略返回值、异常静默，不收键盘或启动 SDK 页面。OEM 剪贴板去掉标题与叉号，按钮改“智能回复”，工具条加高 12 布局单位。未注册保持原 SDK 流程；八公开 SDK Release/R8，runtime app:1.13。 SDK `1.0.0.20261012`；保持 `targetSdk 36` 与 HTTPS 策略。');
     L.push('');
-    L.push("## 修改记录\n\n| 日期 | SDK 版本 | 修改说明 |\n| --- | --- | --- |\n| 2026-10-12 | `1.0.0.20261012` | 新增自定义抽屉 entryHandler 和剪贴板 OemClipboardQuickReplyHandler，支持宿主完全接管入口：主线程回调、忽略返回值、异常静默，不收键盘或启动 SDK 页面。OEM 剪贴板去掉标题与叉号，按钮改“智能回复”，工具条加高 12 布局单位。未注册保持原 SDK 流程；八公开 SDK Release/R8，runtime app:1.13。 |\n| 2026-10-11 | `1.0.0.202610111` | 同一宿主复制后仅展示一次临时剪贴板和高情商回复；关闭、打字或离开宿主后不重现。快捷回复直接打开结果抽屉，选中仅回填草稿。复用客户 AI 回复模型配置，支持客户自绘内容及整块抽屉、状态回调和原文重试。八公开 SDK Release/R8，运行时 app:1.12。 |\n| 2026-10-11 | `1.0.0.20261011` | 复制文本不再自动替换工具栏，包含键盘显示中、重新唤起及旧设置为开启的场景；保留手动剪贴板、历史和粘贴。移除无效的工具栏剪贴板建议/超时设置。八个公开 SDK 全量重建并执行 Release/R8，输入法运行时升级至 app:1.11。 |\n| 2026-10-10 | `1.0.0.20261010` | 日光瓷白与夜幕石墨统一键盘比例、候选高亮留白与文字、按键气泡、键盘类型图标和分页工具面板；工具栏与工具面板不提供皮肤入口。八个公开 SDK 重新制作并执行 Release/R8，输入法运行时升级至 app:1.10。 |\n| 2026-10-08 | `1.0.0.20261008` | sherpa-onnx 1.13.8 三档离线语音、默认开启的宿主配置和下载镜像；工具栏图标与面板配色/布局对齐。 |\n| 2026-09-24 | `1.0.0.20260923` | Android 17 兼容预适配：SDK 不再放开宿主全局明文流量，移除旧调试 HTTP 上报；输入法运行时升至 `app:1.8`，保持 `targetSdk 36`。 |\n\n");
-    L.push("### 剪贴板“智能回复”由宿主接管（1.0.0.20261012）\n\n```kotlin\n// package com.paopaoime.aikeyboard.sdk.core\nfun interface OemClipboardQuickReplyHandler {\n    fun onQuickReply(context: Context, clipboardText: String, hostPackageName: String?): Boolean\n}\n\nOemImeSdk.setClipboardQuickReplyHandler(\n    OemClipboardQuickReplyHandler { context, clipboardText, hostPackageName ->\n        // context 是 IME Service；文本与来源包名来自本次复制快照。\n        // 宿主自行决定是否展示页面；启动 Activity 时自行添加 NEW_TASK。\n        false // 返回值预留，false / true 均表示由宿主接管。\n    }\n)\n// 恢复 SDK 内置生成、结果抽屉和草稿回填流程：\nOemImeSdk.setClipboardQuickReplyHandler(null)\n```\n\n- 仅携带剪贴板原文的 AI_REPLY 请求走此回调；普通 AI 回复入口、素材库入口与粘贴行为不变。\n- 注册后点击“智能回复”只在主线程回调宿主；不启动 Activity、不收键盘、不生成、不调用内容工厂、不弹 Toast、不打 SDK 点击日志、不清除当前建议条。宿主抛异常由 SDK 静默捕获，返回值被忽略。\n- 回调在 SDK AI 功能与授权前置校验之前执行，纯接管无需 ai-reply/material 切片；注册时“智能回复”按钮仍可显示。SDK 内置生成继续遵守原有开关和授权。\n- `hostPackageName` 为本次复制会话记录的来源宿主，可为 null；SDK 不读取其他应用的剪贴板历史。敏感文本和跨宿主过滤保持现状。\n- 建议在 SDK 初始化之后、首次展示键盘前注册；`null` 反注册。回调内反注册也不会使本次点击转入内置流程或清除建议条。\n- OEM UI 去掉整块标题及关闭叉号，按钮文案为“智能回复”；文本区单行省略，点击粘贴保持原行为。工具条在当前皮肤值基础上增加 12 布局单位（标准竖屏总高 60→72，横屏 56→68），候选行与测量同步。泡泡主版不变。\n- 请同步升级全部 SDK 到 `1.0.0.20261012`、runtime 到 `app:1.13`，并重新编译宿主。\n");
+    L.push("## 修改记录\n\n| 日期 | SDK 版本 | 修改说明 |\n| --- | --- | --- |\n" + (release ? "| " + release.date + " | `" + catalog.sdkVersion + "` | " + release.summary + " |\n" : "") + "| 2026-10-12 | `1.0.0.20261012` | 新增自定义抽屉 entryHandler 和剪贴板 OemClipboardQuickReplyHandler，支持宿主完全接管入口：主线程回调、忽略返回值、异常静默，不收键盘或启动 SDK 页面。OEM 剪贴板去掉标题与叉号，按钮改“智能回复”，工具条加高 12 布局单位。未注册保持原 SDK 流程；八公开 SDK Release/R8，runtime app:1.13。 |\n| 2026-10-11 | `1.0.0.202610111` | 同一宿主复制后仅展示一次临时剪贴板和高情商回复；关闭、打字或离开宿主后不重现。快捷回复直接打开结果抽屉，选中仅回填草稿。复用客户 AI 回复模型配置，支持客户自绘内容及整块抽屉、状态回调和原文重试。八公开 SDK Release/R8，运行时 app:1.12。 |\n| 2026-10-11 | `1.0.0.20261011` | 复制文本不再自动替换工具栏，包含键盘显示中、重新唤起及旧设置为开启的场景；保留手动剪贴板、历史和粘贴。移除无效的工具栏剪贴板建议/超时设置。八个公开 SDK 全量重建并执行 Release/R8，输入法运行时升级至 app:1.11。 |\n| 2026-10-10 | `1.0.0.20261010` | 日光瓷白与夜幕石墨统一键盘比例、候选高亮留白与文字、按键气泡、键盘类型图标和分页工具面板；工具栏与工具面板不提供皮肤入口。八个公开 SDK 重新制作并执行 Release/R8，输入法运行时升级至 app:1.10。 |\n| 2026-10-08 | `1.0.0.20261008` | sherpa-onnx 1.13.8 三档离线语音、默认开启的宿主配置和下载镜像；工具栏图标与面板配色/布局对齐。 |\n| 2026-09-24 | `1.0.0.20260923` | Android 17 兼容预适配：SDK 不再放开宿主全局明文流量，移除旧调试 HTTP 上报；输入法运行时升至 `app:1.8`，保持 `targetSdk 36`。 |\n\n");
+    L.push("### 剪贴板“智能回复”由宿主接管（1.0.0.20261012）\n\n```kotlin\n// package com.paopaoime.aikeyboard.sdk.core\nfun interface OemClipboardQuickReplyHandler {\n    fun onQuickReply(context: Context, clipboardText: String, hostPackageName: String?): Boolean\n}\n\nOemImeSdk.setClipboardQuickReplyHandler(\n    OemClipboardQuickReplyHandler { context, clipboardText, hostPackageName ->\n        // context 是 IME Service；文本与来源包名来自本次复制快照。\n        // 宿主自行决定是否展示页面；启动 Activity 时自行添加 NEW_TASK。\n        false // 返回值预留，false / true 均表示由宿主接管。\n    }\n)\n// 恢复 SDK 内置生成、结果抽屉和草稿回填流程：\nOemImeSdk.setClipboardQuickReplyHandler(null)\n```\n\n- 仅携带剪贴板原文的 AI_REPLY 请求走此回调；普通 AI 回复入口、素材库入口与粘贴行为不变。\n- 注册后点击“智能回复”只在主线程回调宿主；不启动 Activity、不收键盘、不生成、不调用内容工厂、不弹 Toast、不打 SDK 点击日志、不清除当前建议条。宿主抛异常由 SDK 静默捕获，返回值被忽略。\n- 回调在 SDK AI 功能与授权前置校验之前执行，纯接管无需 ai-reply/material 切片；注册时“智能回复”按钮仍可显示。SDK 内置生成继续遵守原有开关和授权。\n- `hostPackageName` 为本次复制会话记录的来源宿主，可为 null；SDK 不读取其他应用的剪贴板历史。敏感文本和跨宿主过滤保持现状。\n- 建议在 SDK 初始化之后、首次展示键盘前注册；`null` 反注册。回调内反注册也不会使本次点击转入内置流程或清除建议条。\n- OEM UI 去掉整块标题及关闭叉号，按钮文案为“智能回复”；文本区单行省略，点击粘贴保持原行为。工具条在当前皮肤值基础上增加 12 布局单位（标准竖屏总高 60→72，横屏 56→68），候选行与测量同步。泡泡主版不变。\n- 升级时按本文抬头的 SDK 版本更新所有公开制品，并重新编译宿主。\n");
+    if (release && release.inputNotes) {
+      L.push('## 新版基础输入验收');
+      release.inputNotes.forEach(function (line) { L.push('- ' + line); });
+      L.push('- 断网点按拼音九宫格 `64426`，选择「你好」并上屏。断网写一横，选择「一」并上屏。');
+      L.push('');
+    }
     L.push('## 1. 输入参数');
     L.push('');
     L.push('AI 工具开始执行前，必须先拿到以下输入：');
@@ -719,9 +727,9 @@
     L.push('');
     L.push('必须理解：');
     L.push('- `oem-ime-host-bridge` 负责 OEM 宿主桥接；');
-    L.push('- `org.fcitx.fcitx5.android:app:1.13` 必须显式加入（core 闭包已含），宿主 Application 需直接继承 `FcitxApplication`，缺它会在输入法服务启动时崩溃。');
-    L.push('- `org.fcitx.fcitx5.android:app:1.13` 当前必须解析到官方仓 `https://paopaoime.com/oem/sdk-repo` 的最新制品，禁止混用历史本地 Maven 仓、私有镜像仓或旧缓存中的同坐标旧包；若命中旧二进制，输入法服务启动会报 `NoSuchMethodError`（典型符号：`FavoriteBridge.bindHostShare` / `bindHostInputRestorePolicy` / `FavoriteHostInputRestorePolicy`）。');
-    L.push('- 上述 `NoSuchMethodError` 的临时止血方案：删除本地 Maven 仓与 Gradle 缓存中当前 `org/fcitx/fcitx5/android/app/1.7` 相关条目后重新构建，并用 `./gradlew app:dependencyInsight --dependency org.fcitx.fcitx5.android:app` 确认最终解析路径指向官方仓。');
+    L.push('- 宿主桥通过 POM 引入 `' + runtime + '`。宿主 Application 直接继承 `FcitxApplication`。');
+    L.push('- 使用官网 Maven 仓或同版 SDK ZIP。用 `./gradlew app:dependencyInsight --dependency org.fcitx.fcitx5.android:app` 核对最终版本。');
+    L.push('- Release/R8 保留运行时 AAR 提供的 ONNX JNI consumer rules，实际执行一次断网手写推理。');
     L.push('- `stellar-shizuku-aidl` 禁止显式加入：其 `moe.shizuku.server` 类由 fcitx 官方传递依赖 `dev.rikka.shizuku:aidl` 在运行时提供（与主工程一致）；显式加入 vendored 副本会产生 duplicate class（`IShizukuService` 等）导致构建失败。依赖块以本节模板为准，不得自行补充 stellar 其它构件。');
     L.push('- kotlin-stdlib 版本红线（强制）：禁止对 `org.jetbrains.kotlin:kotlin-stdlib` 使用 `resolutionStrategy.force`、BOM 钉版或任何降级手段；SDK 协程状态机引用 `kotlin.coroutines.jvm.internal.SpillingKt`（Kotlin 2.1.0 新增），stdlib 解析结果必须 ≥2.1.0。Gradle 默认取最高版本（fcitx POM 声明 2.3.21），无需任何干预；若出现 stdlib 版本冲突告警，靠自然最高版本胜出解决，严禁 force 到 2.1.0 以下（如 2.0.21），否则安装后 IME 服务与 App 启动运行时崩溃 `NoClassDefFoundError: SpillingKt`。');
     L.push('');
@@ -1161,8 +1169,8 @@
     L.push('## ' + (hasAutomation ? '16' : '15') + '. 必须检查项');
     L.push('');
     L.push('- [ ] settings.gradle 已加 ECS Maven 仓（或离线镜像）与 jitpack，plugins 块未包含 org.jetbrains.kotlin.android');
-    L.push('- [ ] app 依赖已含 `oem-ime-host-bridge` 与 `org.fcitx.fcitx5.android:app:1.13`');
-    L.push('- [ ] `org.fcitx.fcitx5.android:app:1.13` 的最终解析结果来自 `https://paopaoime.com/oem/sdk-repo`，不是历史本地仓 / 私有镜像 / 旧缓存');
+    L.push('- [ ] App 依赖含宿主桥，并解析至 `' + runtime + '`。');
+    L.push('- [ ] 运行时来自官网 Maven 仓或同版 SDK ZIP。');
     L.push('- [ ] `packaging.jniLibs.useLegacyPackaging = true` 已写入，白名单未扩大');
     L.push('- [ ] Manifest 必填 meta 已写入，`tools:replace` 时根节点已声明 xmlns:tools；选购 ai/material 时 `enableUi=true`');
     L.push('- [ ] 宿主 strings.xml 已覆盖 `oem_ime_display_name`（输入法显示名）');
@@ -1181,8 +1189,8 @@
     L.push('1. 依赖找不到：核对 §3 直链是否 200；确认 settings.gradle 仓库地址拼写；jitpack 是否已加。');
     L.push('1.1. 首次联网、Java toolchain、wrapper 镜像或 Gradle 缓存失败：按 §4.1 分类处理。每次修复后重跑相同失败任务，再继续完整 assembleRelease；文档若缺步骤，先更新文档再用最新官网下载副本复验。');
     L.push('2. 启动即闪退：检查 HostApp 是否继承 FcitxApplication、是否先 `OemHostRuntime.initialize(this, true)`。');
-    L.push('3. 切换输入法后闪退：检查是否显式依赖 `org.fcitx.fcitx5.android:app:1.13`（报 `FcitxApplication has not been created!` 即此因）。');
-    L.push('3.1. 启动即崩溃并报 `NoSuchMethodError: FavoriteBridge.bindHostShare` / `bindHostInputRestorePolicy`：当前解析到的是旧的 `org.fcitx.fcitx5.android:app:1.13` 之前的历史二进制。处理顺序：① 删除本地 Maven 仓与 Gradle 缓存中旧版 `org/fcitx/fcitx5/android/app` 目录；② 删除对应 transforms 缓存；③ 重新构建；④ 用 `./gradlew app:dependencyInsight --dependency org.fcitx.fcitx5.android:app` 确认实际解析来源是 `https://paopaoime.com/oem/sdk-repo`。');
+    L.push('3. 切换输入法后闪退时，检查宿主 Application 是否继承 `FcitxApplication`，并确认解析版本为 `' + runtime + '`。');
+    L.push('3.1. 出现 `NoSuchMethodError` 时，检查本地 Maven 镜像是否混用了旧版运行时，使用同版 SDK 制品重新构建。');
     L.push('4. 进首页后 native 闪退：检查 `useLegacyPackaging = true` 与 extractNativeLibs。');
     L.push('5. direct/dual 无回复：补全 `aiOpenAiBaseUrl/aiOpenAiApiKey/aiOpenAiModel` 三项。');
     L.push('6. 无法访问 sdk_repo_url：改用 §3.3 离线镜像方案。');

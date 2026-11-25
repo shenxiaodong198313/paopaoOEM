@@ -25,6 +25,7 @@ import org.fcitx.fcitx5.android.utils.notificationManager
 import timber.log.Timber
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
+import kotlin.coroutines.ContinuationInterceptor
 
 /**
  * Manage the singleton instance of [Fcitx]
@@ -53,7 +54,9 @@ object FcitxDaemon {
             else throw IllegalStateException("$name is disconnected")
 
         override fun <T> runImmediately(block: suspend FcitxAPI.() -> T): T = ensureConnected {
-            runBlocking(realFcitx.lifeCycleScope.coroutineContext) {
+            // Cached reads must stay on the caller thread. The lifecycle scope now has
+            // Dispatchers.Default; inheriting it would dispatch and block the UI for every read.
+            runBlocking(realFcitx.lifeCycleScope.coroutineContext.minusKey(ContinuationInterceptor)) {
                 block(fcitxImpl)
             }
         }
@@ -92,6 +95,7 @@ object FcitxDaemon {
         }
         val new = mkConnection(name)
         clients[name] = new
+        if (name == "org.fcitx.fcitx5.android.input.FcitxInputMethodService") clients.remove("dictionary-launch")
         return@withLock new
     }
 

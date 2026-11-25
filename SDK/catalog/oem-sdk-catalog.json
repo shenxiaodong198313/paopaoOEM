@@ -1,7 +1,17 @@
 {
   "schemaVersion": 1,
   "sdkName": "Paopao OEM IME SDK",
-  "sdkVersion": "1.0.0.20261012",
+  "sdkVersion": "1.0.0.20261125",
+  "release": {
+    "date": "2026-11-25",
+    "summary": "新增离线中文手写、按键动效和 30 款音效，白霜词库随包启用，雾凇和 Rime 按需下载。完善九宫格候选、词库切换与升级后资源恢复。输入法运行时更新至 app:1.14。",
+    "inputNotes": [
+      "在键盘工具面板可选择手写、拼音九宫格、拼音 14 键、拼音 26 键、双拼或英文 26 键。随包中文手写模型支持断网识别和选字。",
+      "在输入法设置的「按键效果」中选择按键动效、气泡、触感和 30 款音色。",
+      "「词库管理」默认启用随包白霜。雾凇和 Rime 下载就绪后可手动启用并离线使用。启用 Rime 后可使用五笔和五笔拼音。",
+      "基础输入法包含手写、按键效果和词库管理。语音可独立选装，手写页的语音入口随语音模块启用状态显示。"
+    ]
+  },
   "versionPolicy": "sdkVersion 为 OEM SDK 统一发布版本，唯一定义在 OEM/android/gradle.properties（oemSdkVersion）；com.paopaoime.oem 组下全部制品（core/host-bridge/ai/ai-reply/material/automation/developer/voice）均以该版本发布，每次发布仅递增末位编号（格式 1.0.0.<日期戳 yyyyMMdd>，同日多次发布追加序号，如 202608151）。fcitx 内核（org.fcitx.fcitx5.android）与 stellar 等内部组件使用独立坐标，不随 SDK 发布版本变化。",
   "defaultPolicy": "基础输入法必选。离线语音为可选独立 SDK，未集成不引入 sherpa；集成后默认开启，可用 res/raw/oem_voice_config.json 关闭。AI 回复/素材库/自动化/开发者仍默认关闭。",
   "modules": [
@@ -12,14 +22,14 @@
       "required": true,
       "dependsOn": [],
       "artifacts": [
-        "com.paopaoime.oem:oem-ime-sdk-core:1.0.0.20261012",
-        "com.paopaoime.oem:oem-ime-host-bridge:1.0.0.20261012",
-        "org.fcitx.fcitx5.android:app:1.13",
-        "org.fcitx.fcitx5.android.lib:common:1.0",
-        "org.fcitx.fcitx5.android.lib:fcitx5:1.0",
-        "org.fcitx.fcitx5.android.lib:fcitx5-chinese-addons:1.0",
-        "org.fcitx.fcitx5.android.lib:fcitx5-lua:1.0",
-        "org.fcitx.fcitx5.android.lib:libime:1.0"
+        "com.paopaoime.oem:oem-ime-sdk-core:1.0.0.20261125",
+        "com.paopaoime.oem:oem-ime-host-bridge:1.0.0.20261125",
+        "org.fcitx.fcitx5.android:app:1.14",
+        "org.fcitx.fcitx5.android.lib:common:1.1",
+        "org.fcitx.fcitx5.android.lib:fcitx5:1.1",
+        "org.fcitx.fcitx5.android.lib:fcitx5-chinese-addons:1.1",
+        "org.fcitx.fcitx5.android.lib:fcitx5-lua:1.1",
+        "org.fcitx.fcitx5.android.lib:libime:1.1"
       ],
       "configKeys": [
         {
@@ -100,7 +110,7 @@
         "core"
       ],
       "artifacts": [
-        "com.paopaoime.oem:oem-ime-sdk-voice:1.0.0.20261012",
+        "com.paopaoime.oem:oem-ime-sdk-voice:1.0.0.20261125",
         "com.paopaoime.oem.internal:sherpa-onnx:1.13.8"
       ],
       "configKeys": [],
@@ -118,8 +128,8 @@
         "core"
       ],
       "artifacts": [
-        "com.paopaoime.oem:oem-ime-sdk-ai:1.0.0.20261012",
-        "com.paopaoime.oem:oem-ime-sdk-ai-reply:1.0.0.20261012",
+        "com.paopaoime.oem:oem-ime-sdk-ai:1.0.0.20261125",
+        "com.paopaoime.oem:oem-ime-sdk-ai-reply:1.0.0.20261125",
         "com.paopaoime.oem.internal:paddleocr4android:1.0.0"
       ],
       "configKeys": [
@@ -238,7 +248,7 @@
         "ai"
       ],
       "artifacts": [
-        "com.paopaoime.oem:oem-ime-sdk-material:1.0.0.20261012"
+        "com.paopaoime.oem:oem-ime-sdk-material:1.0.0.20261125"
       ],
       "configKeys": [
         {
@@ -298,7 +308,7 @@
         "core"
       ],
       "artifacts": [
-        "com.paopaoime.oem:oem-ime-sdk-automation:1.0.0.20261012",
+        "com.paopaoime.oem:oem-ime-sdk-automation:1.0.0.20261125",
         "com.paopaoime.oem.internal.stellar:stellar-api:1.1",
         "com.paopaoime.oem.internal.stellar:stellar-aidl:1.1",
         "com.paopaoime.oem.internal.stellar:stellar-shared:1.1",
@@ -352,7 +362,7 @@
         "core"
       ],
       "artifacts": [
-        "com.paopaoime.oem:oem-ime-sdk-developer:1.0.0.20261012"
+        "com.paopaoime.oem:oem-ime-sdk-developer:1.0.0.20261125"
       ],
       "configKeys": [
         {

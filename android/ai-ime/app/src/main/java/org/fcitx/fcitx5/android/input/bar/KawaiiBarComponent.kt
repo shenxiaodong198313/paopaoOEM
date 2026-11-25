@@ -44,6 +44,7 @@ import org.fcitx.fcitx5.android.input.bar.KawaiiBarStateMachine.TransitionEvent.
 import org.fcitx.fcitx5.android.input.bar.ui.CandidateUi
 import org.fcitx.fcitx5.android.input.bar.ui.IdleUi
 import org.fcitx.fcitx5.android.input.bar.ui.TitleUi
+import org.fcitx.fcitx5.android.input.bar.ui.ToolButton
 import org.fcitx.fcitx5.android.input.broadcast.InputBroadcastReceiver
 import org.fcitx.fcitx5.android.input.candidates.expanded.ExpandedCandidateStyle
 import org.fcitx.fcitx5.android.input.candidates.expanded.window.FlexboxExpandedCandidateWindow
@@ -83,9 +84,8 @@ import kotlin.coroutines.resume
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.atan2
-import kotlin.math.cos
 import kotlin.math.hypot
-import kotlin.math.sin
+import kotlin.math.min
 
 class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(),
     InputBroadcastReceiver {
@@ -103,10 +103,10 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
     private val skinStyle get() = (theme as? org.fcitx.fcitx5.android.data.theme.Theme.Custom)?.renderStyle
     private var skinLayout = if (prefs.keyboard.useT9KeyboardLayout.getValue()) "t9" else "qwerty"
     private var clipboardVisible = false
-    private val toolbarBodyHeightDp get() = (if (skinStyle?.skinLabStandard == true)
-        org.fcitx.fcitx5.android.data.theme.SkinLabStandard.bar(context)
-    else skinStyle?.barBodyHeight(skinLayout) ?: HEIGHT) + OEM_TOOLBAR_EXTRA_HEIGHT_DP
-    private val baseHeightDp get() = (if (skinStyle?.skinLabStandard == true) 20 else skinStyle?.reservedPreeditDp ?: 0) + toolbarBodyHeightDp
+    private val barBodyHeightDp get() = skinStyle?.resolvedBarBodyHeight(skinLayout, org.fcitx.fcitx5.android.data.theme.SkinLabStandard.bar(context)) ?.plus(OEM_TOOLBAR_EXTRA_HEIGHT_DP) ?: (HEIGHT + OEM_TOOLBAR_EXTRA_HEIGHT_DP)
+    private val panelTopGapDp get() = if (skinStyle?.customToolbarLayout == true)
+        skinStyle?.topSpacingHeightDp((theme as? org.fcitx.fcitx5.android.data.theme.Theme.Custom)?.toolbarTopInsetDp ?: 0) ?: 0 else 0
+    private val baseHeightDp get() = (skinStyle?.resolvedBarTotalHeight(skinLayout, org.fcitx.fcitx5.android.data.theme.SkinLabStandard.bar(context)) ?: HEIGHT) + panelTopGapDp + OEM_TOOLBAR_EXTRA_HEIGHT_DP
 
     val isClipboardPanelVisible get() = clipboardVisible
     val heightDp get() = if (clipboardVisible) baseHeightDp.coerceAtLeast(56 + OEM_TOOLBAR_EXTRA_HEIGHT_DP) else baseHeightDp
@@ -131,7 +131,7 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
             numberRowState == NumberRowState.ForceShow -> IdleUi.State.NumberRow
             isInlineSuggestionPresent -> IdleUi.State.InlineSuggestion
             isCapabilityFlagsPassword && !isKeyboardLayoutNumber && numberRowState != NumberRowState.ForceHide -> IdleUi.State.NumberRow
-            service.hostClipboard.current() != null -> IdleUi.State.Clipboard
+            prefs.internal.quickReplyEnabled.getValue() && service.hostClipboard.current() != null -> IdleUi.State.Clipboard
             /**
              * state matrix:
              *                               expandToolbarByDefault
@@ -161,49 +161,44 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
     // - If horizontal is dominant and left, show number row (when allowed).
     // - If vertical is dominant and down, hide keyboard.
     private val swipeHideKeyboardCallback = CustomGestureView.OnGestureListener { v, e ->
+        require(v is ToolButton)
+        if (e.type == CustomGestureView.GestureType.Cancel) {
+            v.iconRotation = 0f
+            return@OnGestureListener false
+        }
         val numberRowAvailable = isCapabilityFlagsPassword && !isKeyboardLayoutNumber
         if (numberRowAvailable) {
             val dir = if (context.resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_LTR) 1 else -1
-            // We can't access the rawX and rawY of the MotionEvent, so we need to do some math.
-            // `e.x` and `e.y` are relative to the view's top-left corner, we want to rotate
-            // around the center of the view, so we translate them to be relative to the center
-            val relX = e.x - v.width / 2f
-            val relY = e.y - v.height / 2f
+            // `e.x` and `e.y` are relative to the view's top-left corner
+            val centerX = e.x - v.width / 2f
+            val centerY = e.y - v.height / 2f
 
-            // rotate the relative coordinates by current rotation to get absolute coordinates
+            val distance = hypot(centerX, centerY)
             // the button is ↓, so apply -90 degrees offset
-            val theta = Math.toRadians(v.rotation.toDouble()) - PI / 2
-            val c = cos(theta)
-            val s = sin(theta)
-            val screenX = c * relX - s * relY
-            val screenY = s * relX + c * relY
-            val distance = hypot(screenX, screenY)
-            var angle = Math.toDegrees(atan2(screenY, screenX)).toFloat()
+            var angle = atan2(-centerX, centerY) * (180f / PI.toFloat())
 
             when (e.type) {
                 CustomGestureView.GestureType.Move -> {
                     angle = if (angle in -45f..45f) {
                         angle.coerceIn(-10f, 10f)
                     } else abs(angle).coerceIn(90f - 10f, 90f + 10f) * dir
-                    v.rotation = angle
+                    v.iconRotation = angle
                 }
                 CustomGestureView.GestureType.Up -> {
-                    val thresholdX = (v as CustomGestureView).swipeThresholdX
-                    val thresholdY = v.swipeThresholdY
                     val handled = when (angle) {
-                        in -45f..45f if distance > thresholdY -> {
+                        in -45f..45f if distance > v.swipeThresholdX -> {
                             service.requestHideSelf(0)
                             true
                         }
-                        !in -45f..45f if distance > thresholdX -> {
-                            v.rotation = 90f * dir
+                        !in -45f..45f if distance > v.swipeThresholdY -> {
+                            v.iconRotation = 90f * dir
                             numberRowState = NumberRowState.ForceShow
                             evalIdleUiState(fromUser = true)
                             true
                         }
                         else -> false
                     }
-                    v.rotation = 0f
+                    v.iconRotation = 0f
                     return@OnGestureListener handled
                 }
                 else -> {}
@@ -279,7 +274,7 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
     }
 
     private val candidateUi by lazy {
-        CandidateUi(context, theme, horizontalCandidate.view).apply { updateRowHeight(toolbarBodyHeightDp) }.apply {
+        CandidateUi(context, theme, horizontalCandidate.view).apply { updateRowHeight(barBodyHeightDp) }.apply {
             expandButton.apply {
                 swipeEnabled = true
                 swipeThresholdY = dp(HEIGHT.toFloat())
@@ -288,8 +283,36 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
         }
     }
 
+    val candidateReading: String get() = candidateUi.preeditTextView.text.toString()
+
+    // Retain the skin's composition label above the expanded list.
+    val expandedHeaderHeightPx: Int
+        get() {
+            val label = candidateUi.preeditTextView
+            if (label.visibility != View.VISIBLE) return 0
+            val params = label.layoutParams as ViewGroup.MarginLayoutParams
+            val labelHeight = params.height.takeIf { it > 0 } ?: label.lineHeight
+            return (candidateUi.root.layoutParams as FrameLayout.LayoutParams).topMargin +
+                params.topMargin + labelHeight + label.paddingTop + label.paddingBottom
+        }
+
     private val titleUi by lazy {
         TitleUi(context, theme)
+    }
+
+    private val handwritingUi by lazy { org.fcitx.fcitx5.android.input.handwriting.HandwritingCandidateStrip(service, theme).apply { ui.updateRowHeight(barBodyHeightDp) } }
+    private var handwritingOwner: Any? = null
+    fun showHandwritingCandidates(owner: Any, words: List<String>, select: (String) -> Unit) {
+        if (words.isEmpty()) { clearHandwritingCandidates(owner); return }
+        service.hostClipboard.dismiss()
+        handwritingOwner = owner
+        handwritingUi.show(words, select)
+        switchUiByState(barStateMachine.currentState)
+    }
+    fun clearHandwritingCandidates(owner: Any) {
+        if (handwritingOwner !== owner) return
+        handwritingOwner = null; handwritingUi.clear()
+        switchUiByState(barStateMachine.currentState)
     }
 
     private val barStateMachine = KawaiiBarStateMachine.new {
@@ -297,14 +320,14 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
     }
 
     val expandButtonStateMachine = ExpandButtonStateMachine.new {
+        horizontalCandidate.view.visibility = if (it == ClickToDetachWindow) View.INVISIBLE else View.VISIBLE
         when (it) {
             ClickToAttachWindow -> {
                 setExpandButtonToAttach()
                 setExpandButtonEnabled(true)
             }
             ClickToDetachWindow -> {
-                setExpandButtonToDetach()
-                setExpandButtonEnabled(true)
+                setExpandButtonEnabled(false)
             }
             Hidden -> {
                 setExpandButtonEnabled(false)
@@ -316,32 +339,20 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
     private fun setExpandButtonToAttach() {
         candidateUi.expandButton.setOnClickListener {
             windowManager.attachWindow(
-                when (expandedCandidateStyle) {
-                    ExpandedCandidateStyle.Grid -> GridExpandedCandidateWindow()
-                    ExpandedCandidateStyle.Flexbox -> FlexboxExpandedCandidateWindow()
-                }
+                if (service.usesChineseCandidateGrid() || expandedCandidateStyle == ExpandedCandidateStyle.Grid)
+                    GridExpandedCandidateWindow() else FlexboxExpandedCandidateWindow()
             )
         }
         candidateUi.expandButton.setIcon(R.drawable.ic_baseline_expand_more_24)
         candidateUi.expandButton.contentDescription = context.getString(R.string.expand_candidates_list)
     }
 
-    // set expand candidate button to close expand candidate
-    private fun setExpandButtonToDetach() {
-        candidateUi.expandButton.setOnClickListener {
-            windowManager.attachWindow(KeyboardWindow)
-        }
-        candidateUi.expandButton.setIcon(R.drawable.ic_baseline_expand_less_24)
-        candidateUi.expandButton.contentDescription = context.getString(R.string.hide_candidates_list)
-    }
-
-    // should be used with setExpandButtonToAttach or setExpandButtonToDetach
     private fun setExpandButtonEnabled(enabled: Boolean) {
         candidateUi.expandButton.visibility = if (enabled) View.VISIBLE else View.INVISIBLE
     }
 
     private fun switchUiByState(state: KawaiiBarStateMachine.State) {
-        val index = state.ordinal
+        val index = if (handwritingOwner != null) 3 else state.ordinal
         if (view.displayedChild == index) return
         val new = view.getChildAt(index)
         if (new != titleUi.root) {
@@ -351,7 +362,7 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
         }
         view.displayedChild = index
         updateClipboardHeight()
-        if (skinStyle?.skinLabStandard == true) inputView.updateToolbarSurface(state == KawaiiBarStateMachine.State.Candidate)
+        if (skinStyle?.skinLabStandard == true) inputView.updateToolbarSurface(handwritingOwner != null || state == KawaiiBarStateMachine.State.Candidate)
     }
 
     override val view by lazy {
@@ -365,12 +376,13 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
             // Drawable insets must not become child padding: preedit owns its own strip.
             setPadding(0, 0, 0, 0)
             add(idleUi.root, lParams(matchParent, matchParent) {
-                topMargin = context.dp(skinStyle?.reservedPreeditDp ?: 0)
+                topMargin = context.dp(panelTopGapDp + (skinStyle?.reservedPreeditDp ?: 0))
             })
-            add(candidateUi.root, lParams(matchParent, matchParent))
+            add(candidateUi.root, lParams(matchParent, matchParent) { topMargin = if (skinStyle?.preeditInTopSpacing == true) 0 else context.dp(panelTopGapDp) })
             add(titleUi.root, lParams(matchParent, matchParent) {
-                topMargin = context.dp(skinStyle?.reservedPreeditDp ?: 0)
+                topMargin = context.dp(panelTopGapDp + (skinStyle?.reservedPreeditDp ?: 0))
             })
+            add(handwritingUi.ui.root, lParams(matchParent, matchParent) { topMargin = if (skinStyle?.preeditInTopSpacing == true) 0 else context.dp(panelTopGapDp) })
         }
     }
 
@@ -381,6 +393,7 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
             service.hostClipboard.dismiss()
         }
         idleUi.clipboardUi.reply.setOnClickListener {
+            if (!prefs.internal.quickReplyEnabled.getValue()) return@setOnClickListener
             val copy = service.hostClipboard.current() ?: return@setOnClickListener
             // Snapshot before dispatch: a host may unregister itself inside its callback.
             val hostHandled = service.isClipboardQuickReplyHostHandled()
@@ -414,7 +427,7 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
         if (clipboardVisible == visible) return
         clipboardVisible = visible
         (idleUi.root.layoutParams as? FrameLayout.LayoutParams)?.let {
-            it.topMargin = if (visible) 0 else context.dp(skinStyle?.reservedPreeditDp ?: 0)
+            it.topMargin = if (visible) 0 else context.dp(panelTopGapDp + (skinStyle?.reservedPreeditDp ?: 0))
             idleUi.root.layoutParams = it
         }
         inputView.updateToolbarSurface()
@@ -423,6 +436,7 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
     }
 
     override fun onStartInput(info: EditorInfo, capFlags: CapabilityFlags) {
+        handwritingOwner?.let(::clearHandwritingCandidates)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             idleUi.privateMode(info.imeOptions.hasFlag(EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING))
         }
@@ -450,8 +464,7 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
     override fun onInputPanelUpdate(data: InputPanelEvent.Data) {
         if (!service.isT9KeyboardChineseMode()) {
             val preeditStr = data.preedit.toString()
-            candidateUi.preeditTextView.text = preeditStr
-            candidateUi.preeditTextView.visibility = if (preeditStr.isNotEmpty()) View.VISIBLE else View.GONE
+            candidateUi.updatePreedit(preeditStr)
         }
     }
 
@@ -463,8 +476,7 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
             val firstRaw = data.candidates[0].textWithComment()
             val match = Regex(" ([a-zA-Z ']+)$").find(firstRaw)
             val pinyin = match?.groupValues?.get(1)?.replace(" ", "'") ?: ""
-            candidateUi.preeditTextView.text = pinyin
-            candidateUi.preeditTextView.visibility = if (pinyin.isNotEmpty()) View.VISIBLE else View.GONE
+            candidateUi.updatePreedit(pinyin)
         }
     }
 
@@ -487,7 +499,7 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
     }
 
     private val suggestionSize by lazy {
-        Size(ViewGroup.LayoutParams.WRAP_CONTENT, context.dp(toolbarBodyHeightDp))
+        Size(ViewGroup.LayoutParams.WRAP_CONTENT, context.dp(barBodyHeightDp))
     }
 
     private val directExecutor by lazy {
@@ -555,7 +567,8 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
         skinLayout = layout
         if (oldHeight != heightDp) {
             view.layoutParams?.let { it.height = context.dp(heightDp); view.layoutParams = it }
-            candidateUi.updateRowHeight(toolbarBodyHeightDp)
+            candidateUi.updateRowHeight(barBodyHeightDp)
+            handwritingUi.ui.updateRowHeight(barBodyHeightDp)
             view.requestLayout()
         }
         isKeyboardLayoutNumber = isNumber

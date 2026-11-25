@@ -5,14 +5,18 @@
  *
  */
 #include <chrono>
+#include <cstdint>
+#include <optional>
 #include <string>
 #include <thread>
+#include <tuple>
 #include <utility>
 #include <vector>
 #include "fcitx-utils/eventdispatcher.h"
 #include "fcitx-utils/key.h"
 #include "fcitx-utils/log.h"
 #include "fcitx-utils/macros.h"
+#include "fcitx-utils/misc.h"
 #include "fcitx-utils/testing.h"
 #include "fcitx/addonmanager.h"
 #include "fcitx/event.h"
@@ -23,6 +27,8 @@
 #include "testfrontend_public.h"
 
 using namespace fcitx;
+
+namespace {
 
 void testCheckUpdate(Instance &instance) {
     instance.eventDispatcher().schedule([&instance]() {
@@ -54,6 +60,38 @@ void testReloadGlobalConfig(Instance &instance) {
     });
 }
 
+void testSetGroupDefaultInputMethod(Instance &instance) {
+    instance.eventDispatcher().schedule([&instance]() {
+        auto &imManager = instance.inputMethodManager();
+        auto group = imManager.currentGroup();
+        group.inputMethodList().clear();
+        group.inputMethodList().emplace_back("keyboard-us");
+        group.inputMethodList().emplace_back("testim");
+        group.setDefaultInputMethod("testim");
+        imManager.setGroup(group);
+        FCITX_ASSERT(imManager.currentGroup().defaultInputMethod() == "testim");
+
+        InputMethodGroup replacement(group.name());
+        replacement.inputMethodList().emplace_back("keyboard-us");
+        replacement.inputMethodList().emplace_back("testim");
+        imManager.setGroup(std::move(replacement));
+        FCITX_ASSERT(imManager.currentGroup().defaultInputMethod() == "testim");
+
+        InputMethodGroup invalidDefault(group.name());
+        invalidDefault.inputMethodList().emplace_back("keyboard-us");
+        invalidDefault.inputMethodList().emplace_back("testim2");
+        imManager.setGroup(std::move(invalidDefault));
+        FCITX_ASSERT(imManager.currentGroup().defaultInputMethod() ==
+                     "testim2");
+
+        InputMethodGroup fallback(group.name());
+        fallback.inputMethodList().emplace_back("keyboard-us");
+        imManager.setGroup(std::move(fallback));
+        FCITX_ASSERT(imManager.currentGroup().defaultInputMethod() ==
+                     "keyboard-us");
+    });
+}
+
 void testModifierOnlyHotkey(Instance &instance) {
     instance.eventDispatcher().schedule([&instance]() {
         auto defaultGroup = instance.inputMethodManager().currentGroup();
@@ -79,8 +117,17 @@ void testModifierOnlyHotkey(Instance &instance) {
         FCITX_ASSERT(instance.inputMethod(ic) == "keyboard-us");
 
         FCITX_ASSERT(instance.inputMethod(ic) == "keyboard-us");
-        FCITX_ASSERT(testfrontend->call<ITestFrontend::sendKeyEvent>(
-            uuid, Key("Control+space"), false));
+        if (isApple()) {
+            // macOS includes Shift in the modifier state on key press and
+            // removes it on key release.
+            FCITX_ASSERT(!testfrontend->call<ITestFrontend::sendKeyEvent>(
+                uuid, Key("Control+Shift+Shift_L"), false));
+            FCITX_ASSERT(!testfrontend->call<ITestFrontend::sendKeyEvent>(
+                uuid, Key("Control+Shift_L"), true));
+        } else {
+            FCITX_ASSERT(testfrontend->call<ITestFrontend::sendKeyEvent>(
+                uuid, Key("Control+space"), false));
+        }
         FCITX_ASSERT(instance.inputMethod(ic) == "testim");
 
         FCITX_ASSERT(!testfrontend->call<ITestFrontend::sendKeyEvent>(
@@ -127,6 +174,43 @@ void testModifierOnlyHotkey(Instance &instance) {
     });
 }
 
+void testXkbStateMask(Instance &instance) {
+    instance.eventDispatcher().schedule([&instance]() {
+        bool xkbStateMaskChanged = false;
+        std::optional<std::tuple<uint32_t, uint32_t, uint32_t>> savedOldMask;
+        std::optional<std::tuple<uint32_t, uint32_t, uint32_t>> savedNewMask;
+        auto connection = instance.connect<Instance::XkbStateMaskChanged>(
+            [&](const std::string &event,
+                std::optional<std::tuple<uint32_t, uint32_t, uint32_t>> oldMask,
+                std::optional<std::tuple<uint32_t, uint32_t, uint32_t>>
+                    newMask) {
+                FCITX_ASSERT(event == "testdisplay");
+                savedOldMask = oldMask;
+                savedNewMask = newMask;
+                xkbStateMaskChanged = true;
+            });
+
+        instance.updateXkbStateMask("testdisplay", 1, 2, 3);
+        FCITX_ASSERT(xkbStateMaskChanged);
+        FCITX_ASSERT(savedOldMask == std::nullopt);
+        FCITX_ASSERT(savedNewMask == std::make_tuple(1, 2, 3));
+        FCITX_ASSERT(instance.xkbStateMask("testdisplay") ==
+                     std::make_tuple(1, 2, 3));
+        FCITX_ASSERT(instance.xkbStateMask("baddisplay") == std::nullopt);
+
+        xkbStateMaskChanged = false;
+        instance.updateXkbStateMask("testdisplay", 1, 2, 3);
+        FCITX_ASSERT(!xkbStateMaskChanged);
+
+        instance.clearXkbStateMask("testdisplay");
+        FCITX_ASSERT(xkbStateMaskChanged);
+        FCITX_ASSERT(savedOldMask == std::make_tuple(1, 2, 3));
+        FCITX_ASSERT(savedNewMask == std::nullopt);
+    });
+}
+
+} // namespace
+
 int main() {
     setupTestingEnvironmentPath(FCITX5_BINARY_DIR, {"bin"}, {"test"});
 
@@ -145,7 +229,9 @@ int main() {
                  std::vector<std::string>{});
     testCheckUpdate(instance);
     testReloadGlobalConfig(instance);
+    testSetGroupDefaultInputMethod(instance);
     testModifierOnlyHotkey(instance);
+    testXkbStateMask(instance);
     instance.eventDispatcher().schedule([&instance]() { instance.exit(); });
     instance.exec();
     return 0;

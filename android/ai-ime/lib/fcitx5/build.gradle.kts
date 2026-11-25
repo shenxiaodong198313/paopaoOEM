@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "org.fcitx.fcitx5.android.lib"
-version = "1.0"
+version = oemRuntimeProperty("oemFcitxNativeVersion")
 
 fcitxHeaders {
     installDevelComponent = true

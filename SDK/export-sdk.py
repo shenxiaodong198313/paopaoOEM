@@ -31,15 +31,17 @@ def digest(path: Path, algorithm: str) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--version-tag", default="current")
+    parser.add_argument("--source-repo", type=Path, default=SOURCE_REPO)
     args = parser.parse_args()
+    source_repo = args.source_repo.resolve()
 
     catalog = json.loads(CATALOG.read_text(encoding="utf-8"))
     sdk_version = catalog["sdkVersion"]
     gradle_properties = (OEM_ROOT / "android/gradle.properties").read_text(encoding="utf-8")
     if f"oemSdkVersion={sdk_version}" not in gradle_properties.splitlines():
         raise RuntimeError("Catalog version does not match Gradle's oemSdkVersion")
-    if not SOURCE_REPO.is_dir():
-        raise RuntimeError(f"Missing published Maven repository: {SOURCE_REPO}")
+    if not source_repo.is_dir():
+        raise RuntimeError(f"Missing published Maven repository: {source_repo}")
 
     artifacts = []
     seen = set()
@@ -49,7 +51,7 @@ def main() -> None:
                 continue
             seen.add(coordinate)
             group, artifact, version = coordinate.split(":")
-            directory = SOURCE_REPO / group.replace(".", "/") / artifact / version
+            directory = source_repo / group.replace(".", "/") / artifact / version
             primary = directory / f"{artifact}-{version}.aar"
             if not primary.is_file():
                 raise RuntimeError(f"Missing published AAR: {coordinate}")
@@ -71,11 +73,11 @@ def main() -> None:
     for target in (target_repo, target_docs):
         if target.exists():
             shutil.rmtree(target)
-    shutil.copytree(SOURCE_REPO, target_repo)
+    shutil.copytree(source_repo, target_repo)
     shutil.copytree(
         OEM_ROOT / "website/oem",
         target_docs,
-        ignore=shutil.ignore_patterns("*.apk", "oem-sdk-delivery-*.zip"),
+        ignore=shutil.ignore_patterns(".DS_Store", "*.apk", "oem-sdk-delivery-*.zip", "sdk-repo"),
     )
     for external_doc in (OEM_ROOT / "Doc").glob("外部版-*.md"):
         shutil.copy2(external_doc, target_docs / external_doc.name)
@@ -96,6 +98,8 @@ def main() -> None:
     }
     manifest_path = SDK_ROOT / "oem-sdk-manifest.json"
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    for docs in (target_docs, OEM_ROOT / "website/oem"):
+        shutil.copy2(manifest_path, docs / "downloads/oem-sdk-manifest.json")
     readme_path = SDK_ROOT / "DELIVERY_README.txt"
     readme_path.write_text(
         f"OEM SDK delivery package\n\nSDK version: {sdk_version}\n\n"

@@ -32,8 +32,13 @@ abstract class GridPagingCandidateViewAdapter(theme: Theme) : PagingCandidateVie
         }
     }
 
+    fun chineseColumnSpan(position: Int, columns: Int): Int {
+        val text = peek(position)?.word?.text ?: return 1
+        return ((text.codePointCount(0, text.length) + 1) / 2).coerceIn(1, columns)
+    }
+
     fun measureWidth(position: Int): Float {
-        val candidate = getItem(position) ?: return 0f
+        val candidate = getItem(position)?.word ?: return 0f
         return measuredWidths[candidate.textWithComment()]
     }
 

@@ -1,35 +1,130 @@
 {
-  "default": "standard",
+  "default": "bd_default",
   "items": [
     {
+      "id": "bd_default",
+      "name": "默认"
+    },
+    {
       "id": "standard",
-      "name": "标准按键"
+      "name": "标准键音"
     },
     {
       "id": "mouse",
-      "name": "鼠标轻点"
+      "name": "鼠标轻击"
     },
     {
       "id": "click",
-      "name": "短促点击"
+      "name": "短促轻点"
     },
     {
       "id": "crisp",
-      "name": "清脆点击"
+      "name": "清脆轻敲"
     },
     {
       "id": "pluck",
-      "name": "拨弦"
+      "name": "轻拨弦音"
     },
     {
       "id": "glass",
-      "name": "玻璃轻响"
+      "name": "玻璃清响"
     },
     {
       "id": "tick",
-      "name": "滴答"
+      "name": "滴答滴答"
+    },
+    {
+      "id": "bd_allegro",
+      "name": "轻快板音"
+    },
+    {
+      "id": "bd_bopu",
+      "name": "啵卟啵卟"
+    },
+    {
+      "id": "bd_dadu",
+      "name": "嗒嘟嗒嘟"
+    },
+    {
+      "id": "bd_dilu",
+      "name": "嘀噜嘀噜"
+    },
+    {
+      "id": "bd_duda",
+      "name": "嘟哒嘟哒"
+    },
+    {
+      "id": "bd_dulu",
+      "name": "嘟噜嘟噜"
+    },
+    {
+      "id": "bd_dudu",
+      "name": "嘟嘟嘟嘟"
+    },
+    {
+      "id": "bd_kada",
+      "name": "咔哒咔哒"
+    },
+    {
+      "id": "bd_koukou",
+      "name": "扣扣扣扣"
+    },
+    {
+      "id": "bd_mechanical",
+      "name": "机械敲击"
+    },
+    {
+      "id": "bd_blackberry",
+      "name": "黑莓键音"
+    },
+    {
+      "id": "bd_miku",
+      "name": "初音轻唱"
+    },
+    {
+      "id": "bd_marimba",
+      "name": "马林巴音"
+    },
+    {
+      "id": "bd_cute",
+      "name": "俏皮可爱"
+    },
+    {
+      "id": "bd_puppy",
+      "name": "奶汪轻叫"
+    },
+    {
+      "id": "bd_kitten",
+      "name": "奶猫轻喵"
+    },
+    {
+      "id": "bd_pikachu",
+      "name": "皮卡轻鸣"
+    },
+    {
+      "id": "bd_cotton_candy",
+      "name": "软绵糖音"
+    },
+    {
+      "id": "bd_pop",
+      "name": "轻巧弹出"
+    },
+    {
+      "id": "bd_cartoon_pop",
+      "name": "卡通弹跳"
+    },
+    {
+      "id": "bd_cute_simple",
+      "name": "简约萌音"
+    },
+    {
+      "id": "bd_cute_toy",
+      "name": "萌趣玩具"
     }
   ],
-  "sourceManifest": "apps/harmony/design/audio-audition/20261002/manifest.json",
-  "gain": "same as audition, peak 10000"
+  "gain": "Mono PCM16, peak 10000. Original 7 unchanged; additions preserve native sample rate, duration and pitch.",
+  "sourceManifests": [
+    "apps/harmony/design/audio-audition/20261002/manifest.json",
+    "design/key-sounds/reference-20261021/manifest.json"
+  ]
 }

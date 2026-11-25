@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="10dp"
+    android:background="@drawable/bg_layout_display_section_card"
+    android:orientation="vertical"
+    android:padding="14dp">
+
+    <androidx.appcompat.widget.AppCompatRadioButton
+        android:id="@+id/dictionary_option"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="48dp"
+        android:paddingStart="4dp"
+        android:textColor="#2E3131"
+        android:textSize="16sp" />
+
+    <TextView
+        android:id="@+id/dictionary_description"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="#555C5A"
+        android:textSize="14sp" />
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/dictionary_download"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="@string/oem_dictionary_download" />
+</LinearLayout>

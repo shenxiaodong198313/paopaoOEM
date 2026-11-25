@@ -23,12 +23,19 @@ import org.fcitx.fcitx5.android.data.clipboard.ClipboardManager
 import org.fcitx.fcitx5.android.data.prefs.AppPrefs as FcitxAppPrefs
 import org.fcitx.fcitx5.android.data.theme.ThemeManager as FcitxThemeManager
 import org.fcitx.fcitx5.android.input.clipboard.ClipboardLayoutMode as FcitxClipboardLayoutMode
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import org.fcitx.fcitx5.android.input.status.PinyinDictionaryPackages
+import org.fcitx.fcitx5.android.input.status.PinyinDictionaryRouting
 import org.fcitx.fcitx5.android.input.keyboard.SpaceLongPressBehavior
 import org.fcitx.fcitx5.android.input.status.KeyboardSelectionPreset
 
 object InputMethodSettingsBridge {
 
     private const val DEFAULT_KEYBOARD_HEIGHT_PERCENT = 30
+    private val dictionarySelection = PinyinDictionaryCatalog.SelectionCoordinator()
+    private val pinyinSettingsChanges = Mutex()
+
     private const val DEFAULT_SOUND_VOLUME = 50
     private const val DEFAULT_HAPTIC_LEVEL = 5
     private const val DEFAULT_CLIPBOARD_HISTORY_LIMIT = 10
@@ -443,13 +450,15 @@ object InputMethodSettingsBridge {
         val rememberedIme = fcitxPrefs().internal.lastFullKeyboardChineseIme.getValue()
         return when {
             rememberedIme == KeyboardSelectionPreset.SHUANGPIN -> MainKeyboardType.DoublePinyin
-            rememberedIme == KeyboardSelectionPreset.WUBI -> MainKeyboardType.Wubi
-            rememberedIme == KeyboardSelectionPreset.WUBI_PINYIN -> MainKeyboardType.WubiPinyin
+            rememberedIme == KeyboardSelectionPreset.WUBI && PinyinDictionaryPackages.wubiEnabled() -> MainKeyboardType.Wubi
+            rememberedIme == KeyboardSelectionPreset.WUBI_PINYIN && PinyinDictionaryPackages.wubiEnabled() -> MainKeyboardType.WubiPinyin
             else -> MainKeyboardType.FullPinyin
         }
     }
 
-    fun setPrimaryKeyboardType(type: MainKeyboardType) {
+    suspend fun setPrimaryKeyboardType(type: MainKeyboardType) = pinyinSettingsChanges.withLock {
+        check(type !in listOf(MainKeyboardType.Wubi, MainKeyboardType.WubiPinyin) || PinyinDictionaryPackages.wubiEnabled()) { "请先下载并启用 Rime词库" }
+        val doubleMode = if (type == MainKeyboardType.DoublePinyin) readDoublePinyinSchema() else null
         val host = hostPrefs()
         val fcitx = fcitxPrefs()
         when (type) {
@@ -477,7 +486,7 @@ object InputMethodSettingsBridge {
                 host.keyboardSetting.keyboardLockEnglish.setValue(false)
                 fcitx.internal.lastFullKeyboardChineseIme.setValue(KeyboardSelectionPreset.SHUANGPIN)
                 host.internal.pinyinModeRime.setValue(
-                    CustomConstant.SCHEMA_ZH_DOUBLE_FLYPY + getDoublePinyinSchema()
+                    CustomConstant.SCHEMA_ZH_DOUBLE_FLYPY + requireNotNull(doubleMode)
                 )
                 host.internal.inputMethodPinyinMode.setValue(InputModeSwitcherManager.MODE_QWERTY_CHINESE)
                 host.internal.inputDefaultMode.setValue(InputModeSwitcherManager.MODE_QWERTY_CHINESE)
@@ -500,16 +509,104 @@ object InputMethodSettingsBridge {
         }
     }
 
-    fun getDoublePinyinSchema(): DoublePinyinSchemaMode = hostPrefs().input.doublePYSchemaMode.getValue()
+    suspend fun getDoublePinyinSchema(): DoublePinyinSchemaMode = pinyinSettingsChanges.withLock {
+        readDoublePinyinSchema()
+    }
 
-    fun setDoublePinyinSchema(mode: DoublePinyinSchemaMode) {
-        hostPrefs().input.doublePYSchemaMode.setValue(mode)
+    private suspend fun readDoublePinyinSchema(): DoublePinyinSchemaMode {
+        val internal = fcitxPrefs().internal
+        return DoublePinyinSchemaMode.valueOf(
+            PinyinDictionaryPreparationRepository.resolveDoublePinyinMode(
+                PinyinDictionaryCatalog.Selection(internal.pinyinDictionaryProfile.getValue(),
+                    internal.frostDoublePinyinSchema.getValue())
+            )
+        )
+    }
+
+    fun getPinyinDictionaryProfile(): String = PinyinDictionaryPackages.selected()
+
+    suspend fun setPinyinDictionaryProfile(profile: String) {
+        pinyinSettingsChanges.withLock {
+            val internal = fcitxPrefs().internal
+            val previous = PinyinDictionaryCatalog.Selection(
+                internal.pinyinDictionaryProfile.getValue(), internal.frostDoublePinyinSchema.getValue()
+            )
+            var resolvedMode: String? = null
+            dictionarySelection.selectWithRollback(
+                profile = profile,
+                prepare = {
+                    PinyinDictionaryPackages.verifySelection(profile)
+                    resolvedMode = PinyinDictionaryPreparationRepository.resolveDoublePinyinMode(previous)
+                    PinyinDictionaryPreparationRepository.prepare(profile)
+                    if (profile == "default") PinyinDictionaryPreparationRepository.changeDoublePinyinMode(requireNotNull(resolvedMode), {}, {})
+                },
+                persist = { persistPinyinDictionaryProfile(profile, resolvedMode) },
+                rollback = {
+                    check(internal.pinyinDictionaryProfile.sharedPreferences.edit()
+                        .putString(internal.pinyinDictionaryProfile.key, previous.profile)
+                        .putString(internal.frostDoublePinyinSchema.key, previous.doublePinyinSchema)
+                        .commit()) { "词库设置恢复失败" }
+                },
+            )
+        }
+    }
+
+    private fun persistPinyinDictionaryProfile(profile: String, doublePinyinMode: String?) {
+        val internal = fcitxPrefs().internal
+        val profilePref = internal.pinyinDictionaryProfile
+        val schemaPref = internal.frostDoublePinyinSchema
+        PinyinDictionaryCatalog.save(
+            profile = profile,
+            doublePinyinMode = doublePinyinMode,
+            read = {
+                PinyinDictionaryCatalog.Selection(profilePref.getValue(), schemaPref.getValue())
+            },
+            write = { selection ->
+                profilePref.sharedPreferences.edit()
+                    .putString(schemaPref.key, selection.doublePinyinSchema)
+                    .putString(profilePref.key, selection.profile)
+                    .commit()
+            },
+        )
+    }
+
+    suspend fun setDoublePinyinSchema(mode: DoublePinyinSchemaMode) = pinyinSettingsChanges.withLock {
+        saveDoublePinyinSchema(mode)
+    }
+
+    private suspend fun saveDoublePinyinSchema(mode: DoublePinyinSchemaMode, resetProfile: Boolean = false) {
+        val modePref = hostPrefs().input.doublePYSchemaMode
         val host = hostPrefs().internal
+        val schemaPref = fcitxPrefs().internal.frostDoublePinyinSchema
+        val profilePref = fcitxPrefs().internal.pinyinDictionaryProfile
+        val previousMode = modePref.sharedPreferences.getString(modePref.key, null)
+        val previousHostSchema = host.pinyinModeRime.sharedPreferences.getString(host.pinyinModeRime.key, null)
+        val previousSchema = schemaPref.sharedPreferences.getString(schemaPref.key, null)
+        val previousProfile = profilePref.sharedPreferences.getString(profilePref.key, null)
         val currentSchema = host.pinyinModeRime.getValue()
-        if (currentSchema.startsWith(CustomConstant.SCHEMA_ZH_DOUBLE_FLYPY) &&
-            currentSchema != CustomConstant.SCHEMA_ZH_DOUBLE_LX17
-        ) {
-            host.pinyinModeRime.setValue(CustomConstant.SCHEMA_ZH_DOUBLE_FLYPY + mode)
+        val nextHostSchema = if (currentSchema.startsWith(CustomConstant.SCHEMA_ZH_DOUBLE_FLYPY) &&
+            currentSchema != CustomConstant.SCHEMA_ZH_DOUBLE_LX17) CustomConstant.SCHEMA_ZH_DOUBLE_FLYPY + mode
+            else currentSchema
+        val persist: () -> Unit = {
+                check(modePref.sharedPreferences.edit().putString(modePref.key, mode.name)
+                    .putString(host.pinyinModeRime.key, nextHostSchema).commit()) { "双拼方案设置未能保存，请重试" }
+                val editor = schemaPref.sharedPreferences.edit().putString(schemaPref.key,
+                    PinyinDictionaryRouting.frostDoublePinyinSchemaForMode(mode.name))
+                if (resetProfile) editor.putString(profilePref.key, PinyinDictionaryRouting.FROST_PROFILE)
+                check(editor.commit()) { "双拼方案设置未能保存，请重试" }
+            }
+        val rollback: () -> Unit = {
+                val hostRestored = modePref.sharedPreferences.edit().putString(modePref.key, previousMode)
+                    .putString(host.pinyinModeRime.key, previousHostSchema).commit()
+                val rimeRestored = schemaPref.sharedPreferences.edit().putString(schemaPref.key, previousSchema)
+                    .putString(profilePref.key, previousProfile).commit()
+                check(hostRestored && rimeRestored) { "双拼方案设置恢复失败" }
+            }
+        if (PinyinDictionaryPackages.selected() == "default")
+            PinyinDictionaryPreparationRepository.changeDoublePinyinMode(mode.name, persist, rollback)
+        else try { persist() } catch (error: Exception) {
+            runCatching(rollback).exceptionOrNull()?.let(error::addSuppressed)
+            throw error
         }
     }
 
@@ -583,10 +680,10 @@ object InputMethodSettingsBridge {
         hostPrefs().input.symbolPairInput.setValue(enabled)
     }
 
-    fun isAssistChineseAssociationEnabled(): Boolean = hostPrefs().input.chinesePrediction.getValue()
+    fun isAssistChineseAssociationEnabled(): Boolean = PinyinAssociationRepository.read()
 
-    fun setAssistChineseAssociationEnabled(enabled: Boolean) {
-        hostPrefs().input.chinesePrediction.setValue(enabled)
+    suspend fun setAssistChineseAssociationEnabled(enabled: Boolean): Boolean = pinyinSettingsChanges.withLock {
+        PinyinAssociationRepository.write(enabled)
     }
 
     fun isAssistDateAssociationEnabled(): Boolean = hostPrefs().input.chinesePredictionDate.getValue()
@@ -841,7 +938,9 @@ object InputMethodSettingsBridge {
         }
     }
 
-    fun resetAllSettingsToDefault(context: Context) {
+    suspend fun resetAllSettingsToDefault(context: Context) = pinyinSettingsChanges.withLock {
+        dictionarySelection.invalidate()
+        saveDoublePinyinSchema(DoublePinyinSchemaMode.flypy, resetProfile = true)
         val host = hostPrefs()
         val fcitx = fcitxPrefs()
         val prefs = sharedPrefs(context)
@@ -852,10 +951,13 @@ object InputMethodSettingsBridge {
         setDarkModeOption(DarkModeOption.FollowSystem)
 
         fcitx.keyboard.soundOnKeyPress.setValue(InputFeedbackMode.Enabled)
-        org.fcitx.fcitx5.android.data.KeySounds.select(context, "standard")
+        org.fcitx.fcitx5.android.data.KeySounds.select(context, org.fcitx.fcitx5.android.data.KeySounds.DEFAULT_ID)
         setSoundVolume(DEFAULT_SOUND_VOLUME)
         setHapticLevel(DEFAULT_HAPTIC_LEVEL)
         setPopupBubbleEnabled(true)
+        org.fcitx.fcitx5.android.data.theme.KeyboardEffectPreference.select(
+            org.fcitx.fcitx5.android.data.theme.KeyboardEffectPreference.SKIN_DEFAULT
+        )
 
         setToolbarExpandByDefault(false)
         setToolbarHideComplex(context, true)
@@ -865,7 +967,7 @@ object InputMethodSettingsBridge {
         setAssistReturnSendEnabled(context, false)
         setAssistAutoSpaceEnabled(false)
         setAssistPairSymbolEnabled(true)
-        setAssistChineseAssociationEnabled(true)
+        PinyinAssociationRepository.write(true)
         setAssistDateAssociationEnabled(true)
         setAssistEmojiAssociationEnabled(true)
         setHalfWidthSymbolsMode(HalfWidthSymbolsMode.All)
@@ -876,7 +978,6 @@ object InputMethodSettingsBridge {
 
         setKeyboardMode(KeyboardMode.FullKeyboard)
         setHandwritingEnabled(context, true)
-        setDoublePinyinSchema(DoublePinyinSchemaMode.flypy)
         setDoublePinyinHintEnabled(false)
         setSpaceSwipeMoveCursorEnabled(true)
         setOneHandMode(OneHandMode.Off)

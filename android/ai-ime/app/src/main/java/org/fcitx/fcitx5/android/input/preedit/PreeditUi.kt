@@ -40,14 +40,20 @@ open class PreeditUi(
         override fun getDrawable() = drawable
     }
 
+    private val style = (theme as? Theme.Custom)?.renderStyle
+    private val config = style?.localConfiguration
+    private val preeditInk = config?.preeditTextColor?.takeIf { it != 0 } ?: style?.preeditTextColor ?: theme.keyTextColor
+
     private val cursorSpan by lazy {
         CursorSpan(ctx, theme.keyTextColor, upView.paint.fontMetricsInt)
     }
 
     private fun createTextView() = textView {
-        setTextColor(theme.keyTextColor)
-        textSize = 16f
+        setTextColor(preeditInk)
+        style?.preeditShadowColor?.let { setShadowLayer(ctx.dp(1.5f).toFloat(), 0f, 0f, it) }
+        textSize = 16f * (config?.preeditTextScale ?: 100) / 100f
         setupTextView?.invoke(this)
+        if (config != null) setPadding(ctx.dp(config.preeditLeft), paddingTop, paddingRight, paddingBottom)
     }
 
     private val upView = createTextView()

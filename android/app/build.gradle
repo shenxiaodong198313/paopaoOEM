@@ -166,7 +166,7 @@ android {
     }
 
     androidResources {
-        noCompress 'onnx', 'txt', 'json', 'nb'
+        noCompress 'onnx', 'txt', 'json', 'nb', 'wav'
     }
     
     packagingOptions {
@@ -183,10 +183,6 @@ android {
             useLegacyPackaging = true
             pickFirst 'lib/**/libonnxruntime.so'
             pickFirst 'lib/**/libc++_shared.so'
-            excludes += [
-                    'lib/**/libonnxruntime.so',
-                    'lib/**/libonnxruntime4j_jni.so'
-            ]
         }
     }
 
@@ -349,7 +345,7 @@ dependencies {
     
     // Dependencies from ime-core
     implementation "androidx.constraintlayout:constraintlayout:${versions.constraintlayout}"
-    implementation 'org.fcitx.fcitx5.android:app:1.10'
+    implementation "org.fcitx.fcitx5.android:app:${rootProject.ext.oemFcitxRuntimeVersion}"
     implementation "com.google.android.flexbox:flexbox:${versions.flexbox}"
     implementation "androidx.emoji2:emoji2:${versions.emoji2}"
     implementation "androidx.emoji2:emoji2-views:${versions.emoji2}"

@@ -32,8 +32,8 @@ internal class SkinKeyDecorationRenderer(
             if (!key.isShown) continue
             val face = key.skinBoundsIn(host)
             if (face.isEmpty) continue
-            val width = style.widthDp * density
-            val height = style.heightDp * density
+            val width = if (style.fitToKey) min(style.widthDp * density, (face.width() - 4 * density).coerceAtLeast(0f)) else style.widthDp * density
+            val height = if (style.fitToKey) min(style.heightDp * density, face.height() + 2 * style.maxOverflowDp * density) else style.heightDp * density
             val ratio = min(width / drawable.intrinsicWidth.coerceAtLeast(1),
                 height / drawable.intrinsicHeight.coerceAtLeast(1))
             val w = drawable.intrinsicWidth.coerceAtLeast(1) * ratio

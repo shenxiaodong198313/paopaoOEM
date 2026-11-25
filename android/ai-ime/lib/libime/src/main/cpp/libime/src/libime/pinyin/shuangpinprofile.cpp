@@ -376,6 +376,19 @@ ShuangpinProfile::ShuangpinProfile(
         c = SPMap_C_MS;
         s = SPMap_S_MS;
         break;
+    case ShuangpinBuiltinProfile::Sogou:
+        c = SPMap_C_Sogou;
+        s = SPMap_S_Sogou;
+        // Official Sogou supports both o-prefixed and repeated-initial vowels
+        // (oa/aa, oj/aj, of/ef, etc.), independently of fuzzy-pinyin options.
+        d->zeroS_ = "o*";
+        for (auto initial : {PinyinInitial::J, PinyinInitial::Q,
+                             PinyinInitial::X, PinyinInitial::Y}) {
+            d->initialFinalMap_.emplace(
+                PinyinEncoder::initialToString(initial) + "y",
+                std::make_pair(initial, PinyinFinal::U));
+        }
+        break;
     case ShuangpinBuiltinProfile::Ziguang:
         c = SPMap_C_Ziguang;
         s = SPMap_S_Ziguang;

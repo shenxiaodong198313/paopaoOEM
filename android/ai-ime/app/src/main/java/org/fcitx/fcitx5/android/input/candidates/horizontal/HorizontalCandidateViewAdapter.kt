@@ -26,20 +26,20 @@ open class HorizontalCandidateViewAdapter(val theme: Theme) :
         setHasStableIds(true)
     }
 
-    var candidates: Array<CandidateWord> = arrayOf()
+    var candidates: Array<IndexedValue<CandidateWord>> = arrayOf()
         private set
 
     var total = -1
         private set
 
     @SuppressLint("NotifyDataSetChanged")
-    fun updateCandidates(data: Array<CandidateWord>, total: Int) {
+    fun updateCandidates(data: Array<IndexedValue<CandidateWord>>, total: Int) {
         this.candidates = data
         this.total = total
         notifyDataSetChanged()
     }
 
-    fun appendCandidates(newCandidates: Array<CandidateWord>) {
+    fun appendCandidates(newCandidates: Array<IndexedValue<CandidateWord>>) {
         val oldSize = candidates.size
         candidates += newCandidates
         notifyItemRangeInserted(oldSize, newCandidates.size)
@@ -47,7 +47,7 @@ open class HorizontalCandidateViewAdapter(val theme: Theme) :
 
     override fun getItemCount() = candidates.size
 
-    override fun getItemId(position: Int) = candidates.getOrNull(position).hashCode().toLong()
+    override fun getItemId(position: Int) = candidates[position].index.toLong()
 
     @CallSuper
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CandidateViewHolder {
@@ -62,13 +62,13 @@ open class HorizontalCandidateViewAdapter(val theme: Theme) :
 
     @CallSuper
     override fun onBindViewHolder(holder: CandidateViewHolder, position: Int) {
-        holder.update(position, candidates[position])
+        val entry = candidates[position]
+        holder.update(entry.index, entry.value)
         // AutoScaleTextView draws a String using currentTextColor; spans are discarded.
-        // Set both branches on every bind, including unchanged words and recycled holders.
-        holder.ui.text.setTextColor(
-            if (SkinLabStandard.enabled(theme) && position == 0) android.graphics.Color.WHITE
-            else theme.candidateTextColor
-        )
+        // All skins, including installed legacy packages, share the strip appearance.
+        // Always reset recycled holders; the first item has no separate fill or ink.
+        holder.ui.text.setTextColor((theme as? Theme.Custom)?.renderStyle?.localConfiguration?.candidateTextColor?.takeIf { it != 0 } ?: theme.candidateTextColor)
+        holder.ui.text.background = null
         if (SkinLabStandard.enabled(theme)) {
             val context = holder.ui.root.context
             holder.ui.text.layoutParams = (holder.ui.text.layoutParams as android.widget.FrameLayout.LayoutParams).apply {
@@ -77,15 +77,6 @@ open class HorizontalCandidateViewAdapter(val theme: Theme) :
             }
             holder.ui.text.translationY = -context.dp(.875f).toFloat()
 
-        }
-        if (position == 0) {
-            val bgColor = if (SkinLabStandard.enabled(theme)) 0xFF2F78FF.toInt() else (theme.keyTextColor and 0x00FFFFFF) or 0x1A000000
-            holder.ui.text.background = android.graphics.drawable.GradientDrawable().apply {
-                setColor(bgColor)
-                cornerRadius = holder.ui.root.context.dp(if (SkinLabStandard.enabled(theme)) 5 else 2).toFloat()
-            }
-        } else {
-            holder.ui.text.background = null
         }
     }
 

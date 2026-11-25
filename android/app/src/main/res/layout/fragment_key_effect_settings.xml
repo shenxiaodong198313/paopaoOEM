@@ -140,6 +140,29 @@
                 android:textSize="12sp" />
 
             <LinearLayout
+                android:id="@+id/card_key_effect_sound_choices"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:layout_marginTop="18dp"
+                android:background="@drawable/bg_key_effect_section_card"
+                android:orientation="vertical"
+                android:padding="20dp">
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="音效选择" android:textSize="19sp" android:textStyle="bold" android:textColor="#111111" />
+                <LinearLayout android:id="@+id/key_sound_list" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" />
+            </LinearLayout>
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/button_key_effect_motion"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="18dp"
+                android:layout_marginEnd="16dp"
+                android:minHeight="48dp"
+                android:text="@string/oem_key_effect_motion" />
+
+            <LinearLayout
                 android:id="@+id/card_key_effect_haptic"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

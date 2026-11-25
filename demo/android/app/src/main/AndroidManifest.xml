@@ -15,7 +15,7 @@
         <!-- 企业客户标识：当前演示环境指向企业码 YOUR_CUSTOMER_ID -->
         <meta-data
             android:name="com.paopaoime.oem.customerId"
-            android:value="YOUR_CUSTOMER_ID" />
+            android:value="${oemDemoCustomerId}" />
         <!-- 企业应用密钥：必须与 customerId 对应，才能命中企业授权限制链路 -->
         <meta-data
             android:name="com.paopaoime.oem.appKey"

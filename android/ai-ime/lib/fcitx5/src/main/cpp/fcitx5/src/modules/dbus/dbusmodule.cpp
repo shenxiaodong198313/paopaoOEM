@@ -277,7 +277,6 @@ public:
                 InputMethodGroupItem(std::get<0>(entry))
                     .setLayout(std::get<1>(entry)));
         }
-        group.setDefaultInputMethod("");
         imManager.setGroup(std::move(group));
         imManager.save();
     }
@@ -621,8 +620,8 @@ public:
     void openWaylandConnectionSocket(UnixFD &fd) {
 #ifdef WAYLAND_FOUND
         if (auto *wayland = module_->wayland()) {
-            if (!wayland->call<IWaylandModule::openConnectionSocket>(
-                    fd.release())) {
+            if (!wayland->call<IWaylandModule::openConnectionSocketV2>(
+                    std::move(fd))) {
                 throw dbus::MethodCallError(
                     "org.freedesktop.DBus.Error.InvalidArgs",
                     "Failed to create wayland connection.");
@@ -639,8 +638,8 @@ public:
     void reopenWaylandConnectionSocket(const std::string &name, UnixFD &fd) {
 #ifdef WAYLAND_FOUND
         if (auto *wayland = module_->wayland()) {
-            if (!wayland->call<IWaylandModule::reopenConnectionSocket>(
-                    name, fd.release())) {
+            if (!wayland->call<IWaylandModule::reopenConnectionSocketV2>(
+                    name, std::move(fd))) {
                 throw dbus::MethodCallError(
                     "org.freedesktop.DBus.Error.InvalidArgs",
                     "Failed to create wayland connection.");

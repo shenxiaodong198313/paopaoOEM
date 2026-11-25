@@ -39,6 +39,7 @@ set(RIME_TARGET
         Rime_static
         "-Wl,--no-whole-archive")
 set(RIME_DATA_DIR "${CMAKE_INSTALL_DATADIR}/rime-data")
+include_directories("${PREBUILT_DIR}/leveldb/${ANDROID_ABI}/include")
 add_subdirectory(fcitx5-rime)
 
 install(FILES

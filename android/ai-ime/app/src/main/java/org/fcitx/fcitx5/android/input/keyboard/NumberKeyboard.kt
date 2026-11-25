@@ -37,7 +37,7 @@ private class NumberSidebarSymbolKey(
     ),
     arrayOf(
         Popup.Preview(symbol),
-        Popup.Keyboard(symbol)
+        Popup.Keyboard.Preset(symbol)
     )
 )
 
@@ -135,12 +135,13 @@ class NumberKeyboard(
 
         val sidebarStrip = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            background = custom?.takeIf { it.renderStyle?.unifiedSidebar == true }?.sidebarImage?.toDrawable(context)
+            background = sidebarArtwork(custom)
                 ?: buildSidebarBackground(keyCornerRadius)
             setPadding(0, 0, 0, 0)
             showDividers = if (custom?.renderStyle?.unifiedSidebar == true) LinearLayout.SHOW_DIVIDER_NONE else LinearLayout.SHOW_DIVIDER_MIDDLE
             dividerDrawable = insetRadiusDrawable(0, 0, 0f, theme.dividerColor)
         }
+        if (custom?.keyStateImages?.containsKey("number/sidebar") == true) sidebarPressSurface = sidebarStrip
         listOf("@", "%", "-", "+").forEachIndexed { index, symbol ->
             sidebarStrip.addView(
                 createKeyView(NumberSidebarSymbolKey(symbol), "sidebar:${index + 1}"),
@@ -164,6 +165,7 @@ class NumberKeyboard(
                 isFocusable = false
                 importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
             }
+            if (sidebarPressSurface != null) sidebarPressSurface = surface
             addCell(surface, columns[0], rows[0], rows[2],
                 kotlin.math.round(dp(visualH.coerceIn(0f, 24f))).toInt(),
                 kotlin.math.round(dp(visualV.coerceIn(0f, 24f))).toInt())

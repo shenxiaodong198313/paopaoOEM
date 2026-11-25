@@ -4,6 +4,7 @@
  */
 package org.fcitx.fcitx5.android.input.keyboard
 
+import org.fcitx.fcitx5.android.input.handwriting.*
 import android.text.InputType
 import android.view.Gravity
 import android.view.View
@@ -31,7 +32,6 @@ import org.fcitx.fcitx5.android.input.wm.InputWindow
 import org.fcitx.fcitx5.android.input.wm.InputWindowManager
 import org.mechdancer.dependency.manager.must
 import splitties.views.dsl.core.add
-import splitties.views.dsl.core.frameLayout
 import splitties.views.dsl.core.lParams
 import splitties.views.dsl.core.matchParent
 import kotlin.math.roundToInt
@@ -66,12 +66,17 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
             nextWindow !is PickerWindow
         }
 
-    private lateinit var keyboardView: FrameLayout
+    private lateinit var keyboardView: KeyboardHandwritingFrame
+    private lateinit var handwriting: HandwritingSession
+    private val handwritingSelected get() = AppPrefs.getInstance().internal.handwritingSelected.getValue()
 
     private val keyboards: HashMap<String, BaseKeyboard> by lazy {
         hashMapOf(
             TextKeyboard.Name to TextKeyboard(context, theme),
+            TextKeyboard.SpanishName to TextKeyboard(context, theme, spanish = true),
             NumberKeyboard.Name to NumberKeyboard(context, theme),
+            KanaKeyboard.Name to KanaKeyboard(context, theme),
+            FourteenKeyboard.Name to FourteenKeyboard(context, theme),
             T9Keyboard.Name to T9Keyboard(context, theme)
         )
     }
@@ -84,15 +89,22 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
 
     private val currentKeyboard: BaseKeyboard? get() = keyboards[currentKeyboardName]
 
-    private val keyActionListener = KeyActionListener { it, source ->
+    private val keyActionListener = KeyActionListener { action, source ->
+        if (::handwriting.isInitialized) handwriting.dispatchKey(action, allowIdleExit = true) { dispatchKeyAction(action, source) }
+        else dispatchKeyAction(action, source)
+    }
+
+    private fun dispatchKeyAction(it: KeyAction, source: KeyActionListener.Source) {
         when (it) {
             is KeyAction.LayoutSwitchAction -> switchLayout(it.act)
-            is KeyAction.MainKeyboardSwitchAction -> switchLayout(resolveMainKeyboardTarget(), remember = false)
+            is KeyAction.MainKeyboardSwitchAction -> if (handwritingSelected && !requiresAsciiLayout && !requiresNumberLayout) windowManager.attachWindow(HandwritingWindow()) else switchLayout(resolveMainKeyboardTarget(), remember = false)
             is KeyAction.T9ModeSwitchAction -> {
                 service.switchToNextT9Mode()
             }
             is KeyAction.LangSwitchAction ->
-                if (currentKeyboardName == TextKeyboard.Name && service.isT9EnglishMode()) {
+                if (currentKeyboardName in setOf(KanaKeyboard.Name, FourteenKeyboard.Name, TextKeyboard.SpanishName)) {
+                    service.selectFullKeyboardIme(org.fcitx.fcitx5.android.input.status.KeyboardSelectionPreset.ENGLISH)
+                } else if (currentKeyboardName == TextKeyboard.Name && service.isT9EnglishMode()) {
                     service.switchToNextT9Mode()
                 } else if (currentKeyboardName == TextKeyboard.Name) {
                     service.toggleFullKeyboardChineseEnglish()
@@ -109,7 +121,12 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
 
     // This will be called EXACTLY ONCE
     override fun onCreateView(): View {
-        keyboardView = context.frameLayout(R.id.keyboard_view)
+        keyboardView = KeyboardHandwritingFrame(context).apply { id = R.id.keyboard_view }
+        handwriting = HandwritingSession(service, keyboardView, bar)
+        handwriting.showMessage = { android.widget.Toast.makeText(context, it, android.widget.Toast.LENGTH_SHORT).show() }
+        keyboardView.bind(handwriting, theme.keyTextColor)
+        keyboardView.allowed = { AppPrefs.getInstance().internal.keyboardHandwritingEnabled.getValue() && !requiresAsciiLayout && !requiresNumberLayout }
+        keyboardView.cancelKeys = { popup.dismissAll() }
         attachLayout(defaultMainKeyboard)
         return keyboardView
     }
@@ -118,6 +135,7 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
         currentKeyboard?.also {
             it.onDetach()
             keyboardView.removeView(it)
+            (it as? TextKeyboard)?.onGlide = null
             it.keyActionListener = null
             it.popupActionListener = null
             (it as? T9Keyboard)?.let { t9Keyboard ->
@@ -129,16 +147,17 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
 
     private fun attachLayout(target: String) {
         currentKeyboardName = target
-        if (target == TextKeyboard.Name || target == T9Keyboard.Name) {
+        if (target == TextKeyboard.Name || target == T9Keyboard.Name || target == FourteenKeyboard.Name || target == KanaKeyboard.Name || target == TextKeyboard.SpanishName) {
             lastMainKeyboardName = target
         }
         currentKeyboard?.let {
             it.keyActionListener = keyActionListener
+            (it as? TextKeyboard)?.onGlide = service::submitEnglishGlide
             it.popupActionListener = popupActionListener
             keyboardView.apply { add(it, lParams(matchParent, matchParent)) }
             it.onAttach()
             it.onReturnDrawableUpdate(returnKeyDrawable.resourceId)
-            it.onInputMethodUpdate(fcitx.runImmediately { inputMethodEntryCached })
+            it.onInputMethodUpdate(service.displayImeForInteraction(fcitx.runImmediately { inputMethodEntryCached }))
             (it as? T9Keyboard)?.let(::bindT9Keyboard)
         }
         onLayoutChanged?.invoke(target)
@@ -155,11 +174,18 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
         keyboard.updateSidebarState(service.getT9SidebarState())
     }
 
+    private var requiresAsciiLayout = false
+    private var requiresNumberLayout = false
+    var handwritingNumberMode = false
     private val defaultMainKeyboard: String
-        get() = if (useT9KeyboardLayout) T9Keyboard.Name else TextKeyboard.Name
+        get() = if (requiresAsciiLayout) TextKeyboard.Name else if (useT9KeyboardLayout) T9Keyboard.Name
+            else if (AppPrefs.getInstance().internal.extendedKeyboard.getValue() == "spanish") TextKeyboard.SpanishName
+            else if (AppPrefs.getInstance().internal.extendedKeyboard.getValue() == "japanese_kana") KanaKeyboard.Name
+            else if (AppPrefs.getInstance().internal.extendedKeyboard.getValue() == "pinyin14") FourteenKeyboard.Name
+            else TextKeyboard.Name
 
     private fun resolveMainKeyboardTarget(): String {
-        if (!useT9KeyboardLayout) return TextKeyboard.Name
+        if (!useT9KeyboardLayout) return defaultMainKeyboard
         return when (lastMainKeyboardName) {
             TextKeyboard.Name, T9Keyboard.Name -> lastMainKeyboardName
             else -> defaultMainKeyboard
@@ -167,6 +193,7 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
     }
 
     fun switchToMainKeyboard() {
+        handwritingNumberMode = false
         switchLayout(resolveMainKeyboardTarget(), remember = false)
     }
 
@@ -179,10 +206,11 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
         val target = requestedTarget
         ContextCompat.getMainExecutor(service).execute {
             if (keyboards.containsKey(target)) {
-                if (remember && target != TextKeyboard.Name && target != T9Keyboard.Name) {
+                if (remember && target != TextKeyboard.Name && target != T9Keyboard.Name && target != FourteenKeyboard.Name && target != KanaKeyboard.Name && target != TextKeyboard.SpanishName) {
                     lastSymbolType = target
                 }
                 if (target == currentKeyboardName) return@execute
+                if (::handwriting.isInitialized) { keyboardView.cancelInk(); handwriting.stop(); if (keyboardView.allowed()) handwriting.start() }
                 detachCurrentLayout()
                 attachLayout(target)
                 if (windowManager.isAttached(this)) {
@@ -198,6 +226,14 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
     }
 
     override fun onStartInput(info: EditorInfo, capFlags: CapabilityFlags) {
+        if (::handwriting.isInitialized) { keyboardView.cancelInk(); handwriting.stop() }
+        requiresAsciiLayout = capFlags.has(org.fcitx.fcitx5.android.core.CapabilityFlag.Password) ||
+            capFlags.has(org.fcitx.fcitx5.android.core.CapabilityFlag.Alpha)
+        keyboards.values.filterIsInstance<TextKeyboard>().forEach {
+            it.glideAllowed = !capFlags.has(org.fcitx.fcitx5.android.core.CapabilityFlag.Password)
+        }
+        handwritingNumberMode = false
+        requiresNumberLayout = (info.inputType and InputType.TYPE_MASK_CLASS) in setOf(InputType.TYPE_CLASS_NUMBER, InputType.TYPE_CLASS_PHONE)
         val targetLayout = when (info.inputType and InputType.TYPE_MASK_CLASS) {
             InputType.TYPE_CLASS_NUMBER -> NumberKeyboard.Name
             InputType.TYPE_CLASS_PHONE -> NumberKeyboard.Name
@@ -220,6 +256,10 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
     }
 
     override fun onAttached() {
+        if (keyboardView.allowed()) handwriting.start()
+        if (handwritingSelected && !requiresAsciiLayout && !requiresNumberLayout && !handwritingNumberMode) {
+            keyboardView.post { if (windowManager.isAttached(this) && handwritingSelected && !requiresAsciiLayout && !requiresNumberLayout && !handwritingNumberMode) windowManager.attachWindow(HandwritingWindow()) }
+        }
         currentKeyboard?.let {
             it.keyActionListener = keyActionListener
             it.popupActionListener = popupActionListener
@@ -228,6 +268,17 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
         }
         onLayoutChanged?.invoke(currentKeyboardName)
         notifyBarLayoutChanged()
+    }
+
+    fun toolbarInsets(bar: View): Pair<Int, Int>? {
+        val grid = currentKeyboard?.takeIf { it.isAttachedToWindow && it.width > 0 } ?: return null
+        val edges = grid.toolbarKeyEdges ?: return null
+        val xy = IntArray(2)
+        grid.getLocationInWindow(xy)
+        val gridX = xy[0]
+        bar.getLocationInWindow(xy)
+        val offset = gridX - xy[0]
+        return (offset + edges.first).coerceAtLeast(0) to (bar.width - offset - edges.second).coerceAtLeast(0)
     }
 
     fun isCurrentLayoutT9(): Boolean = currentKeyboardName == T9Keyboard.Name
@@ -244,6 +295,7 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
     }
 
     override fun onDetached() {
+        keyboardView.cancelInk(); handwriting.stop()
         currentKeyboard?.let {
             it.onDetach()
             it.keyActionListener = null

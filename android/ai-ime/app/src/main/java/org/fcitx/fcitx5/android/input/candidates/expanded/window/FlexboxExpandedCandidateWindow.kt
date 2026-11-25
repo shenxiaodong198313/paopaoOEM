@@ -38,7 +38,7 @@ class FlexboxExpandedCandidateWindow :
 
             override fun onBindViewHolder(holder: CandidateViewHolder, position: Int) {
                 super.onBindViewHolder(holder, position)
-                bindCandidateUiViewHolder(holder)
+                bindCandidateUiViewHolder(holder, position)
             }
 
             override fun onViewRecycled(holder: CandidateViewHolder) {

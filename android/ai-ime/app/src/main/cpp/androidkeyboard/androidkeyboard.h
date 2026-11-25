@@ -29,6 +29,8 @@ FCITX_CONFIG_ENUM_NAME_WITH_I18N(
 FCITX_CONFIGURATION(
         AndroidKeyboardEngineConfig,
         Option<bool>
+            spanishWordHint{this, "SpanishWordHint", _("Spanish word completion"), false};
+        Option<bool>
             enableWordHint{this, "EnableWordHint", _("Enable word hint"), true};
         Option<bool>
             hintOnPhysicalKeyboard{this, "WordHintOnPhysicalKeyboard", _("Enable word hint when using physical keyboard"), false};
@@ -38,6 +40,8 @@ FCITX_CONFIGURATION(
             pageSize{this, "PageSize", _("Word hint page size"), 5, IntConstrain(3, 10)};
         OptionWithAnnotation<ChooseModifier, ChooseModifierI18NAnnotation>
             chooseModifier{this, "ChooseModifier", _("Choose key modifier"), ChooseModifier::Alt};
+        Option<bool>
+            appendCandidateSpace{this, "AppendCandidateSpace", _("Append space after English candidate"), false};
         Option<bool>
             insertSpace{this, "InsertSpace", _("Insert space between words"), false};
 )
@@ -86,6 +90,7 @@ public:
     void reset(const InputMethodEntry &entry, InputContextEvent &event) override;
 
     void resetState(InputContext *inputContext, bool fromCandidate = false);
+    void commitCandidate(InputContext *inputContext, const std::string &text);
 
     FCITX_ADDON_DEPENDENCY_LOADER(spell, instance_->addonManager());
 //    FCITX_ADDON_DEPENDENCY_LOADER(emoji, instance_->addonManager());

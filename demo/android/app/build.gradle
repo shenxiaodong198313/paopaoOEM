@@ -9,12 +9,14 @@ if (demoProfile != 'full' && demoProfile != 'lite') {
 
 def demoApplicationId = (findProperty('demoApplicationId') ?: (demoProfile == 'lite' ? 'com.paopaoime.demo.lite' : 'com.enpaopaokeyboard.ai')).toString()
 def demoDisplayName = demoProfile == 'lite' ? '泡泡输入法演示(仅输入法)' : '泡泡企业输入法'
+def sdkVersion = findProperty('oemSdkVersion') ?: '1.0.0.20261125'
 def demoLocalProperties = new Properties()
 def demoLocalPropertiesFile = rootProject.file('local.properties')
 if (demoLocalPropertiesFile.exists()) {
     demoLocalPropertiesFile.withInputStream { demoLocalProperties.load(it) }
 }
 def demoAppKey = demoLocalProperties.getProperty('oemDemoAppKey') ?: System.getenv('OEM_DEMO_APP_KEY') ?: 'UNCONFIGURED'
+def demoCustomerId = demoLocalProperties.getProperty('oemDemoCustomerId') ?: System.getenv('OEM_DEMO_CUSTOMER_ID') ?: 'YOUR_CUSTOMER_ID'
 
 android {
     namespace 'com.paopaoime.company'
@@ -25,9 +27,10 @@ android {
         applicationId demoApplicationId
         minSdk 26
         targetSdk 36
-        versionCode 202610120
-        versionName "1.0.0.20261012"
+        versionCode 202611250
+        versionName sdkVersion
         manifestPlaceholders['oemDemoAppKey'] = demoAppKey
+        manifestPlaceholders['oemDemoCustomerId'] = demoCustomerId
         resValue 'string', 'company_app_name', demoDisplayName
         ndk {
             abiFilters 'arm64-v8a'
@@ -90,8 +93,8 @@ kotlin {
 }
 
 dependencies {
-    def hostBridgeVersion = findProperty('oemSdkHostBridgeVersion') ?: '1.0.0.20261012'
-    def featureVersion = findProperty('oemSdkFeatureVersion') ?: '1.0.0.20261012'
+    def hostBridgeVersion = findProperty('oemSdkHostBridgeVersion') ?: sdkVersion
+    def featureVersion = findProperty('oemSdkFeatureVersion') ?: sdkVersion
 
     implementation 'androidx.core:core-ktx:1.18.0'
     implementation 'androidx.appcompat:appcompat:1.7.1'
@@ -99,9 +102,7 @@ dependencies {
     implementation 'com.google.android.material:material:1.13.0'
 
     // 基础功能 + 输入法（必选）：core 通过 host-bridge 的 POM 传递引入
-    implementation "com.paopaoime.oem:oem-ime-sdk-core:$hostBridgeVersion"
     implementation "com.paopaoime.oem:oem-ime-host-bridge:$hostBridgeVersion"
-    implementation 'org.fcitx.fcitx5.android:app:1.13'
 
     // Optional voice module: full demo includes it; lite excludes sherpa and all voice UI.
     if ((findProperty('demoVoice') ?: (demoProfile == 'full' ? 'true' : 'false')).toString().toBoolean()) {

@@ -7,6 +7,7 @@
 #define _FCITX_RIMESTATE_H_
 
 #include "rimesession.h"
+#include <fcitx-utils/key.h>
 #include <fcitx/event.h>
 #include <fcitx/globalconfig.h>
 #include <fcitx/inputcontextmanager.h>
@@ -34,12 +35,10 @@ public:
     void activate();
     void keyEvent(KeyEvent &event);
     void selectCandidate(InputContext *inputContext, int idx, bool global);
-#ifndef FCITX_RIME_NO_DELETE_CANDIDATE
     void deleteCandidate(int idx, bool global);
-#endif
     bool getStatus(const std::function<void(const RimeStatus &)> &);
     void updatePreedit(InputContext *ic, const RimeContext &context);
-    void updateUI(InputContext *ic, bool keyRelease);
+    void updateUI(InputContext *ic);
     void release();
     void commitInput(InputContext *ic);
     void commitComposing(InputContext *ic);
@@ -58,6 +57,7 @@ public:
     void showChangedOptions();
 
 private:
+    std::string asciiModeName(bool abbrev);
     void maybeSyncProgramNameToSession();
     std::vector<std::string> snapshotOptions(const std::string &schema);
 

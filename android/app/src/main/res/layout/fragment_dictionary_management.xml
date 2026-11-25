@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/oem_settings_page_bg">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/dictionary_header"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:paddingStart="16dp"
+        android:paddingTop="10dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="6dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ImageView
+            android:id="@+id/dictionary_back"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@drawable/bg_home_panel_top_button"
+            android:clickable="true"
+            android:contentDescription="@string/oem_dictionary_back"
+            android:focusable="true"
+            android:padding="10dp"
+            android:src="@drawable/ic_arrow_back_24"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:tint="#2E3131" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="56dp"
+            android:layout_marginEnd="56dp"
+            android:gravity="center"
+            android:text="@string/oem_dictionary_title"
+            android:textColor="#343837"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            app:layout_constraintBottom_toBottomOf="@id/dictionary_back"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="@id/dictionary_back" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:clipToPadding="false"
+        android:paddingBottom="24dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/dictionary_header">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp">
+
+            <LinearLayout
+                android:id="@+id/dictionary_options"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <TextView
+                android:id="@+id/dictionary_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:accessibilityLiveRegion="polite"
+                android:textColor="#555C5A"
+                android:textSize="14sp" />
+
+            <ProgressBar
+                android:id="@+id/dictionary_progress"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:max="100"
+                android:visibility="gone" />
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/dictionary_cancel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@android:string/cancel"
+                android:visibility="gone" />
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</androidx.constraintlayout.widget.ConstraintLayout>

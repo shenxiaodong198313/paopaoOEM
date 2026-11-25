@@ -1,5 +1,7 @@
 # Company 宿主验证工程
 
+> SDK `1.0.0.20261125` 的精简与完整第三方宿主验证见 [本轮记录](23-20261125-Android输入法同步.md)。
+
 > 最新 `1.0.0.202610111` 验证工程为 `quick-reply-validation-202610111`、`quick-reply-no-voice-202610111` 和官网 ZIP 独立缓存工程 `quick-reply-online-202610111`。仅通过交付 Maven 仓接入；客户模型配置文件、自绘内容/整块抽屉及原文重试证据见 [本轮记录](20-202610111临时剪贴板快捷回复.md)。测试辅助 Activity 不进入 SDK 或官网 Demo。
 
 > 20261008 历史验证基线：SDK 1.0.0.20261008、输入法运行时 app:1.9。新增独立 voice SDK，三种空白 Release/R8 宿主分别验证集成、未集成、JSON 关闭。新工程见 `OEM/company/voice-validation-20261008`、`voice-absent-20261008`、`voice-disabled-20261008`，仅通过导出 Maven 仓集成，无源码 composite。语音测试源码在 `OEM/tests/voice`；发布后另建 `voice-online-20261008`，只解压公开 HTTPS 下载的 ZIP，使用独立 Gradle 缓存构建。实际结果与线上复验见 `17-20261008离线语音与工具面板对齐.md`。以下旧工程状态为历史记录。

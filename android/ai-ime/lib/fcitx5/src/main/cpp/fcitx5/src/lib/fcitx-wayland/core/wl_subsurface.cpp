@@ -9,24 +9,28 @@ WlSubsurface::WlSubsurface(wl_subsurface *data)
 }
 
 void WlSubsurface::destructor(wl_subsurface *data) {
-    const auto version = wl_subsurface_get_version(data);
-#if defined(WL_SUBSURFACE_DESTROY_SINCE_VERSION)
-    if (version >= 1) {
-        wl_subsurface_destroy(data);
-        return;
-    }
-#endif
+    wl_subsurface_destroy(data);
 }
+#if defined(WL_SUBSURFACE_SET_POSITION_SINCE_VERSION)
 void WlSubsurface::setPosition(int32_t x, int32_t y) {
     wl_subsurface_set_position(*this, x, y);
 }
+#endif
+#if defined(WL_SUBSURFACE_PLACE_ABOVE_SINCE_VERSION)
 void WlSubsurface::placeAbove(WlSurface *sibling) {
     wl_subsurface_place_above(*this, rawPointer(sibling));
 }
+#endif
+#if defined(WL_SUBSURFACE_PLACE_BELOW_SINCE_VERSION)
 void WlSubsurface::placeBelow(WlSurface *sibling) {
     wl_subsurface_place_below(*this, rawPointer(sibling));
 }
+#endif
+#if defined(WL_SUBSURFACE_SET_SYNC_SINCE_VERSION)
 void WlSubsurface::setSync() { wl_subsurface_set_sync(*this); }
+#endif
+#if defined(WL_SUBSURFACE_SET_DESYNC_SINCE_VERSION)
 void WlSubsurface::setDesync() { wl_subsurface_set_desync(*this); }
+#endif
 
 } // namespace fcitx::wayland

@@ -18,8 +18,8 @@ dependencies {
     implementation(libs.aboutlibraries.core)
 }
 
-val gitVersion: groovy.lang.Closure<String> by extra
-version = gitVersion()
+val gitVersion = extra["gitVersion"] as groovy.lang.Closure<*>
+version = providers.environmentVariable("PAOPAO_BUILD_REVISION").orNull ?: gitVersion()
 
 publishing {
     repositories {

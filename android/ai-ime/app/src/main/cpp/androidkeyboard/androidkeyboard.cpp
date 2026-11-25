@@ -13,6 +13,8 @@
 #include "../../../../../lib/fcitx5/src/main/cpp/fcitx5/src/im/keyboard/chardata.h" // dirty but works
 
 #include "androidkeyboard.h"
+#include "spanishlexicon.h"
+#include <fcitx-utils/standardpaths.h>
 
 namespace fcitx {
 
@@ -25,7 +27,7 @@ public:
               commit_(std::move(commit)) {}
 
     void select(InputContext *inputContext) const override {
-        inputContext->commitString(commit_);
+        engine_->commitCandidate(inputContext, commit_);
         inputContext->inputPanel().reset();
         inputContext->updatePreedit();
         inputContext->updateUserInterface(UserInterfaceComponent::InputPanel);
@@ -50,8 +52,12 @@ AndroidKeyboardEngine::AndroidKeyboardEngine(Instance *instance)
     wordHintAction_.setIcon("tools-check-spelling");
     wordHintAction_.setChecked(*config_.enableWordHint);
     wordHintAction_.connect<SimpleAction::Activated>([this](InputContext *ic) {
-        auto enabled = !(*config_.enableWordHint);
-        config_.enableWordHint.setValue(enabled);
+        const auto *entry = instance_->inputMethodEntry(ic);
+        const bool spanish = entry && entry->languageCode() == "es";
+        auto enabled = !(spanish ? *config_.spanishWordHint : *config_.enableWordHint);
+        if (spanish) config_.spanishWordHint.setValue(enabled);
+        else config_.enableWordHint.setValue(enabled);
+        save();
         wordHintAction_.setChecked(enabled);
         wordHintAction_.update(ic);
     });
@@ -95,7 +101,12 @@ void AndroidKeyboardEngine::keyEvent(const InputMethodEntry &entry, KeyEvent &ev
         }
     }
 
-    const bool validSym = isValidSym(key);
+    const auto unicode = Key::keySymToUnicode(key.sym());
+    const bool spanishLetter = entry.languageCode() == "es" &&
+        (unicode == 0xf1 || unicode == 0xd1 || unicode == 0xe1 || unicode == 0xc1 ||
+         unicode == 0xe9 || unicode == 0xc9 || unicode == 0xed || unicode == 0xcd ||
+         unicode == 0xf3 || unicode == 0xd3 || unicode == 0xfa || unicode == 0xda || unicode == 0xfc || unicode == 0xdc);
+    const bool validSym = isValidSym(key) || spanishLetter;
 
     static const KeyList FCITX_HYPHEN_APOS = {Key(FcitxKey_minus), Key(FcitxKey_apostrophe)};
     // check for valid character
@@ -168,6 +179,8 @@ std::vector<InputMethodEntry> AndroidKeyboardEngine::listInputMethods() {
                     .setLabel("En")
                     .setIcon("input-keyboard")
                     .setConfigurable(true)));
+    result.emplace_back(std::move(InputMethodEntry("keyboard-es", "Español", "es", "androidkeyboard")
+        .setLabel("Es").setIcon("input-keyboard").setConfigurable(true)));
     return result;
 }
 
@@ -212,7 +225,8 @@ void AndroidKeyboardEngine::setConfig(const RawConfig &config) {
 void AndroidKeyboardEngine::activate(const InputMethodEntry &entry, InputContextEvent &event) {
     FCITX_UNUSED(entry);
     auto *inputContext = event.inputContext();
-    wordHintAction_.setChecked(*config_.enableWordHint);
+    wordHintAction_.setShortText(entry.languageCode() == "es" ? "西语词表补全" : _("Word hint"));
+    wordHintAction_.setChecked(entry.languageCode() == "es" ? *config_.spanishWordHint : *config_.enableWordHint);
     wordHintAction_.update(inputContext);
     inputContext->statusArea().addAction(StatusGroup::InputMethod, &wordHintAction_);
 }
@@ -236,12 +250,22 @@ void AndroidKeyboardEngine::reset(const InputMethodEntry &entry, InputContextEve
     inputContext->updateUserInterface(UserInterfaceComponent::InputPanel);
 }
 
+void AndroidKeyboardEngine::commitCandidate(InputContext *inputContext, const std::string &text) {
+    const auto *entry = instance_->inputMethodEntry(inputContext);
+    const bool append = *config_.appendCandidateSpace && entry && entry->languageCode() == "en" &&
+        !inputContext->capabilityFlags().test(CapabilityFlag::Password) &&
+        !inputContext->capabilityFlags().test(CapabilityFlag::Email) &&
+        !inputContext->capabilityFlags().test(CapabilityFlag::Url) && !text.empty() &&
+        ((text.back() >= 'a' && text.back() <= 'z') || (text.back() >= 'A' && text.back() <= 'Z'));
+    inputContext->commitString(append ? text + " " : text);
+}
+
 void AndroidKeyboardEngine::resetState(InputContext *inputContext, bool fromCandidate) {
     auto *state = inputContext->propertyFor(&factory_);
     state->reset();
     if (fromCandidate) {
         // TODO set prependSpace_ to false when cursor moves; maybe it's time to implement SurroundingText
-        state->prependSpace_ = *config_.insertSpace;
+        state->prependSpace_ = *config_.insertSpace && !*config_.appendCandidateSpace;
     }
 }
 
@@ -250,7 +274,11 @@ void AndroidKeyboardEngine::updateCandidate(const InputMethodEntry &entry, Input
     auto *state = inputContext->propertyFor(&factory_);
     const auto userInput = state->buffer_.userInput();
     std::vector<std::pair<std::string, std::string>> results;
-    if (spell()) {
+    if (entry.languageCode() == "es") {
+        static const paopao::SpanishLexicon spanish(StandardPaths::global().locate(
+            StandardPathsType::PkgData, "spell/es_words.txt", StandardPathsMode::System).string());
+        results = spanish.hint(userInput, SpellCandidateSize);
+    } else if (spell()) {
         results = spell()->call<ISpell::hintForDisplay>(entry.languageCode(),
                                                         SpellProvider::Default,
                                                         userInput,
@@ -298,7 +326,7 @@ bool AndroidKeyboardEngine::updateBuffer(InputContext *inputContext, const KeyEv
 
     auto *state = inputContext->propertyFor(&factory_);
     // word hint is disabled, input is password, or language not supported
-    if (!*config_.enableWordHint ||
+    if (!(entry->languageCode() == "es" ? *config_.spanishWordHint : *config_.enableWordHint) ||
         (!*config_.hintOnPhysicalKeyboard && !event.isVirtual()) ||
         (*config_.editorControlledWordHint && inputContext->capabilityFlags().test(CapabilityFlag::NoSpellCheck)) ||
         inputContext->capabilityFlags().test(CapabilityFlag::Password) ||
@@ -342,6 +370,7 @@ void AndroidKeyboardEngine::commitBuffer(InputContext *inputContext) {
 }
 
 bool AndroidKeyboardEngine::supportHint(const std::string &language) {
+    if (language == "es") return true;
     const bool hasSpell = spell() && spell()->call<ISpell::checkDict>(language);
     return hasSpell;
 }

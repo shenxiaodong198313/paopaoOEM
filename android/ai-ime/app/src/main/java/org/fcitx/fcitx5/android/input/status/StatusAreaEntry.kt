@@ -24,6 +24,9 @@ sealed class StatusAreaEntry(
     class Android(label: String, icon: Int, val type: Type) :
         StatusAreaEntry(label, icon, false) {
         enum class Type {
+            Handwriting,
+            EnglishGlide,
+            T9Model,
             VoiceInput,
             KeyboardSelection,
             AiReply,
@@ -48,8 +51,13 @@ sealed class StatusAreaEntry(
         active: Boolean = false
     ) : StatusAreaEntry(label, icon, active) {
         enum class Target {
+            Handwriting,
             Pinyin9,
             Pinyin26,
+            Pinyin14,
+            JapaneseRomaji,
+            JapaneseKana,
+            Spanish,
             English26,
             Shuangpin,
             Wubi,

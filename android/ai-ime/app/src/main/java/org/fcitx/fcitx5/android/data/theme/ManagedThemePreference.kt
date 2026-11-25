@@ -17,12 +17,13 @@ class ManagedThemePreference(
 ) {
 
     override fun setValue(value: Theme) {
+        require(!SkinTrialSession.isTrial(value)) { "试用皮肤不能写入偏好" }
         sharedPreferences.edit { putString(key, value.name) }
     }
 
     override fun getValue(): Theme =
         sharedPreferences.getString(key, null)?.let { name ->
-            ThemeManager.getAllThemes().find { it.name == name }
+            ThemeManager.getTheme(name)
         } ?: defaultValue
 
     override fun putValueTo(editor: SharedPreferences.Editor) {

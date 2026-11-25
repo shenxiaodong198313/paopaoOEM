@@ -20,14 +20,21 @@
 #include <fcitx-utils/testing.h>
 #include <fcitx/addoninstance.h>
 #include <fcitx/addonmanager.h>
+#include <fcitx/candidateaction.h>
 #include <fcitx/inputcontext.h>
 #include <fcitx/inputmethodgroup.h>
 #include <fcitx/inputmethodmanager.h>
 #include <fcitx/inputpanel.h>
 #include <fcitx/instance.h>
+#include <initializer_list>
+#include <iterator>
 #include <memory>
+#include <string>
 #include <string_view>
+#include <tuple>
+#include <unordered_set>
 #include <utility>
+#include <vector>
 
 using namespace fcitx;
 
@@ -302,6 +309,134 @@ void testActionInStrokeFilter(Instance *instance) {
     });
 }
 
+void testPinyinTabFilter(Instance *instance) {
+    instance->eventDispatcher().schedule([instance]() {
+        auto *pinyin = instance->addonManager().addon("pinyin");
+        FCITX_ASSERT(pinyin);
+        auto *testfrontend = instance->addonManager().addon("testfrontend");
+        auto uuid =
+            testfrontend->call<ITestFrontend::createInputContext>("testapp");
+        auto *ic = instance->inputContextManager().findByUUID(uuid);
+        FCITX_ASSERT(ic);
+        instance->setCurrentInputMethod(ic, "pinyin", true);
+        testfrontend->call<ITestFrontend::keyEvent>(uuid, Key("x"), false);
+        testfrontend->call<ITestFrontend::keyEvent>(uuid, Key("i"), false);
+        testfrontend->call<ITestFrontend::keyEvent>(uuid, Key("a"), false);
+        testfrontend->call<ITestFrontend::keyEvent>(uuid, Key("n"), false);
+        findCandidateOrDie(ic, "西安");
+        auto *tabbed = ic->inputPanel().candidateList()->toTabbed();
+        FCITX_ASSERT(tabbed);
+        auto actionSpan = tabbed->tabActions();
+        std::vector<CandidateAction> actions{actionSpan.begin(),
+                                             actionSpan.end()};
+        std::vector<std::string> names;
+        names.reserve(actions.size());
+        for (const auto &action : actions) {
+            names.push_back(action.text());
+        }
+
+        auto indexOf = [&names](std::string_view name) {
+            auto it = std::ranges::find(names, name);
+            FCITX_ASSERT(it != names.end());
+            return std::distance(names.begin(), it);
+        };
+
+        const auto xiAction = actions[indexOf("xi")];
+        const auto singleAction = actions[indexOf("单字")];
+        const auto strokeAction = actions[indexOf("笔画")];
+
+        auto checkedActionsAre = [tabbed](std::initializer_list<int> ids) {
+            std::unordered_set<int> checkedIds;
+            for (const auto &action : tabbed->tabActions()) {
+                if (action.isChecked()) {
+                    checkedIds.insert(action.id());
+                }
+            }
+            return checkedIds == std::unordered_set<int>{ids};
+        };
+
+        FCITX_ASSERT(actions[0].text() == "xian");
+        tabbed->triggerTabAction(actions[0].id());
+        FCITX_ASSERT(findCandidate(ic, "西安") < 0);
+        FCITX_ASSERT(checkedActionsAre({actions[0].id()}));
+
+        // Trigger same action again should uncheck it.
+        tabbed->triggerTabAction(actions[0].id());
+        FCITX_ASSERT(findCandidate(ic, "西安") >= 0);
+        FCITX_ASSERT(checkedActionsAre({}));
+
+        FCITX_ASSERT(xiAction.text() == "xi");
+        tabbed->triggerTabAction(xiAction.id());
+        FCITX_ASSERT(findCandidate(ic, "西安") >= 0);
+        FCITX_ASSERT(checkedActionsAre({xiAction.id()}));
+
+        // Pinyin and single char can be checked at the same time.
+        FCITX_ASSERT(singleAction.text() == "单字");
+        tabbed->triggerTabAction(singleAction.id());
+        FCITX_ASSERT(findCandidate(ic, "西安") < 0);
+        FCITX_ASSERT(checkedActionsAre({xiAction.id(), singleAction.id()}));
+
+        // Trigger single char action again should only uncheck itself.
+        tabbed->triggerTabAction(singleAction.id());
+        FCITX_ASSERT(findCandidate(ic, "西安") >= 0);
+        FCITX_ASSERT(checkedActionsAre({xiAction.id()}));
+
+        tabbed->triggerTabAction(singleAction.id());
+        FCITX_ASSERT(findCandidate(ic, "西安") < 0);
+        FCITX_ASSERT(checkedActionsAre({xiAction.id(), singleAction.id()}));
+
+        // Trigger pinyin action again should only uncheck itself.
+        tabbed->triggerTabAction(xiAction.id());
+        FCITX_ASSERT(findCandidate(ic, "西安") < 0);
+        FCITX_ASSERT(checkedActionsAre({singleAction.id()}));
+
+        // Stroke action should not uncheck single char action.
+        tabbed->triggerTabAction(strokeAction.id());
+        FCITX_ASSERT(findCandidate(ic, "西安") < 0);
+        FCITX_ASSERT(checkedActionsAre({}));
+
+        actionSpan = tabbed->tabActions();
+        actions = {actionSpan.begin(), actionSpan.end()};
+        FCITX_ASSERT(actions.size() >= 2);
+        FCITX_ASSERT(actions[actions.size() - 2].isSeparator());
+        FCITX_ASSERT(actions.back().text() == "返回");
+        tabbed->triggerTabAction(actions.back().id());
+        FCITX_ASSERT(findCandidate(ic, "西安") < 0);
+        FCITX_ASSERT(checkedActionsAre({singleAction.id()}));
+
+        // Trigger single char action again should uncheck it.
+        tabbed->triggerTabAction(singleAction.id());
+        FCITX_ASSERT(findCandidate(ic, "西安") >= 0);
+        FCITX_ASSERT(checkedActionsAre({}));
+    });
+}
+
+void testPinyinTabFilterWithSeparator(Instance *instance) {
+    instance->eventDispatcher().schedule([instance]() {
+        auto *pinyin = instance->addonManager().addon("pinyin");
+        FCITX_ASSERT(pinyin);
+        auto *testfrontend = instance->addonManager().addon("testfrontend");
+        auto uuid =
+            testfrontend->call<ITestFrontend::createInputContext>("testapp");
+        auto *ic = instance->inputContextManager().findByUUID(uuid);
+        FCITX_ASSERT(ic);
+        instance->setCurrentInputMethod(ic, "pinyin", true);
+        testfrontend->call<ITestFrontend::keyEvent>(uuid, Key("x"), false);
+        testfrontend->call<ITestFrontend::keyEvent>(uuid, Key("i"), false);
+        testfrontend->call<ITestFrontend::keyEvent>(uuid, Key("'"), false);
+        testfrontend->call<ITestFrontend::keyEvent>(uuid, Key("'"), false);
+        testfrontend->call<ITestFrontend::keyEvent>(uuid, Key("a"), false);
+        testfrontend->call<ITestFrontend::keyEvent>(uuid, Key("n"), false);
+        findAndSelectCandidate(ic, "西");
+        auto *tabbed = ic->inputPanel().candidateList()->toTabbed();
+        FCITX_ASSERT(tabbed);
+        auto actionSpan = tabbed->tabActions();
+        FCITX_ASSERT(std::ranges::none_of(actionSpan, [](const auto &a) {
+            return a.text().starts_with('\'');
+        }));
+    });
+}
+
 void testPin(Instance *instance) {
     instance->eventDispatcher().schedule([instance]() {
         auto *testfrontend = instance->addonManager().addon("testfrontend");
@@ -452,6 +587,27 @@ void testVQuickPhraseTrigger(Instance *instance) {
     });
 }
 
+void testPunctuationWithCursorAtBeginning(Instance *instance) {
+    instance->eventDispatcher().schedule([instance]() {
+        auto *testfrontend = instance->addonManager().addon("testfrontend");
+        auto uuid =
+            testfrontend->call<ITestFrontend::createInputContext>("testapp");
+        auto *ic = instance->inputContextManager().findByUUID(uuid);
+        FCITX_ASSERT(ic);
+        ic->setCapabilityFlags(CapabilityFlag::SurroundingText);
+        instance->setCurrentInputMethod(ic, "pinyin", true);
+
+        ic->reset();
+        ic->surroundingText().setText("text", 0, 0);
+        FCITX_ASSERT(ic->surroundingText().isValid());
+        // Cursor zero has no preceding character.
+        ic->updateSurroundingText();
+        testfrontend->call<ITestFrontend::pushCommitExpectation>("。");
+        FCITX_ASSERT(testfrontend->call<ITestFrontend::sendKeyEvent>(
+            uuid, Key("."), false));
+    });
+}
+
 void testPunctuation(Instance *instance) {
     instance->eventDispatcher().schedule([instance]() {
         auto *testfrontend = instance->addonManager().addon("testfrontend");
@@ -539,9 +695,12 @@ int main() {
     testUppercase(&instance);
     testForget(&instance);
     testActionInStrokeFilter(&instance);
+    testPinyinTabFilter(&instance);
+    testPinyinTabFilterWithSeparator(&instance);
     testPin(&instance);
     testQuickPhraseTrigger(&instance);
     testVQuickPhraseTrigger(&instance);
+    testPunctuationWithCursorAtBeginning(&instance);
     testPunctuation(&instance);
     instance.exec();
     endTestEvent.reset();

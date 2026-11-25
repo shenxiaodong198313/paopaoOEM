@@ -40,15 +40,7 @@
 
 namespace fcitx::rime {
 
-namespace {
-
-bool emptyExceptAux(const InputPanel &inputPanel) {
-
-    return inputPanel.preedit().empty() && inputPanel.clientPreedit().empty() &&
-           (!inputPanel.candidateList() || inputPanel.candidateList()->empty());
-}
-
-} // namespace
+namespace {} // namespace
 
 RimeState::RimeState(RimeEngine *engine, InputContext &ic)
     : engine_(engine), ic_(ic) {}
@@ -71,24 +63,49 @@ RimeSessionId RimeState::session(bool requestNewSession) {
         return 0;
     }
 
+    engine_->syncPrediction(session_->id(), ic_);
     return session_->id();
 }
 
 void RimeState::clear() {
     if (auto session = this->session()) {
-        engine_->api()->clear_composition(session);
+        auto *api = engine_->api();
+        const bool predicting = api->get_option(session, "prediction");
+        if (predicting) {
+            api->set_option(session, "prediction", false);
+            // Reset the predictor's last action as well as visible composition;
+            // focus changes must not resurrect the previous editor's suggestions.
+            api->process_key(session, FcitxKey_Escape, 0);
+        }
+        api->clear_composition(session);
+        if (predicting) engine_->syncPrediction(session, ic_);
     }
 }
 
 void RimeState::activate() { maybeSyncProgramNameToSession(); }
 
+std::string RimeState::asciiModeName(bool abbrev) {
+    std::string result = _("Latin Mode");
+    if (abbrev) {
+        result = engine_->isCapsLockOn(&ic_) ? "ABC" : "abc";
+    }
+    if (engine_->config().latinModeNameFromSchema.value()) {
+        RimeStringSlice label = engine_->api()->get_state_label_abbreviated(
+            session(), "ascii_mode", True, abbrev);
+        if (label.str && label.length > 0) {
+            result.assign(label.str, label.length);
+        }
+    }
+    return result;
+}
+
 std::string RimeState::subMode() {
     std::string result;
-    getStatus([&result](const RimeStatus &status) {
+    getStatus([this, &result](const RimeStatus &status) {
         if (status.is_disabled) {
             result = "\xe2\x8c\x9b";
         } else if (status.is_ascii_mode) {
-            result = _("Latin Mode");
+            result = asciiModeName(/*abbrev=*/false);
         } else if (status.schema_name && status.schema_name[0] != '.') {
             result = status.schema_name;
         }
@@ -98,11 +115,12 @@ std::string RimeState::subMode() {
 
 std::string RimeState::subModeLabel() {
     std::string result;
-    getStatus([&result](const RimeStatus &status) {
+
+    getStatus([this, &result](const RimeStatus &status) {
         if (status.is_disabled) {
             result = "";
         } else if (status.is_ascii_mode) {
-            result = "A";
+            result = asciiModeName(/*abbrev=*/true);
         } else if (status.schema_name && status.schema_name[0] != '.') {
             result = status.schema_name;
             if (!result.empty() &&
@@ -151,6 +169,7 @@ void RimeState::selectSchema(const std::string &schema) {
     }
     api->set_option(session(), RIME_ASCII_MODE, false);
     api->select_schema(session(), schema.data());
+    engine_->syncPrediction(session(), ic_);
 }
 
 void RimeState::keyEvent(KeyEvent &event) {
@@ -213,8 +232,15 @@ void RimeState::keyEvent(KeyEvent &event) {
             clear();
         }
     } else {
-        auto result =
-            api->process_key(session, event.rawKey().sym(), intStates);
+        const auto sym = event.rawKey().sym();
+        if (intStates == 0 && (sym == FcitxKey_Return || sym == FcitxKey_KP_Enter) &&
+            ic->inputPanel().candidateList() && api->get_option(session, "prediction")) {
+            // The predictor creates a zero-length segment after a completed selection.
+            // Dismiss only that menu, then let the original Return reach the editor.
+            const char *raw = api->get_input(session);
+            if (raw && !*raw) api->process_key(session, FcitxKey_Escape, 0);
+        }
+        auto result = api->process_key(session, sym, intStates);
         if (result) {
             event.filterAndAccept();
         }
@@ -227,7 +253,7 @@ void RimeState::keyEvent(KeyEvent &event) {
         engine_->instance()->resetCompose(ic);
     }
 
-    updateUI(ic, event.isRelease());
+    updateUI(ic);
     if (!event.isRelease() && !lastSchema.empty() &&
         lastSchema == currentSchema() && ic->inputPanel().empty() &&
         !changedOptions_.empty()) {
@@ -255,10 +281,9 @@ void RimeState::selectCandidate(InputContext *inputContext, int idx,
         inputContext->commitString(commit.text);
         api->free_commit(&commit);
     }
-    updateUI(inputContext, false);
+    updateUI(inputContext);
 }
 
-#ifndef FCITX_RIME_NO_DELETE_CANDIDATE
 void RimeState::deleteCandidate(int idx, bool global) {
     auto *api = engine_->api();
     if (api->is_maintenance_mode()) {
@@ -273,9 +298,8 @@ void RimeState::deleteCandidate(int idx, bool global) {
     } else {
         api->delete_candidate_on_current_page(session, idx);
     }
-    updateUI(&ic_, false);
+    updateUI(&ic_);
 }
-#endif
 
 bool RimeState::getStatus(
     const std::function<void(const RimeStatus &)> &callback) {
@@ -383,12 +407,12 @@ void RimeState::updatePreedit(InputContext *ic, const RimeContext &context) {
     }
 }
 
-void RimeState::updateUI(InputContext *ic, bool keyRelease) {
+void RimeState::updateUI(InputContext *ic) {
     auto &inputPanel = ic->inputPanel();
-    if (!keyRelease) {
+    // A small check to avoid reset overlay message upon key release.
+    if (!inputPanel.empty()) {
         inputPanel.reset();
     }
-    bool oldEmptyExceptAux = emptyExceptAux(inputPanel);
 
     do {
         auto *api = engine_->api();
@@ -418,23 +442,12 @@ void RimeState::updateUI(InputContext *ic, bool keyRelease) {
     } while (false);
 
     ic->updatePreedit();
-    // HACK: for show input method information.
-    // Since we don't use aux, which is great for this hack.
-    bool newEmptyExceptAux = emptyExceptAux(inputPanel);
-    // If it's key release and old information is not "empty", do the rest of
-    // "reset".
-    if (keyRelease && !newEmptyExceptAux) {
-        inputPanel.setAuxUp(Text());
-        inputPanel.setAuxDown(Text());
-    }
-    if (newEmptyExceptAux && lastMode_ != subMode()) {
+    if (lastMode_ != subMode()) {
         engine_->instance()->showInputMethodInformation(ic);
         ic->updateUserInterface(UserInterfaceComponent::StatusArea);
     }
 
-    if (!keyRelease || !oldEmptyExceptAux || !newEmptyExceptAux) {
-        ic->updateUserInterface(UserInterfaceComponent::InputPanel);
-    }
+    ic->updateUserInterface(UserInterfaceComponent::InputPanel);
 }
 
 void RimeState::release() { session_.reset(); }
@@ -517,7 +530,7 @@ void RimeState::restore() {
     if (savedCurrentSchema_.empty()) {
         return;
     }
-    if (!engine_->schemas().count(savedCurrentSchema_)) {
+    if (!engine_->schemas().contains(savedCurrentSchema_)) {
         return;
     }
 
@@ -584,6 +597,7 @@ void RimeState::showChangedOptions() {
 
         // This is hard coded latin-mode.
         if (option == "ascii_mode") {
+            ic_.updateUserInterface(UserInterfaceComponent::StatusArea);
             continue;
         }
 
@@ -596,7 +610,7 @@ void RimeState::showChangedOptions() {
         if (actionIter == actions.end()) {
             continue;
         }
-        if (actionSet.count(actionIter->get())) {
+        if (actionSet.contains(actionIter->get())) {
             continue;
         }
         actionSet.insert(actionIter->get());

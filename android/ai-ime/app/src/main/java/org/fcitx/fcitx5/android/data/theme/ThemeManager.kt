@@ -39,16 +39,22 @@ object ThemeManager {
 
     private var monetThemes = listOf(ThemeMonet.getLight(), ThemeMonet.getDark())
 
-    private val customThemes: MutableList<Theme.Custom> = ThemeFilesManager.listThemes()
+    private val customThemes: MutableList<Theme.Custom> by lazy { ThemeFilesManager.listThemes() }
 
     fun getTheme(name: String) =
-        BundledSystemThemes.all.find { it.name == name } ?: customThemes.find { it.name == name } ?: BuiltinThemes.find { it.name == name }
+        BundledSystemThemes.get(name) ?: customThemes.find { it.name == name } ?: monetThemes.find { it.name == name } ?: BuiltinThemes.find { it.name == name }
 
     fun getAllThemes() = BundledSystemThemes.all + customThemes + monetThemes + BuiltinThemes
 
     fun refreshThemes() {
         customThemes.clear()
         customThemes.addAll(ThemeFilesManager.listThemes())
+        refreshActiveTheme()
+    }
+
+    /** Rights/preferences changed, but installed files did not. Do not rescan every skin. */
+    fun refreshActiveTheme() {
+        SkinTrialSession.checkOwner()
         activeTheme = evaluateActiveTheme()
     }
 
@@ -56,14 +62,23 @@ object ThemeManager {
      * [backing property](https://kotlinlang.org/docs/properties.html#backing-properties)
      * of [activeTheme]; holds the [Theme] object currently in use
      */
-    private lateinit var _activeTheme: Theme
+    @Volatile private lateinit var _activeTheme: Theme
+    private lateinit var localConfigurationBase: Theme
+
+    fun refreshLocalConfiguration() {
+        if (!::localConfigurationBase.isInitialized) return
+        activeTheme = localConfigurationBase
+    }
 
     var activeTheme: Theme
-        get() = _activeTheme
+        get() = SkinTrialSession.renderedTheme() ?: _activeTheme
         private set(value) {
-            if (_activeTheme == value) return
-            _activeTheme = value
-            fireChange()
+            val base = value
+            localConfigurationBase = base
+            val rendered = KeyboardEffectPreference.decorate(LocalSkinConfiguration.decorate(base))
+            if (_activeTheme == rendered) return
+            _activeTheme = rendered
+            if (SkinTrialSession.renderedTheme() == null) fireChange()
         }
 
     private var isDarkMode = false
@@ -79,12 +94,17 @@ object ThemeManager {
     }
 
     private fun fireChange() {
-        onChangeListeners.forEach { it.onThemeChange(_activeTheme) }
+        val sound = (activeTheme as? Theme.Custom)?.renderStyle?.localConfiguration?.sound
+        org.fcitx.fcitx5.android.data.KeySounds.configureLocalSound(sound?.takeUnless { it == "skin" })
+        onChangeListeners.forEach { it.onThemeChange(activeTheme) }
     }
+
+    fun notifyTrialThemeChanged() = fireChange()
 
     val prefs = AppPrefs.getInstance().registerProvider(::ThemePrefs)
 
     fun saveTheme(theme: Theme.Custom) {
+        require(!SkinTrialSession.isTrial(theme)) { "试用皮肤不能保存为正式皮肤" }
         require(!BundledSystemThemes.contains(theme.name)) { "内置皮肤不可覆盖" }
         ThemeFilesManager.saveThemeFiles(theme)
         customThemes.indexOfFirst { it.name == theme.name }.also {
@@ -107,11 +127,14 @@ object ThemeManager {
     }
 
     fun setNormalModeTheme(theme: Theme) {
+        require(!SkinTrialSession.isTrial(theme)) { "试用皮肤不能设为正式皮肤" }
         // `normalModeTheme.setValue(theme)` would trigger `onThemePrefsChange` listener,
         // which calls `fireChange()`.
         // `activateTheme`'s setter would also trigger `fireChange()` when theme actually changes.
         // write to backing property directly to avoid unnecessary `fireChange()`
-        _activeTheme = theme
+        localConfigurationBase = theme
+        _activeTheme = KeyboardEffectPreference.decorate(LocalSkinConfiguration.decorate(localConfigurationBase))
+        org.fcitx.fcitx5.android.data.KeySounds.configureLocalSound((_activeTheme as? Theme.Custom)?.renderStyle?.localConfiguration?.sound?.takeUnless { it == "skin" })
         prefs.normalModeTheme.setValue(theme)
     }
 
@@ -136,13 +159,14 @@ object ThemeManager {
         isDarkMode = configuration.isDarkMode()
         // fire all `OnThemeChangedListener`s on theme preferences change
         prefs.registerOnChangeListener(onThemePrefsChange)
-        _activeTheme = evaluateActiveTheme()
+        localConfigurationBase = evaluateActiveTheme()
+        _activeTheme = KeyboardEffectPreference.decorate(LocalSkinConfiguration.decorate(localConfigurationBase))
     }
 
     fun onSystemPlatteChange(newConfig: Configuration) {
         isDarkMode = newConfig.isDarkMode()
         monetThemes = listOf(ThemeMonet.getLight(), ThemeMonet.getDark())
-        // `ManagedThemePreference` finds a theme with same name in `getAllThemes()`
+        // `ManagedThemePreference` resolves the selected name through `getTheme()`
         // thus `evaluateActiveTheme()` should be called after updating `monetThemes`
         activeTheme = evaluateActiveTheme()
     }

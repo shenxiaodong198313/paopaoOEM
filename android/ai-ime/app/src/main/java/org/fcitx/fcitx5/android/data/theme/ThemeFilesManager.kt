@@ -58,7 +58,8 @@ object ThemeFilesManager {
                     return@decode null
                 }
                 if (theme.allImageAssets().any {
-                        !File(it.croppedFilePath).exists() || !File(it.srcFilePath).exists()
+                        !File(it.croppedFilePath).exists() || !File(it.srcFilePath).exists() ||
+                            (it.croppedFilePath.endsWith(".psk") && !ProtectedSkinStore.authorized(File(it.croppedFilePath)))
                     }
                 ) {
                     Timber.w("Cannot find image assets for theme ${theme.name}")
@@ -77,6 +78,7 @@ object ThemeFilesManager {
      */
     fun exportTheme(theme: Theme.Custom, dest: OutputStream) =
         runCatching {
+            require(theme.allImageAssets().none { it.croppedFilePath.endsWith(".psk") || it.srcFilePath.endsWith(".psk") }) { "此官方皮肤不支持导出" }
             ZipOutputStream(dest.buffered()).use { zipStream ->
                 // we don't export the internal path of images
                 val tweakedTheme = theme.mapImageAssets {

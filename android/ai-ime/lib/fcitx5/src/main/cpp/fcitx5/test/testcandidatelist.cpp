@@ -7,14 +7,25 @@
 
 #include <memory>
 #include <stdexcept>
+#include <string>
+#include <utility>
+#include <vector>
+#include <span>
+#include "fcitx-utils/key.h"
 #include "fcitx-utils/log.h"
+#include "fcitx-utils/misc.h"
 #include "fcitx/candidateaction.h"
 #include "fcitx/candidatelist.h"
+#include "fcitx/text.h"
 
 namespace {
 
 using namespace fcitx;
 int selected = 0;
+
+const char *platformLabel(const char *apple, const char *other) {
+    return isApple() ? apple : other;
+}
 
 class TestCandidateWord : public CandidateWord {
 public:
@@ -22,7 +33,9 @@ public:
         : CandidateWord(Text(std::to_string(number))), number_(number) {
         setComment(std::move(comment));
     }
-    void select(InputContext *) const override { selected = number_; }
+    void select(InputContext * /*inputContext*/) const override {
+        selected = number_;
+    }
 
     using CandidateWord::setSpaceBetweenComment;
 
@@ -36,7 +49,9 @@ public:
         : CandidateWord(Text(std::to_string(number))), number_(number) {
         setPlaceHolder(true);
     }
-    void select(InputContext *) const override { selected = number_; }
+    void select(InputContext * /*inputContext*/) const override {
+        selected = number_;
+    }
 
 private:
     int number_;
@@ -52,7 +67,8 @@ void test_basic() {
     }
 
     FCITX_ASSERT(candidatelist.size() == 3);
-    FCITX_ASSERT(candidatelist.label(0).toString() == "1. ");
+    FCITX_ASSERT(candidatelist.label(0).toString() ==
+                 platformLabel("1", "1. "));
     FCITX_ASSERT(candidatelist.candidate(0).text().toString() == "0");
     FCITX_ASSERT(!candidatelist.hasPrev());
     FCITX_ASSERT(candidatelist.hasNext());
@@ -71,7 +87,8 @@ void test_basic() {
     candidatelist.next();
 
     FCITX_ASSERT(candidatelist.size() == 3);
-    FCITX_ASSERT(candidatelist.label(0).toString() == "1. ");
+    FCITX_ASSERT(candidatelist.label(0).toString() ==
+                 platformLabel("1", "1. "));
     FCITX_ASSERT(candidatelist.candidate(0).text().toString() == "3");
     FCITX_ASSERT(candidatelist.hasPrev());
     FCITX_ASSERT(candidatelist.hasNext());
@@ -91,7 +108,8 @@ void test_basic() {
     candidatelist.next();
 
     FCITX_ASSERT(candidatelist.size() == 1);
-    FCITX_ASSERT(candidatelist.label(0).toString() == "1. ");
+    FCITX_ASSERT(candidatelist.label(0).toString() ==
+                 platformLabel("1", "1. "));
     FCITX_ASSERT(candidatelist.candidate(0).text().toString() == "9");
     FCITX_ASSERT(candidatelist.hasPrev());
     FCITX_ASSERT(!candidatelist.hasNext());
@@ -109,7 +127,8 @@ void test_basic() {
 
     candidatelist.remove(0);
     FCITX_ASSERT(candidatelist.size() == 3);
-    FCITX_ASSERT(candidatelist.label(0).toString() == "1. ");
+    FCITX_ASSERT(candidatelist.label(0).toString() ==
+                 platformLabel("1", "1. "));
     FCITX_ASSERT(candidatelist.candidate(0).text().toString() == "7");
     FCITX_ASSERT(candidatelist.hasPrev());
     FCITX_ASSERT(!candidatelist.hasNext());
@@ -300,20 +319,28 @@ void test_label() {
         candidatelist.append<TestCandidateWord>(i);
     }
 
-    FCITX_ASSERT(candidatelist.label(0).toString() == "1. ")
+    FCITX_ASSERT(candidatelist.label(0).toString() == platformLabel("1", "1. "))
         << candidatelist.label(0).toString();
-    FCITX_ASSERT(candidatelist.label(5).toString() == "6. ");
-    FCITX_ASSERT(candidatelist.label(9).toString() == "0. ");
+    FCITX_ASSERT(candidatelist.label(5).toString() ==
+                 platformLabel("6", "6. "));
+    FCITX_ASSERT(candidatelist.label(9).toString() ==
+                 platformLabel("0", "0. "));
     candidatelist.setSelectionKey(
         Key::keyListFromString("F1 F2 F3 F4 F5 F6 F7 F8 F9 F10"));
-    FCITX_ASSERT(candidatelist.label(5).toString() == "F6. ");
+    FCITX_ASSERT(candidatelist.label(5).toString() ==
+                 platformLabel("F6", "F6. "));
     candidatelist.setSelectionKey(Key::keyListFromString(
         "a Control+a Control+Shift+A F4 F5 Page_Up F7 F8 F9 comma"));
-    FCITX_ASSERT(candidatelist.label(0).toString() == "a. ");
-    FCITX_ASSERT(candidatelist.label(1).toString() == "C-a. ");
-    FCITX_ASSERT(candidatelist.label(2).toString() == "C-S-A. ");
-    FCITX_ASSERT(candidatelist.label(5).toString() == "Page Up. ");
-    FCITX_ASSERT(candidatelist.label(9).toString() == ",. ");
+    FCITX_ASSERT(candidatelist.label(0).toString() ==
+                 platformLabel("a", "a. "));
+    FCITX_ASSERT(candidatelist.label(1).toString() ==
+                 platformLabel("⌃a", "C-a. "));
+    FCITX_ASSERT(candidatelist.label(2).toString() ==
+                 platformLabel("⌃⇧A", "C-S-A. "));
+    FCITX_ASSERT(candidatelist.label(5).toString() ==
+                 platformLabel("Page Up", "Page Up. "));
+    FCITX_ASSERT(candidatelist.label(9).toString() ==
+                 platformLabel(",", ",. "));
 }
 
 void test_comment() {
@@ -371,22 +398,21 @@ void test_candidateaction() {
 
 class TestTabbedCandidateList : public TabbedCandidateList {
 public:
-    TestTabbedCandidateList() = default;
-
-    std::vector<CandidateAction> tabActions() const override {
-        std::vector<CandidateAction> actions;
+    TestTabbedCandidateList() {
         CandidateAction action;
         action.setText("Tab1");
         action.setId(0);
-        actions.push_back(std::move(action));
-        return actions;
+        actions_.push_back(std::move(action));
     }
+
+    std::span<const CandidateAction> tabActions() override { return actions_; }
 
     void triggerTabAction(int id) override { triggeredId_ = id; }
 
     int triggeredId() const { return triggeredId_; }
 
 private:
+    std::vector<CandidateAction> actions_;
     int triggeredId_ = -1;
 };
 
@@ -420,6 +446,112 @@ void test_tabbed() {
             ->triggeredId() == 0);
 }
 
+void testFilter() {
+    CommonCandidateList candidatelist;
+    candidatelist.setSelectionKey(
+        Key::keyListFromString("1 2 3 4 5 6 7 8 9 0"));
+    candidatelist.setPageSize(3);
+    for (int i = 0; i < 10; i++) {
+        candidatelist.append<TestCandidateWord>(i);
+    }
+
+    FCITX_ASSERT(candidatelist.totalSize() == 10);
+    FCITX_ASSERT(candidatelist.size() == 3);
+
+    // Filter to even numbers
+    candidatelist.setFilter([](const CandidateWord &word) {
+        return std::stoi(word.text().toString()) % 2 == 0;
+    });
+
+    FCITX_ASSERT(candidatelist.totalSize() == 5);
+    FCITX_ASSERT(candidatelist.size() == 3);
+    FCITX_ASSERT(candidatelist.totalPages() == 2);
+    FCITX_ASSERT(candidatelist.currentPage() == 0);
+    FCITX_ASSERT(!candidatelist.hasPrev());
+    FCITX_ASSERT(candidatelist.hasNext());
+
+    // Check filtered candidates: 0, 2, 4, 6, 8
+    FCITX_ASSERT(candidatelist.candidate(0).text().toString() == "0");
+    FCITX_ASSERT(candidatelist.candidate(1).text().toString() == "2");
+    FCITX_ASSERT(candidatelist.candidate(2).text().toString() == "4");
+    FCITX_ASSERT(candidatelist.candidateFromAll(3).text().toString() == "6");
+    FCITX_ASSERT(candidatelist.candidateFromAll(4).text().toString() == "8");
+
+    // Page navigation with filter
+    candidatelist.next();
+    FCITX_ASSERT(candidatelist.currentPage() == 1);
+    FCITX_ASSERT(candidatelist.size() == 2);
+    FCITX_ASSERT(candidatelist.candidate(0).text().toString() == "6");
+    FCITX_ASSERT(candidatelist.candidate(1).text().toString() == "8");
+    FCITX_ASSERT(candidatelist.hasNext() == false);
+
+    candidatelist.prev();
+    FCITX_ASSERT(candidatelist.currentPage() == 0);
+
+    // clearFilter restores everything
+    candidatelist.clearFilter();
+    FCITX_ASSERT(candidatelist.totalSize() == 10);
+    FCITX_ASSERT(candidatelist.size() == 3);
+    FCITX_ASSERT(candidatelist.candidate(0).text().toString() == "0");
+    FCITX_ASSERT(candidatelist.candidateFromAll(9).text().toString() == "9");
+
+    // Re-apply filter and verify modification clears it
+    candidatelist.setFilter([](const CandidateWord &word) {
+        return std::stoi(word.text().toString()) % 2 == 0;
+    });
+    FCITX_ASSERT(candidatelist.totalSize() == 5);
+
+    // insert clears filter
+    candidatelist.insert(0, std::make_unique<TestCandidateWord>(99));
+    FCITX_ASSERT(candidatelist.totalSize() == 11);
+    FCITX_ASSERT(candidatelist.candidateFromAll(0).text().toString() == "99");
+
+    // Re-apply and test remove clears filter
+    candidatelist.setFilter([](const CandidateWord &word) {
+        return std::stoi(word.text().toString()) % 2 == 0;
+    });
+    FCITX_ASSERT(candidatelist.totalSize() == 5);
+    candidatelist.remove(1);
+    FCITX_ASSERT(candidatelist.totalSize() == 10);
+
+    // Re-apply filter: even items among [99, 1, 2, 3, 4, 5, 6, 7, 8, 9] = 4
+    candidatelist.setFilter([](const CandidateWord &word) {
+        return std::stoi(word.text().toString()) % 2 == 0;
+    });
+    FCITX_ASSERT(candidatelist.totalSize() == 4);
+
+    // replace clears filter
+    candidatelist.replace(0, std::make_unique<TestCandidateWord>(77));
+    FCITX_ASSERT(candidatelist.totalSize() == 10);
+    FCITX_ASSERT(candidatelist.candidateFromAll(0).text().toString() == "77");
+
+    // Re-apply filter
+    candidatelist.setFilter([](const CandidateWord &word) {
+        return std::stoi(word.text().toString()) % 2 == 0;
+    });
+    FCITX_ASSERT(candidatelist.totalSize() == 4);
+
+    // move clears filter
+    candidatelist.move(0, 2);
+    FCITX_ASSERT(candidatelist.totalSize() == 10);
+
+    // Re-apply filter
+    candidatelist.setFilter([](const CandidateWord &word) {
+        return std::stoi(word.text().toString()) % 2 == 0;
+    });
+    FCITX_ASSERT(candidatelist.totalSize() == 4);
+
+    candidatelist.setPage(1);
+    candidatelist.setFilter(
+        [](const CandidateWord & /*word*/) { return false; });
+    FCITX_ASSERT(candidatelist.size() == 0);
+    FCITX_ASSERT(candidatelist.totalSize() == 0);
+
+    // clear clears filter
+    candidatelist.clear();
+    FCITX_ASSERT(candidatelist.totalSize() == 0);
+}
+
 } // namespace
 
 int main() {
@@ -430,5 +562,6 @@ int main() {
     test_cursor();
     test_candidateaction();
     test_tabbed();
+    testFilter();
     return 0;
 }

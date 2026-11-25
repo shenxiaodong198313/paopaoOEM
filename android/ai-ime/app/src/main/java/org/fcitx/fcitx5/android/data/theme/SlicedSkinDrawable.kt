@@ -36,6 +36,29 @@ class SlicedSkinDrawable(
     }
     private val source = Rect()
     private val destination = RectF()
+    private val horizontalCaps = skinSliceCaps(bitmap.width, slice.left, slice.right, slice.asymmetricCaps)
+    private val verticalCaps = skinSliceCaps(bitmap.height, slice.top, slice.bottom, slice.asymmetricCaps)
+
+    internal fun inkBounds(target: RectF): RectF {
+        val ink = skinBitmapInk(bitmap)
+        if (ink.width() == bitmap.width && ink.height() == bitmap.height) return RectF(target)
+        val scale = minOf(densityScale, target.width() / horizontalCaps.sum().coerceAtLeast(1),
+            target.height() / verticalCaps.sum().coerceAtLeast(1))
+        fun map(value: Int, length: Int, total: Float, caps: IntArray): Float {
+            val first = caps[0]
+            val last = caps[1]
+            return when {
+                value <= first -> value * scale
+                value >= length - last -> total - (length - value) * scale
+                else -> first * scale + (value - first) * (total - (first + last) * scale) /
+                    (length - first - last).coerceAtLeast(1)
+            }
+        }
+        return RectF(target.left + map(ink.left, bitmap.width, target.width(), horizontalCaps),
+            target.top + map(ink.top, bitmap.height, target.height(), verticalCaps),
+            target.left + map(ink.right, bitmap.width, target.width(), horizontalCaps),
+            target.top + map(ink.bottom, bitmap.height, target.height(), verticalCaps))
+    }
 
     override fun draw(canvas: Canvas) {
         if (pattern != null && patternShader != null) {
@@ -51,10 +74,10 @@ class SlicedSkinDrawable(
                 canvas.drawRoundRect(destination, radius, radius, patternPaint)
             }
         }
-        val l = slice.left.coerceIn(0, bitmap.width / 2)
-        val r = slice.right.coerceIn(0, bitmap.width / 2)
-        val t = slice.top.coerceIn(0, bitmap.height / 2)
-        val b = slice.bottom.coerceIn(0, bitmap.height / 2)
+        val l = horizontalCaps[0]
+        val r = horizontalCaps[1]
+        val t = verticalCaps[0]
+        val b = verticalCaps[1]
         // Reduce all caps uniformly for very small targets, preserving corner proportions.
         val capScale = min(densityScale, min(
             bounds.width().toFloat() / (l + r).coerceAtLeast(1),
@@ -98,4 +121,92 @@ class SlicedSkinDrawable(
     }
     @Deprecated("Deprecated in Android")
     override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
+}
+
+// Measure each decoded image once. Transparent extraction margins belong to the asset,
+// so geometry comparisons use painted pixels. No scan takes place on a key press.
+private val skinInkCache = java.util.WeakHashMap<Bitmap, Rect>()
+private fun skinBitmapInk(bitmap: Bitmap): Rect = synchronized(skinInkCache) {
+    skinInkCache.getOrPut(bitmap) {
+        val w = bitmap.width
+        val h = bitmap.height
+        val rect = Rect(0, 0, w, h)
+        if (bitmap.hasAlpha() && bitmap.config != Bitmap.Config.HARDWARE) {
+            val line = IntArray(maxOf(w, h))
+            fun occupied(x: Int, y: Int, cols: Int, rows: Int): Boolean {
+                bitmap.getPixels(line, 0, cols, x, y, cols, rows)
+                return (0 until cols * rows).any { android.graphics.Color.alpha(line[it]) >= 128 }
+            }
+            while (rect.left < w && !occupied(rect.left, 0, 1, h)) rect.left++
+            if (rect.left == w) rect.set(0, 0, w, h) else {
+                while (!occupied(rect.right - 1, 0, 1, h)) rect.right--
+                while (!occupied(0, rect.top, w, 1)) rect.top++
+                while (!occupied(0, rect.bottom - 1, w, 1)) rect.bottom--
+            }
+        }
+        rect
+    }
+}
+
+internal fun Drawable.skinInkBounds(target: RectF): RectF = when (this) {
+    is SourceClippedSkinDrawable -> image.skinInkBounds(target)
+    is SlicedSkinDrawable -> inkBounds(target)
+    is android.graphics.drawable.BitmapDrawable -> {
+        val ink = skinBitmapInk(bitmap)
+        val dx = target.width() / bitmap.width
+        val dy = target.height() / bitmap.height
+        RectF(target.left + ink.left * dx, target.top + ink.top * dy,
+            target.left + ink.right * dx, target.top + ink.bottom * dy)
+    }
+    else -> RectF(target)
+}
+
+// A magnified antialiased edge can cross half opacity between source pixel centers.
+private val horizontalContourCache = java.util.WeakHashMap<Bitmap, Pair<Float, Float>>()
+private fun Bitmap.horizontalContour(): Pair<Float, Float> = synchronized(horizontalContourCache) {
+    horizontalContourCache.getOrPut(this) {
+        val box = skinBitmapInk(this)
+        if (!hasAlpha() || config == Bitmap.Config.HARDWARE) return@getOrPut 0f to width.toFloat()
+        fun crossing(column: Int, direction: Int): Float {
+            val neighbor = column + direction
+            if (neighbor !in 0 until width) return if (direction < 0) 0f else width.toFloat()
+            val pixels = IntArray(height * 2)
+            getPixels(pixels, 0, 2, minOf(column, neighbor), 0, 2, height)
+            var farthest = 0f
+            for (row in 0 until height) {
+                val inside = pixels[row * 2 + if (direction < 0) 1 else 0] ushr 24
+                val outside = pixels[row * 2 + if (direction < 0) 0 else 1] ushr 24
+                if (inside >= 128 && outside < 128)
+                    farthest = maxOf(farthest, (inside - 127.5f) / (inside - outside))
+            }
+            return column + 0.5f + direction * farthest
+        }
+        crossing(box.left, -1) to crossing(box.right - 1, 1)
+    }
+}
+
+private fun Drawable.horizontalInk(target: RectF): RectF = when (this) {
+    is SourceClippedSkinDrawable -> image.horizontalInk(target)
+    is android.graphics.drawable.BitmapDrawable -> {
+        val (left, right) = bitmap.horizontalContour()
+        val scale = target.width() / bitmap.width
+        RectF(target.left + left * scale, target.top, target.left + right * scale, target.bottom)
+    }
+    else -> skinInkBounds(target)
+}
+
+/** Align this image's visible artwork to the requested slot, including nine-slice cap scaling. */
+internal class SkinInkFitDrawable(private val artwork: Drawable, private val horizontalOnly: Boolean = false) : android.graphics.drawable.DrawableWrapper(artwork) {
+    override fun onBoundsChange(bounds: Rect) {
+        val target = RectF(bounds)
+        val fitted = RectF(target)
+        repeat(3) {
+            val ink = if (horizontalOnly) artwork.horizontalInk(fitted) else artwork.skinInkBounds(fitted)
+            if (ink.isEmpty) return
+            fitted.set(fitted.left + target.left - ink.left, if (horizontalOnly) target.top else fitted.top + target.top - ink.top,
+                fitted.right + target.right - ink.right, if (horizontalOnly) target.bottom else fitted.bottom + target.bottom - ink.bottom)
+        }
+        super.onBoundsChange(Rect(fitted.left.roundToInt(), fitted.top.roundToInt(),
+            fitted.right.roundToInt(), fitted.bottom.roundToInt()))
+    }
 }

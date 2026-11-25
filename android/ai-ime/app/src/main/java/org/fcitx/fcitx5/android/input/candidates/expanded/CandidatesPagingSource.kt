@@ -6,46 +6,50 @@ package org.fcitx.fcitx5.android.input.candidates.expanded
 
 import androidx.paging.PagingSource
 import androidx.paging.PagingState
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import org.fcitx.fcitx5.android.core.CandidateWord
 import org.fcitx.fcitx5.android.daemon.FcitxConnection
-import timber.log.Timber
+import org.fcitx.fcitx5.android.input.t9.T9CandidateText
+
+data class ExpandedWord(val index: Int, val word: CandidateWord, val revision: Long)
+
+internal fun isSingleCharacter(text: String): Boolean =
+    text.isNotEmpty() && Character.isLetter(text.codePointAt(0)) &&
+        Character.charCount(text.codePointAt(0)) == text.length
 
 class CandidatesPagingSource(
-    val fcitx: FcitxConnection,
+    private val fcitx: FcitxConnection,
     val total: Int,
-    val offset: Int,
-    val isT9Mode: Boolean = false
-) :
-    PagingSource<Int, CandidateWord>() {
+    val isT9Mode: Boolean = false,
+    private val singleOnly: Boolean = false,
+    private val revision: Long = 0,
+    private val chineseOnly: Boolean = false
+) : PagingSource<Int, ExpandedWord>() {
 
-    override suspend fun load(params: LoadParams<Int>): LoadResult<Int, CandidateWord> {
-        // use candidate index for key, null means load from beginning (with offset)
-        val startIndex = params.key ?: offset
-        val pageSize = params.loadSize
-        Timber.d("getCandidates(offset=$startIndex, limit=$pageSize)")
-        val candidates = fcitx.runOnReady {
-            getCandidates(startIndex, pageSize)
+    override suspend fun load(params: LoadParams<Int>): LoadResult<Int, ExpandedWord> {
+        var start = params.key ?: 0
+        val size = params.loadSize
+        // Native indices include phrases even when the single-character page hides them.
+        // An empty filtered batch must not hide matches on the following native page.
+        while (true) {
+            currentCoroutineContext().ensureActive()
+            val raw = fcitx.runOnReady { getCandidates(start, size) }
+            val words = raw.mapIndexedNotNull { i, item ->
+                val word = when {
+                    chineseOnly -> T9CandidateText.chineseDisplay(item) ?: return@mapIndexedNotNull null
+                    isT9Mode -> T9CandidateText.clean(item)
+                    else -> item
+                }
+                if (singleOnly && !isSingleCharacter(word.text)) null else ExpandedWord(start + i, word, revision)
+            }
+            start += raw.size
+            val hasMore = raw.size == size && (total < 0 || start < total)
+            if (words.isNotEmpty() || !hasMore) {
+                return LoadResult.Page(words, null, start.takeIf { hasMore })
+            }
         }
-        val displayCandidates = if (isT9Mode) {
-            candidates.map { candidate ->
-                candidate.copy(
-                    text = candidate.text.replace(Regex(" [a-zA-Z ']+$"), ""),
-                    comment = ""
-                )
-            }.toTypedArray()
-        } else {
-            candidates
-        }
-        val prevKey = if (startIndex >= pageSize) startIndex - pageSize else null
-        val nextKey = if (total > 0) {
-            if (startIndex + pageSize + 1 >= total) null else startIndex + pageSize
-        } else {
-            if (displayCandidates.size < pageSize) null else startIndex + pageSize
-        }
-        return LoadResult.Page(displayCandidates.toList(), prevKey, nextKey)
     }
 
-    // always reload from beginning
-    override fun getRefreshKey(state: PagingState<Int, CandidateWord>) = null
-
+    override fun getRefreshKey(state: PagingState<Int, ExpandedWord>): Int? = null
 }

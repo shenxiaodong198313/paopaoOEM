@@ -20,6 +20,7 @@ import org.fcitx.fcitx5.android.utils.alpha
 import org.fcitx.fcitx5.android.utils.appContext
 import splitties.dimensions.dp
 import java.io.File
+import kotlin.math.roundToInt
 
 @Serializable
 sealed class Theme : Parcelable {
@@ -83,6 +84,7 @@ sealed class Theme : Parcelable {
          */
         val backgroundImage: CustomBackground?,
         val toolbarImage: CustomBackground? = null,
+        val preeditImage: CustomBackground? = null,
         val keyImage: CustomBackground? = null,
         val altKeyImage: CustomBackground? = null,
         // Kept for backward compatibility with old exported themes.
@@ -123,8 +125,17 @@ sealed class Theme : Parcelable {
         val toolbarIcons: Map<String, CustomBackground> = emptyMap(),
         val keyForegrounds: Map<String, CustomBackground> = emptyMap(),
         val keyDecorations: Map<String, SkinKeyDecoration> = emptyMap(),
-        val revision: Long = 1
+        val keyStateImages: Map<String, SkinKeyStateImages> = emptyMap(),
+        val keyAnimations: Map<String, SkinKeySpriteAnimation> = emptyMap(),
+        val revision: Long = 1,
+        val minimumSkinEngine: Int = 1,
+        val skinSound: SkinSound? = null
     ) : Theme() {
+        init {
+            val selector = Regex("^(?:(?:qwerty|t9|number)/)?(?:role:[a-z_]+|r[1-4]c(?:10|[1-9])|letter:[a-z]|digit:[0-9]|t9:[1-9])$")
+            require(keyStateImages.size <= 160 && keyStateImages.keys.all { selector.matches(it) || it == "t9/sidebar" || it == "number/sidebar" })
+            require(keyAnimations.size <= 16 && keyAnimations.keys.all(selector::matches))
+        }
         @Parcelize
         @Serializable
         data class CustomBackground(
@@ -134,15 +145,25 @@ sealed class Theme : Parcelable {
             val cropRect: @Serializable(RectSerializer::class) Rect?,
             val cropRotation: Int = 0,
             val slice: SkinImageSlice? = null,
-            val patternFill: SkinPatternFill? = null
+            val patternFill: SkinPatternFill? = null,
+            // Source-pixel silhouette, independent of the key slot and its cast shadow.
+            // Useful for authored bitmap caps whose extraction has a residual outer matte.
+            val sourceCornerRadiusPx: Float? = null
         ) : Parcelable {
+            init {
+                require(sourceCornerRadiusPx == null ||
+                    (sourceCornerRadiusPx.isFinite() && sourceCornerRadiusPx in 0f..8192f))
+            }
             fun toDrawable(context: android.content.Context = appContext): Drawable? {
                 val cropped = File(croppedFilePath)
                 if (!cropped.exists()) return null
                 val bitmap = loadBitmap(cropped) ?: return null
                 val patternBitmap = patternFill?.image?.let { loadBitmap(File(it.croppedFilePath)) }
-                return (slice?.let { SlicedSkinDrawable(bitmap, it, context.resources.displayMetrics.densityDpi, patternFill, patternBitmap) }
-                    ?: BitmapDrawable(context.resources, bitmap)).apply {
+                val image = slice?.let { SlicedSkinDrawable(bitmap, it, context.resources.displayMetrics.densityDpi, patternFill, patternBitmap) }
+                    ?: BitmapDrawable(context.resources, bitmap)
+                return (sourceCornerRadiusPx?.let {
+                    SourceClippedSkinDrawable(image, bitmap.width, bitmap.height, it, slice, context.resources.displayMetrics.densityDpi)
+                } ?: image).apply {
                     colorFilter = DarkenColorFilter(100 - brightness)
                 }
             }
@@ -157,10 +178,18 @@ sealed class Theme : Parcelable {
                     }
                 }
 
+                fun clearBitmapCache() { bitmapCache.evictAll() }
+
                 private fun loadBitmap(file: File): android.graphics.Bitmap? {
-                    val cacheKey = "${file.absolutePath}:${file.lastModified()}:${file.length()}"
+                    val protected = file.name.endsWith(".psk")
+                    if (protected && !ProtectedSkinStore.authorized(file)) return null
+                    val cacheKey = "${if (protected) ProtectedSkinStore.owner() else ""}:${file.absolutePath}:${file.lastModified()}:${file.length()}"
                     bitmapCache.get(cacheKey)?.let { return it }
-                    return BitmapFactory.decodeFile(file.absolutePath)?.also {
+                    val bitmap = if (protected) runCatching {
+                        val bytes = ProtectedSkinStore.readImage(file)
+                        try { BitmapFactory.decodeByteArray(bytes, 0, bytes.size) } finally { bytes.fill(0) }
+                    }.getOrNull() else BitmapFactory.decodeFile(file.absolutePath)
+                    return bitmap?.also {
                         bitmapCache.put(cacheKey, it)
                     }
                 }
@@ -168,20 +197,47 @@ sealed class Theme : Parcelable {
         }
 
         override fun backgroundDrawable(keyBorder: Boolean): Drawable {
-            return backgroundImage?.toDrawable() ?: super.backgroundDrawable(keyBorder)
+            val config = renderStyle?.localConfiguration
+            if (config?.background == "transparent") return ColorDrawable(android.graphics.Color.TRANSPARENT)
+            val original = backgroundImage?.toDrawable() ?: super.backgroundDrawable(keyBorder)
+            return if (config?.background == "gradient" && config.gradientRange > 0) SkinConfiguredBackground(original, config.gradientRange) else original
         }
 
-        fun barDrawable(keyBorder: Boolean, context: android.content.Context = appContext): Drawable {
-            val base = toolbarImage?.toDrawable(context) ?: ColorDrawable(
+        fun barDrawable(keyBorder: Boolean, context: android.content.Context = appContext, keyInsets: Pair<Int, Int>? = null): Drawable {
+            if (renderStyle?.localConfiguration?.toolbarVisible == false) return ColorDrawable(android.graphics.Color.TRANSPARENT)
+            val original = toolbarImage?.toDrawable(context) ?: ColorDrawable(
                 if (keyBorder) backgroundColor else barColor
             )
+            val config = renderStyle?.localConfiguration
             val reservedPreedit = renderStyle?.reservedPreeditDp ?: 0
-            if (toolbarTopInsetDp <= 0 && toolbarHorizontalInsetDp <= 0 && reservedPreedit == 0) {
-                return base
+            val topGap = if (renderStyle?.customToolbarLayout == true)
+                renderStyle.topSpacingHeightDp(toolbarTopInsetDp) else toolbarTopInsetDp.coerceAtLeast(0)
+            val legacyDefault = if (renderStyle?.customToolbarLayout == true) toolbarHorizontalInsetDp.coerceIn(0, 36) else 0
+            val aligned = keyInsets?.takeIf { config?.followsKeyEdges(legacyDefault) != false }
+            fun withPreedit(bar: Drawable): Drawable {
+                val artwork = preeditImage?.takeIf { reservedPreedit > 0 }?.toDrawable(context) ?: return bar
+                return android.graphics.drawable.LayerDrawable(arrayOf(bar, artwork)).apply {
+                    paddingMode = android.graphics.drawable.LayerDrawable.PADDING_MODE_STACK
+                    setLayerHeight(1, context.dp(reservedPreedit))
+                    setLayerGravity(1, android.view.Gravity.TOP or android.view.Gravity.FILL_HORIZONTAL)
+                    setLayerInsetLeft(1, aligned?.first ?: context.dp(config?.toolbarLeft ?: toolbarHorizontalInsetDp.coerceAtLeast(0)))
+                    setLayerInsetRight(1, aligned?.second ?: context.dp(config?.toolbarRight ?: toolbarHorizontalInsetDp.coerceAtLeast(0)))
+                }
             }
-            val horizontalInset = context.dp(if (renderStyle?.skinLabStandard == true) (if (SkinLabStandard.landscape(context)) 10 else 6) else toolbarHorizontalInsetDp)
-            val topInset = context.dp(toolbarTopInsetDp.coerceAtLeast(0) + reservedPreedit)
-            return InsetDrawable(base, horizontalInset, topInset, horizontalInset, 0)
+            if (aligned != null) return withPreedit(InsetDrawable(SkinInkFitDrawable(original), aligned.first,
+                context.dp(topGap + reservedPreedit), aligned.second, 0))
+            if (config != null) return withPreedit(InsetDrawable(original, context.dp(config.toolbarLeft),
+                context.dp(topGap + reservedPreedit), context.dp(config.toolbarRight), 0))
+            val base = original
+            if (topGap <= 0 && toolbarHorizontalInsetDp <= 0 && reservedPreedit == 0) {
+                return withPreedit(base)
+            }
+            val horizontalInset = context.dp(if (renderStyle?.skinLabStandard == true && !renderStyle.customToolbarLayout) {
+                (if (SkinLabStandard.landscape(context)) 6f else 3f) +
+                    (if (renderStyle.customKeyFaceInsets) renderStyle.keyVisualHorizontalInsetDp ?: 0f else SkinLabStandard.gapX(context) / 2)
+            } else toolbarHorizontalInsetDp.toFloat()).roundToInt()
+            val topInset = context.dp(topGap + reservedPreedit)
+            return withPreedit(InsetDrawable(base, horizontalInset, topInset, horizontalInset, 0))
         }
 
         fun keyDrawable(role: KeyImageRole, keyId: String? = null): Drawable? {
@@ -220,6 +276,7 @@ sealed class Theme : Parcelable {
             return (listOfNotNull(
                 backgroundImage,
                 toolbarImage,
+                preeditImage,
                 keyImage,
                 altKeyImage,
                 accentKeyImage,
@@ -230,7 +287,9 @@ sealed class Theme : Parcelable {
                 spaceBarImage,
                 enterKeyImage,
                 sidebarImage
-            ) + keyImageOverrides.values + toolbarIcons.values + keyForegrounds.values + keyDecorations.values.map { it.image })
+            ) + keyImageOverrides.values + toolbarIcons.values + keyForegrounds.values + keyDecorations.values.map { it.image } +
+                keyStateImages.values.flatMap { listOfNotNull(it.pressed, it.released) } + keyAnimations.values.flatMap { it.frames } +
+                renderStyle?.keyPressEffect?.particleSprites.orEmpty())
                 .flatMap(::nested).distinctBy { it.croppedFilePath to it.srcFilePath }
         }
 
@@ -243,6 +302,7 @@ sealed class Theme : Parcelable {
             return copy(
                 backgroundImage = backgroundImage?.let(::transform),
                 toolbarImage = toolbarImage?.let(::transform),
+                preeditImage = preeditImage?.let(::transform),
                 keyImage = keyImage?.let(::transform),
                 altKeyImage = altKeyImage?.let(::transform),
                 accentKeyImage = accentKeyImage?.let(::transform),
@@ -256,9 +316,18 @@ sealed class Theme : Parcelable {
                 keyImageOverrides = keyImageOverrides.mapValues { transform(it.value) },
                 toolbarIcons = toolbarIcons.mapValues { transform(it.value) },
                 keyForegrounds = keyForegrounds.mapValues { transform(it.value) },
+                renderStyle = renderStyle?.let { style ->
+                    val effect = style.keyPressEffect
+                    if (effect == null || effect.particleSprites.isEmpty()) style else
+                        style.copy(keyPressEffect = effect.copy(particleSprites = effect.particleSprites.map(::transform)))
+                },
                 keyDecorations = keyDecorations.mapValues { (_, decoration) ->
                     decoration.copy(image = transform(decoration.image))
-                }
+                },
+                keyStateImages = keyStateImages.mapValues { (_, images) ->
+                    images.copy(pressed = transform(images.pressed), released = images.released?.let(::transform))
+                },
+                keyAnimations = keyAnimations.mapValues { (_, animation) -> animation.copy(frames = animation.frames.map(::transform)) }
             )
         }
 
@@ -531,4 +600,39 @@ sealed class Theme : Parcelable {
             genericActiveForegroundColor = genericActiveForegroundColor
         )
     }
+}
+
+/** The immutable source stays intact; the drawable owns a cached, explicit cap silhouette. */
+internal class SourceClippedSkinDrawable(
+    internal val image: Drawable, private val sourceWidth: Int, private val sourceHeight: Int,
+    private val radiusPx: Float, private val slice: SkinImageSlice?, private val targetDensityDpi: Int
+) : Drawable() {
+    private val path = android.graphics.Path()
+    override fun onBoundsChange(bounds: Rect) {
+        image.bounds = bounds
+        path.reset()
+        val capScale = slice?.let {
+            val horizontal = skinSliceCaps(sourceWidth, it.left, it.right, it.asymmetricCaps)
+            val vertical = skinSliceCaps(sourceHeight, it.top, it.bottom, it.asymmetricCaps)
+            minOf(targetDensityDpi.toFloat() / it.sourceDensityDpi.coerceIn(72, 1280),
+                bounds.width().toFloat() / (horizontal[0] + horizontal[1]).coerceAtLeast(1),
+                bounds.height().toFloat() / (vertical[0] + vertical[1]).coerceAtLeast(1))
+        }
+        path.addRoundRect(android.graphics.RectF(bounds),
+            radiusPx.coerceAtMost(sourceWidth / 2f) * (capScale ?: (bounds.width().toFloat() / sourceWidth)),
+            radiusPx.coerceAtMost(sourceHeight / 2f) * (capScale ?: (bounds.height().toFloat() / sourceHeight)),
+            android.graphics.Path.Direction.CW)
+    }
+    override fun draw(canvas: android.graphics.Canvas) {
+        val count = canvas.save()
+        canvas.clipPath(path)
+        image.draw(canvas)
+        canvas.restoreToCount(count)
+    }
+    override fun setAlpha(alpha: Int) { image.alpha = alpha; invalidateSelf() }
+    override fun setColorFilter(filter: android.graphics.ColorFilter?) { image.colorFilter = filter; invalidateSelf() }
+    @Deprecated("Deprecated in Java")
+    override fun getOpacity(): Int = android.graphics.PixelFormat.TRANSLUCENT
+    override fun getIntrinsicWidth(): Int = image.intrinsicWidth
+    override fun getIntrinsicHeight(): Int = image.intrinsicHeight
 }

@@ -45,6 +45,7 @@ android {
             resValue("mipmap", "app_icon_round", "@mipmap/ic_launcher_round")
             resValue("string", "fcitx_app_name", "@string/app_name_release")
             proguardFile("proguard-rules.pro")
+            proguardFile("onnx-jni-rules.pro")
         }
         debug {
             resValue("mipmap", "app_icon", "@mipmap/ic_launcher_debug")
@@ -78,6 +79,7 @@ ksp {
 }
 
 dependencies {
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.32.0")
     ksp(project(":codegen"))
     implementation(project(":lib:fcitx5"))
     implementation(project(":lib:fcitx5-lua"))

@@ -94,6 +94,7 @@ class InputMethodSettingsFragment : BaseInputMethodSettingsFragment(
                 R.id.card_assist_input,
                 R.id.card_clipboard,
                 R.id.card_keyboard_manage,
+                R.id.card_dictionary_management,
                 R.id.card_automation_settings,
             )
         )
@@ -114,6 +115,9 @@ class InputMethodSettingsFragment : BaseInputMethodSettingsFragment(
         }
         view.findViewById<View>(R.id.card_keyboard_manage)?.setOnClickListener {
             openKeyboardManageSettings()
+        }
+        view.findViewById<View>(R.id.card_dictionary_management).setOnClickListener {
+            openSettingsPage(DictionaryManagementFragment())
         }
         view.findViewById<View>(R.id.card_voice_to_text).apply {
             visibility = if (org.fcitx.fcitx5.android.input.voice.OemVoiceBridge.enabled(requireContext())) View.VISIBLE else View.GONE

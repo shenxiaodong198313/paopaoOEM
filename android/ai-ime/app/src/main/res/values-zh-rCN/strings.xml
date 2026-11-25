@@ -405,4 +405,5 @@
     <string name="status_area_keyboard_skin">键盘皮肤</string>
     <string name="status_area_key_effects">按键效果</string>
     <string name="status_area_input_settings">输入设置</string>
+    <string name="edit_text_playground">文本输入框 (EditText) 演练场</string>
 </resources>

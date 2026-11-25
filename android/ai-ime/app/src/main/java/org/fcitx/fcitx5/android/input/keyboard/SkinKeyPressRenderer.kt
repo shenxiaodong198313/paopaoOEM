@@ -1,6 +1,7 @@
 package org.fcitx.fcitx5.android.input.keyboard
 
 import android.animation.ValueAnimator
+import android.graphics.drawable.Drawable
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
@@ -17,12 +18,34 @@ import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.random.Random
 
-/** Drawn before keyboard children. Opaque keycaps naturally occlude light and particles. */
+/** One bounded feedback renderer shared by the keyboard grid. */
 class SkinKeyPressRenderer(private val density: Float, private val style: SkinKeyPressEffect) {
     private data class Particle(val x: Float, val y: Float, val dx: Float, val dy: Float, val size: Float, val color: Int)
     private data class Reflection(val angle: Float, val length: Float, val offset: Float, val width: Float, val intensity: Float, val phase: Float)
-    private data class Burst(val start: Long, val x: Float, val y: Float, val particles: List<Particle>, val token: Any?, val reflections: List<Reflection>, val fromX: Float, val fromY: Float, var released: Long? = null)
+    private data class Burst(val start: Long, val x: Float, val y: Float, val particles: List<Particle>, val token: Any?, val reflections: List<Reflection>, val fromX: Float, val fromY: Float, val spanX: Float, val spanY: Float, var released: Long? = null)
     private val bursts = ArrayDeque<Burst>()
+    private var particleSprites: List<Drawable> = emptyList()
+
+    fun setParticleSprites(images: List<Drawable>) {
+        particleSprites = images.filter { it.intrinsicWidth > 0 && it.intrinsicHeight > 0 }.onEach {
+            it.setBounds(0, 0, it.intrinsicWidth, it.intrinsicHeight)
+        }
+    }
+
+    private fun drawSprite(canvas: Canvas, sprite: Drawable, x: Float, y: Float,
+        size: Float, index: Int, time: Float, burst: Burst, alpha: Int) {
+        val saved = canvas.save()
+        canvas.translate(x, y)
+        // Keep the sprite isotropic even when the particle trajectory follows a wide key.
+        canvas.scale(1f / burst.spanX, 1f / burst.spanY)
+        canvas.rotate((index * 137.5f + time * style.rotationTurns * 360f) % 360f)
+        val scale = 4f * size / maxOf(sprite.bounds.width(), sprite.bounds.height())
+        canvas.scale(scale, scale)
+        canvas.translate(-sprite.bounds.width() * .5f, -sprite.bounds.height() * .5f)
+        sprite.alpha = alpha
+        sprite.draw(canvas)
+        canvas.restoreToCount(saved)
+    }
     private val random = Random.Default
     private var lastX = 0f
     private var lastY = 0f
@@ -64,7 +87,7 @@ class SkinKeyPressRenderer(private val density: Float, private val style: SkinKe
 
     fun clear() { bursts.clear(); lastPress = Long.MIN_VALUE }
 
-    fun press(key: RectF, now: Long = SystemClock.uptimeMillis(), token: Any? = null): Boolean {
+    fun press(key: RectF, now: Long = SystemClock.uptimeMillis(), token: Any? = null, spanX: Float = 1f, spanY: Float = 1f): Boolean {
         if (Build.VERSION.SDK_INT >= 26 && !ValueAnimator.areAnimatorsEnabled()) return false
         if (key.isEmpty) return false
         expire(now)
@@ -92,7 +115,7 @@ class SkinKeyPressRenderer(private val density: Float, private val style: SkinKe
         val follows = lastPress != Long.MIN_VALUE && now - lastPress in 0..style.followWindowMs.toLong()
         val fromX = if (follows) lastX else key.centerX()
         val fromY = if (follows) lastY else key.centerY()
-        bursts.addLast(Burst(now, key.centerX(), key.centerY(), particles, token, reflections, fromX, fromY))
+        bursts.addLast(Burst(now, key.centerX(), key.centerY(), particles, token, reflections, fromX, fromY, spanX, spanY))
         lastX = key.centerX(); lastY = key.centerY(); lastPress = now
         return true
     }
@@ -117,6 +140,8 @@ class SkinKeyPressRenderer(private val density: Float, private val style: SkinKe
     fun draw(canvas: Canvas, now: Long = SystemClock.uptimeMillis()): Boolean {
         expire(now)
         for (burst in bursts) {
+            val saved = canvas.save()
+            canvas.scale(burst.spanX, burst.spanY, burst.x, burst.y)
             val t = ((now - burst.start).toFloat() / style.durationMs * style.speed).coerceIn(0f, 1f)
             val releaseTail = style.releaseDurationMs > 0 && burst.token != null
             val releaseT = burst.released?.let { ((now - it).toFloat() / style.releaseDurationMs.coerceAtLeast(1)).coerceIn(0f, 1f) } ?: 0f
@@ -175,7 +200,10 @@ class SkinKeyPressRenderer(private val density: Float, private val style: SkinKe
                     canvas.drawCircle(x, y, size * 2.8f, particlePaint)
                     particlePaint.alpha = (Color.alpha(p.color) * fade * style.particleAlpha * (.75f + .25f * sin(index + t * 10f))).toInt()
                 }
-                if (style.particleShape == "digit") {
+                if (particleSprites.isNotEmpty()) {
+                    drawSprite(canvas, particleSprites[index % particleSprites.size], x, y, size,
+                        index, t, burst, particlePaint.alpha)
+                } else if (style.particleShape == "digit") {
                     digitPaint.color = p.color
                     digitPaint.alpha = particlePaint.alpha
                     canvas.drawText(digits[index % 10], x, y - (digitPaint.ascent() + digitPaint.descent()) / 2f, digitPaint)
@@ -194,6 +222,7 @@ class SkinKeyPressRenderer(private val density: Float, private val style: SkinKe
                     canvas.drawPath(star, particlePaint)
                 }
             }
+            canvas.restoreToCount(saved)
         }
         return bursts.isNotEmpty()
     }

@@ -40,6 +40,8 @@ public:
     void loadText(std::istream &in);
     void save(std::ostream &out);
     void dump(std::ostream &out);
+    // Personal vocabulary management: enumerate learned identities, not usage counts.
+    std::vector<WordWithCode> vocabulary() const;
     void clear();
 
     /// Set unknown probability penatly.

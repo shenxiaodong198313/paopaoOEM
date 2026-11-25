@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.6.0)
-project(fcitx5-chinese-addons VERSION 5.1.12)
+project(fcitx5-chinese-addons VERSION 5.1.14)
 
-set(REQUIRED_FCITX_VERSION 5.1.20)
+set(REQUIRED_FCITX_VERSION 5.1.22)
 set(REQUIRED_LIBIME_VERSION 1.1.14)
 
 find_package(ECM REQUIRED 1.0.0)
@@ -40,6 +40,9 @@ option(ENABLE_TOOLS "Build tools" On)
 if (ENABLE_OPENCC)
     find_package(OpenCC 1.0.1 REQUIRED)
 endif()
+if (ENABLE_OPENCC OR ENABLE_CLOUDPINYIN)
+    find_package(nlohmann_json 3.2 REQUIRED)
+endif()
 
 if (ENABLE_GUI)
     set(QT_MAJOR_VERSION 6)
@@ -50,17 +53,12 @@ if (ENABLE_GUI)
     endif()
 endif()
 
-# We do not need json if OpenCC is not needed, but just try to find it anyway to save some ifelse logic
-find_package(Boost 1.61 OPTIONAL_COMPONENTS json)
+find_package(Boost 1.61 REQUIRED)
 find_package(LibIMEPinyin ${REQUIRED_LIBIME_VERSION} REQUIRED)
 find_package(LibIMETable ${REQUIRED_LIBIME_VERSION} REQUIRED)
 
 if (ENABLE_CLOUDPINYIN)
     pkg_check_modules(Curl REQUIRED IMPORTED_TARGET "libcurl")
-endif()
-
-if (TARGET Boost::json)
-    set(HAS_BOOST_JSON TRUE)
 endif()
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.h.in ${CMAKE_CURRENT_BINARY_DIR}/config.h)

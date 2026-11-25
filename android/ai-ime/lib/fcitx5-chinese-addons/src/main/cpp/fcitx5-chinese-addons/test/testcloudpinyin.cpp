@@ -6,7 +6,6 @@
  */
 #include "cloudpinyin_public.h"
 #include "testdir.h"
-#include <cassert>
 #include <fcitx-config/rawconfig.h>
 #include <fcitx-utils/event.h>
 #include <fcitx-utils/log.h>

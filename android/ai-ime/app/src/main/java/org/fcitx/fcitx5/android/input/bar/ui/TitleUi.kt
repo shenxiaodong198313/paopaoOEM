@@ -35,7 +35,7 @@ class TitleUi(override val ctx: Context, theme: Theme) : Ui {
 
     private val titleText = textView {
         typeface = Typeface.defaultFromStyle(Typeface.BOLD)
-        setTextColor(theme.altKeyTextColor)
+        setTextColor((theme as? Theme.Custom)?.renderStyle?.toolbarIconTint ?: theme.candidateTextColor)
         gravity = gravityVerticalCenter
         textSize = 16f
     }

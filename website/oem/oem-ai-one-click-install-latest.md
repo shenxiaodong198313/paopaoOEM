@@ -1,17 +1,18 @@
 ﻿# 泡泡输入法企业版 · AI 一键安装 SOP（v2 · 模块直链版）
 
-> 生成时间：2026/10/12 15:52:56　|　SDK 版本：1.0.0.20261012　|　目录 schema：v1
+> 生成时间：2026/11/25 21:49:31　|　SDK 版本：1.0.0.20261125　|　目录 schema：v1
 > 本次纳入交付的模块依赖：core、voice、ai、material、automation、developer（仅代表需要集成的 SDK artifact，不代表功能默认启用）
 > 【版本自检·必读】SDK 采用统一版本号（全部制品与抬头一致），执行前核对抬头 `SDK 版本` 与官网（https://www.paopaoime.com/oem/ 「AI 一键安装」）当前版本一致；若本文档是旧本地副本（SDK 版本低于 1.0.0.20260816，即旧 1.x-alpha 系列），必须重新下载后再执行——旧版制品存在应用名被资源污染覆盖、非 AppCompat 宿主主题下打开 SDK 页面黑屏崩溃等已修复缺陷，继续执行会复现旧问题。
 > 本文档面向 AI 编程工具：目标是从 0 开始，把泡泡输入法 OEM SDK 集成到企业 Android 宿主工程（允许是空白目录），并构建出可安装的 release APK。
 > 推荐使用 ECS Maven 仓库按模块集成；§3 提供仓库与各模块直链，完整交付归档另见官网 SDK 下载。
 
-> 本版更新：新增自定义抽屉 entryHandler 和剪贴板 OemClipboardQuickReplyHandler，支持宿主完全接管入口：主线程回调、忽略返回值、异常静默，不收键盘或启动 SDK 页面。OEM 剪贴板去掉标题与叉号，按钮改“智能回复”，工具条加高 12 布局单位。未注册保持原 SDK 流程；八公开 SDK Release/R8，runtime app:1.13。 SDK `1.0.0.20261012`；保持 `targetSdk 36` 与 HTTPS 策略。
+> 本版更新：新增离线中文手写、按键动效和 30 款音效，白霜词库随包启用，雾凇和 Rime 按需下载。完善九宫格候选、词库切换与升级后资源恢复。输入法运行时更新至 app:1.14。 SDK `1.0.0.20261125`。
 
 ## 修改记录
 
 | 日期 | SDK 版本 | 修改说明 |
 | --- | --- | --- |
+| 2026-11-25 | `1.0.0.20261125` | 新增离线中文手写、按键动效和 30 款音效，白霜词库随包启用，雾凇和 Rime 按需下载。完善九宫格候选、词库切换与升级后资源恢复。输入法运行时更新至 app:1.14。 |
 | 2026-10-12 | `1.0.0.20261012` | 新增自定义抽屉 entryHandler 和剪贴板 OemClipboardQuickReplyHandler，支持宿主完全接管入口：主线程回调、忽略返回值、异常静默，不收键盘或启动 SDK 页面。OEM 剪贴板去掉标题与叉号，按钮改“智能回复”，工具条加高 12 布局单位。未注册保持原 SDK 流程；八公开 SDK Release/R8，runtime app:1.13。 |
 | 2026-10-11 | `1.0.0.202610111` | 同一宿主复制后仅展示一次临时剪贴板和高情商回复；关闭、打字或离开宿主后不重现。快捷回复直接打开结果抽屉，选中仅回填草稿。复用客户 AI 回复模型配置，支持客户自绘内容及整块抽屉、状态回调和原文重试。八公开 SDK Release/R8，运行时 app:1.12。 |
 | 2026-10-11 | `1.0.0.20261011` | 复制文本不再自动替换工具栏，包含键盘显示中、重新唤起及旧设置为开启的场景；保留手动剪贴板、历史和粘贴。移除无效的工具栏剪贴板建议/超时设置。八个公开 SDK 全量重建并执行 Release/R8，输入法运行时升级至 app:1.11。 |
@@ -45,7 +46,14 @@ OemImeSdk.setClipboardQuickReplyHandler(null)
 - `hostPackageName` 为本次复制会话记录的来源宿主，可为 null；SDK 不读取其他应用的剪贴板历史。敏感文本和跨宿主过滤保持现状。
 - 建议在 SDK 初始化之后、首次展示键盘前注册；`null` 反注册。回调内反注册也不会使本次点击转入内置流程或清除建议条。
 - OEM UI 去掉整块标题及关闭叉号，按钮文案为“智能回复”；文本区单行省略，点击粘贴保持原行为。工具条在当前皮肤值基础上增加 12 布局单位（标准竖屏总高 60→72，横屏 56→68），候选行与测量同步。泡泡主版不变。
-- 请同步升级全部 SDK 到 `1.0.0.20261012`、runtime 到 `app:1.13`，并重新编译宿主。
+- 升级时按本文抬头的 SDK 版本更新所有公开制品，并重新编译宿主。
+
+## 新版基础输入验收
+- 在键盘工具面板可选择手写、拼音九宫格、拼音 14 键、拼音 26 键、双拼或英文 26 键。随包中文手写模型支持断网识别和选字。
+- 在输入法设置的「按键效果」中选择按键动效、气泡、触感和 30 款音色。
+- 「词库管理」默认启用随包白霜。雾凇和 Rime 下载就绪后可手动启用并离线使用。启用 Rime 后可使用五笔和五笔拼音。
+- 基础输入法包含手写、按键效果和词库管理。语音可独立选装，手写页的语音入口随语音模块启用状态显示。
+- 断网点按拼音九宫格 `64426`，选择「你好」并上屏。断网写一横，选择「一」并上屏。
 
 ## 1. 输入参数
 
@@ -81,29 +89,29 @@ openai_model: ""
 
 - **core**（基础 + 输入法核心）〔必选基座〕
   - SDK 初始化、License 授权与能力管理、输入法内核与宿主桥接。所有其他模块的运行基座，必选。
-  - artifact：`com.paopaoime.oem:oem-ime-sdk-core:1.0.0.20261012`
-  - artifact：`com.paopaoime.oem:oem-ime-host-bridge:1.0.0.20261012`
-  - artifact：`org.fcitx.fcitx5.android:app:1.13`
-  - artifact：`org.fcitx.fcitx5.android.lib:common:1.0`
-  - artifact：`org.fcitx.fcitx5.android.lib:fcitx5:1.0`
-  - artifact：`org.fcitx.fcitx5.android.lib:fcitx5-chinese-addons:1.0`
-  - artifact：`org.fcitx.fcitx5.android.lib:fcitx5-lua:1.0`
-  - artifact：`org.fcitx.fcitx5.android.lib:libime:1.0`
+  - artifact：`com.paopaoime.oem:oem-ime-sdk-core:1.0.0.20261125`
+  - artifact：`com.paopaoime.oem:oem-ime-host-bridge:1.0.0.20261125`
+  - artifact：`org.fcitx.fcitx5.android:app:1.14`
+  - artifact：`org.fcitx.fcitx5.android.lib:common:1.1`
+  - artifact：`org.fcitx.fcitx5.android.lib:fcitx5:1.1`
+  - artifact：`org.fcitx.fcitx5.android.lib:fcitx5-chinese-addons:1.1`
+  - artifact：`org.fcitx.fcitx5.android.lib:fcitx5-lua:1.1`
+  - artifact：`org.fcitx.fcitx5.android.lib:libime:1.1`
 - **voice**（离线语音）　依赖：core
   - 可选独立语音 SDK，包含工具栏/面板、三档模型管理及 sherpa-onnx 框架。集成后默认开启；未勾选不加入语音框架和功能。模型权重按需下载。
-  - artifact：`com.paopaoime.oem:oem-ime-sdk-voice:1.0.0.20261012`
+  - artifact：`com.paopaoime.oem:oem-ime-sdk-voice:1.0.0.20261125`
   - artifact：`com.paopaoime.oem.internal:sherpa-onnx:1.13.8`
 - **ai**（AI 回复）　依赖：core
   - 键盘内 AI 回复、企业质检会话与 AI 运行时，含 OCR 能力。未集成自动化（automation）模块时自动降级为手动截屏（MediaProjection）方案。默认关闭，企业开通后启用。
-  - artifact：`com.paopaoime.oem:oem-ime-sdk-ai:1.0.0.20261012`
-  - artifact：`com.paopaoime.oem:oem-ime-sdk-ai-reply:1.0.0.20261012`
+  - artifact：`com.paopaoime.oem:oem-ime-sdk-ai:1.0.0.20261125`
+  - artifact：`com.paopaoime.oem:oem-ime-sdk-ai-reply:1.0.0.20261125`
   - artifact：`com.paopaoime.oem.internal:paddleocr4android:1.0.0`
 - **material**（素材库）　依赖：core, ai
   - 键盘工具栏素材库入口与素材中心（素材库面板内嵌 AI 沟通能力，依赖 AI 回复模块）。默认关闭，企业开通后启用。
-  - artifact：`com.paopaoime.oem:oem-ime-sdk-material:1.0.0.20261012`
+  - artifact：`com.paopaoime.oem:oem-ime-sdk-material:1.0.0.20261125`
 - **automation**（Stellar 自动化）　依赖：core
   - 基于 Stellar（Shizuku 深度定制）的高权限自动化执行链路，含 AIDL、客户端 API、Provider、UserService 与 Shizuku 兼容层，companion 为 stellar-manager。可选增强模块：AI 回复/素材库在未集成本模块时自动降级（手动截屏），不会报错。默认关闭，企业开通后启用。
-  - artifact：`com.paopaoime.oem:oem-ime-sdk-automation:1.0.0.20261012`
+  - artifact：`com.paopaoime.oem:oem-ime-sdk-automation:1.0.0.20261125`
   - artifact：`com.paopaoime.oem.internal.stellar:stellar-api:1.1`
   - artifact：`com.paopaoime.oem.internal.stellar:stellar-aidl:1.1`
   - artifact：`com.paopaoime.oem.internal.stellar:stellar-shared:1.1`
@@ -114,7 +122,7 @@ openai_model: ""
   - artifact：`com.paopaoime.oem.internal.stellar:stellar-shizuku-api:1.1`
 - **developer**（开发者）　依赖：core
   - 开发者调试入口（AI 模型配置、会话存档覆盖、调试存储），独立 AAR 交付，未集成时相关调试入口自动隐藏。默认关闭；集成/联调期可临时开启，正式交付保持关闭。
-  - artifact：`com.paopaoime.oem:oem-ime-sdk-developer:1.0.0.20261012`
+  - artifact：`com.paopaoime.oem:oem-ime-sdk-developer:1.0.0.20261125`
 
 ## 3. SDK 获取（ECS 模块直链）
 
@@ -130,63 +138,63 @@ https://paopaoime.com/oem/sdk-repo
 
 **core（基础 + 输入法核心）**
 
-- `com.paopaoime.oem:oem-ime-sdk-core:1.0.0.20261012`
-  - aar：https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-core/1.0.0.20261012/oem-ime-sdk-core-1.0.0.20261012.aar
-  - pom：https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-core/1.0.0.20261012/oem-ime-sdk-core-1.0.0.20261012.pom
-- `com.paopaoime.oem:oem-ime-host-bridge:1.0.0.20261012`
-  - aar：https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-host-bridge/1.0.0.20261012/oem-ime-host-bridge-1.0.0.20261012.aar
-  - pom：https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-host-bridge/1.0.0.20261012/oem-ime-host-bridge-1.0.0.20261012.pom
-- `org.fcitx.fcitx5.android:app:1.13`
-  - aar：https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/app/1.13/app-1.13.aar
-  - pom：https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/app/1.13/app-1.13.pom
-- `org.fcitx.fcitx5.android.lib:common:1.0`
-  - aar：https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/lib/common/1.0/common-1.0.aar
-  - pom：https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/lib/common/1.0/common-1.0.pom
-- `org.fcitx.fcitx5.android.lib:fcitx5:1.0`
-  - aar：https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/lib/fcitx5/1.0/fcitx5-1.0.aar
-  - pom：https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/lib/fcitx5/1.0/fcitx5-1.0.pom
-- `org.fcitx.fcitx5.android.lib:fcitx5-chinese-addons:1.0`
-  - aar：https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/lib/fcitx5-chinese-addons/1.0/fcitx5-chinese-addons-1.0.aar
-  - pom：https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/lib/fcitx5-chinese-addons/1.0/fcitx5-chinese-addons-1.0.pom
-- `org.fcitx.fcitx5.android.lib:fcitx5-lua:1.0`
-  - aar：https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/lib/fcitx5-lua/1.0/fcitx5-lua-1.0.aar
-  - pom：https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/lib/fcitx5-lua/1.0/fcitx5-lua-1.0.pom
-- `org.fcitx.fcitx5.android.lib:libime:1.0`
-  - aar：https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/lib/libime/1.0/libime-1.0.aar
-  - pom：https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/lib/libime/1.0/libime-1.0.pom
+- `com.paopaoime.oem:oem-ime-sdk-core:1.0.0.20261125`
+  - aar：https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-core/1.0.0.20261125/oem-ime-sdk-core-1.0.0.20261125.aar
+  - pom：https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-core/1.0.0.20261125/oem-ime-sdk-core-1.0.0.20261125.pom
+- `com.paopaoime.oem:oem-ime-host-bridge:1.0.0.20261125`
+  - aar：https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-host-bridge/1.0.0.20261125/oem-ime-host-bridge-1.0.0.20261125.aar
+  - pom：https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-host-bridge/1.0.0.20261125/oem-ime-host-bridge-1.0.0.20261125.pom
+- `org.fcitx.fcitx5.android:app:1.14`
+  - aar：https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/app/1.14/app-1.14.aar
+  - pom：https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/app/1.14/app-1.14.pom
+- `org.fcitx.fcitx5.android.lib:common:1.1`
+  - aar：https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/lib/common/1.1/common-1.1.aar
+  - pom：https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/lib/common/1.1/common-1.1.pom
+- `org.fcitx.fcitx5.android.lib:fcitx5:1.1`
+  - aar：https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/lib/fcitx5/1.1/fcitx5-1.1.aar
+  - pom：https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/lib/fcitx5/1.1/fcitx5-1.1.pom
+- `org.fcitx.fcitx5.android.lib:fcitx5-chinese-addons:1.1`
+  - aar：https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/lib/fcitx5-chinese-addons/1.1/fcitx5-chinese-addons-1.1.aar
+  - pom：https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/lib/fcitx5-chinese-addons/1.1/fcitx5-chinese-addons-1.1.pom
+- `org.fcitx.fcitx5.android.lib:fcitx5-lua:1.1`
+  - aar：https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/lib/fcitx5-lua/1.1/fcitx5-lua-1.1.aar
+  - pom：https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/lib/fcitx5-lua/1.1/fcitx5-lua-1.1.pom
+- `org.fcitx.fcitx5.android.lib:libime:1.1`
+  - aar：https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/lib/libime/1.1/libime-1.1.aar
+  - pom：https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/lib/libime/1.1/libime-1.1.pom
 
 **voice（离线语音）**
 
-- `com.paopaoime.oem:oem-ime-sdk-voice:1.0.0.20261012`
-  - aar：https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-voice/1.0.0.20261012/oem-ime-sdk-voice-1.0.0.20261012.aar
-  - pom：https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-voice/1.0.0.20261012/oem-ime-sdk-voice-1.0.0.20261012.pom
+- `com.paopaoime.oem:oem-ime-sdk-voice:1.0.0.20261125`
+  - aar：https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-voice/1.0.0.20261125/oem-ime-sdk-voice-1.0.0.20261125.aar
+  - pom：https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-voice/1.0.0.20261125/oem-ime-sdk-voice-1.0.0.20261125.pom
 - `com.paopaoime.oem.internal:sherpa-onnx:1.13.8`
   - aar：https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/internal/sherpa-onnx/1.13.8/sherpa-onnx-1.13.8.aar
   - pom：https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/internal/sherpa-onnx/1.13.8/sherpa-onnx-1.13.8.pom
 
 **ai（AI 回复）**
 
-- `com.paopaoime.oem:oem-ime-sdk-ai:1.0.0.20261012`
-  - aar：https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-ai/1.0.0.20261012/oem-ime-sdk-ai-1.0.0.20261012.aar
-  - pom：https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-ai/1.0.0.20261012/oem-ime-sdk-ai-1.0.0.20261012.pom
-- `com.paopaoime.oem:oem-ime-sdk-ai-reply:1.0.0.20261012`
-  - aar：https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-ai-reply/1.0.0.20261012/oem-ime-sdk-ai-reply-1.0.0.20261012.aar
-  - pom：https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-ai-reply/1.0.0.20261012/oem-ime-sdk-ai-reply-1.0.0.20261012.pom
+- `com.paopaoime.oem:oem-ime-sdk-ai:1.0.0.20261125`
+  - aar：https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-ai/1.0.0.20261125/oem-ime-sdk-ai-1.0.0.20261125.aar
+  - pom：https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-ai/1.0.0.20261125/oem-ime-sdk-ai-1.0.0.20261125.pom
+- `com.paopaoime.oem:oem-ime-sdk-ai-reply:1.0.0.20261125`
+  - aar：https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-ai-reply/1.0.0.20261125/oem-ime-sdk-ai-reply-1.0.0.20261125.aar
+  - pom：https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-ai-reply/1.0.0.20261125/oem-ime-sdk-ai-reply-1.0.0.20261125.pom
 - `com.paopaoime.oem.internal:paddleocr4android:1.0.0`
   - aar：https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/internal/paddleocr4android/1.0.0/paddleocr4android-1.0.0.aar
   - pom：https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/internal/paddleocr4android/1.0.0/paddleocr4android-1.0.0.pom
 
 **material（素材库）**
 
-- `com.paopaoime.oem:oem-ime-sdk-material:1.0.0.20261012`
-  - aar：https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-material/1.0.0.20261012/oem-ime-sdk-material-1.0.0.20261012.aar
-  - pom：https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-material/1.0.0.20261012/oem-ime-sdk-material-1.0.0.20261012.pom
+- `com.paopaoime.oem:oem-ime-sdk-material:1.0.0.20261125`
+  - aar：https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-material/1.0.0.20261125/oem-ime-sdk-material-1.0.0.20261125.aar
+  - pom：https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-material/1.0.0.20261125/oem-ime-sdk-material-1.0.0.20261125.pom
 
 **automation（Stellar 自动化）**
 
-- `com.paopaoime.oem:oem-ime-sdk-automation:1.0.0.20261012`
-  - aar：https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-automation/1.0.0.20261012/oem-ime-sdk-automation-1.0.0.20261012.aar
-  - pom：https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-automation/1.0.0.20261012/oem-ime-sdk-automation-1.0.0.20261012.pom
+- `com.paopaoime.oem:oem-ime-sdk-automation:1.0.0.20261125`
+  - aar：https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-automation/1.0.0.20261125/oem-ime-sdk-automation-1.0.0.20261125.aar
+  - pom：https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-automation/1.0.0.20261125/oem-ime-sdk-automation-1.0.0.20261125.pom
 - `com.paopaoime.oem.internal.stellar:stellar-api:1.1`
   - aar：https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/internal/stellar/stellar-api/1.1/stellar-api-1.1.aar
   - pom：https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/internal/stellar/stellar-api/1.1/stellar-api-1.1.pom
@@ -214,9 +222,9 @@ https://paopaoime.com/oem/sdk-repo
 
 **developer（开发者）**
 
-- `com.paopaoime.oem:oem-ime-sdk-developer:1.0.0.20261012`
-  - aar：https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-developer/1.0.0.20261012/oem-ime-sdk-developer-1.0.0.20261012.aar
-  - pom：https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-developer/1.0.0.20261012/oem-ime-sdk-developer-1.0.0.20261012.pom
+- `com.paopaoime.oem:oem-ime-sdk-developer:1.0.0.20261125`
+  - aar：https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-developer/1.0.0.20261125/oem-ime-sdk-developer-1.0.0.20261125.aar
+  - pom：https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-developer/1.0.0.20261125/oem-ime-sdk-developer-1.0.0.20261125.pom
 
 ### 3.3 离线镜像（构建环境无法访问公网时选用）
 
@@ -225,21 +233,21 @@ https://paopaoime.com/oem/sdk-repo
 ```powershell
 $repo = "https://paopaoime.com/oem/sdk-repo"
 $urls = @(
-    "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-core/1.0.0.20261012/oem-ime-sdk-core-1.0.0.20261012.aar", "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-core/1.0.0.20261012/oem-ime-sdk-core-1.0.0.20261012.pom",
-    "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-host-bridge/1.0.0.20261012/oem-ime-host-bridge-1.0.0.20261012.aar", "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-host-bridge/1.0.0.20261012/oem-ime-host-bridge-1.0.0.20261012.pom",
-    "https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/app/1.13/app-1.13.aar", "https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/app/1.13/app-1.13.pom",
-    "https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/lib/common/1.0/common-1.0.aar", "https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/lib/common/1.0/common-1.0.pom",
-    "https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/lib/fcitx5/1.0/fcitx5-1.0.aar", "https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/lib/fcitx5/1.0/fcitx5-1.0.pom",
-    "https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/lib/fcitx5-chinese-addons/1.0/fcitx5-chinese-addons-1.0.aar", "https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/lib/fcitx5-chinese-addons/1.0/fcitx5-chinese-addons-1.0.pom",
-    "https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/lib/fcitx5-lua/1.0/fcitx5-lua-1.0.aar", "https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/lib/fcitx5-lua/1.0/fcitx5-lua-1.0.pom",
-    "https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/lib/libime/1.0/libime-1.0.aar", "https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/lib/libime/1.0/libime-1.0.pom",
-    "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-voice/1.0.0.20261012/oem-ime-sdk-voice-1.0.0.20261012.aar", "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-voice/1.0.0.20261012/oem-ime-sdk-voice-1.0.0.20261012.pom",
+    "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-core/1.0.0.20261125/oem-ime-sdk-core-1.0.0.20261125.aar", "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-core/1.0.0.20261125/oem-ime-sdk-core-1.0.0.20261125.pom",
+    "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-host-bridge/1.0.0.20261125/oem-ime-host-bridge-1.0.0.20261125.aar", "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-host-bridge/1.0.0.20261125/oem-ime-host-bridge-1.0.0.20261125.pom",
+    "https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/app/1.14/app-1.14.aar", "https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/app/1.14/app-1.14.pom",
+    "https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/lib/common/1.1/common-1.1.aar", "https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/lib/common/1.1/common-1.1.pom",
+    "https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/lib/fcitx5/1.1/fcitx5-1.1.aar", "https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/lib/fcitx5/1.1/fcitx5-1.1.pom",
+    "https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/lib/fcitx5-chinese-addons/1.1/fcitx5-chinese-addons-1.1.aar", "https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/lib/fcitx5-chinese-addons/1.1/fcitx5-chinese-addons-1.1.pom",
+    "https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/lib/fcitx5-lua/1.1/fcitx5-lua-1.1.aar", "https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/lib/fcitx5-lua/1.1/fcitx5-lua-1.1.pom",
+    "https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/lib/libime/1.1/libime-1.1.aar", "https://paopaoime.com/oem/sdk-repo/org/fcitx/fcitx5/android/lib/libime/1.1/libime-1.1.pom",
+    "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-voice/1.0.0.20261125/oem-ime-sdk-voice-1.0.0.20261125.aar", "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-voice/1.0.0.20261125/oem-ime-sdk-voice-1.0.0.20261125.pom",
     "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/internal/sherpa-onnx/1.13.8/sherpa-onnx-1.13.8.aar", "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/internal/sherpa-onnx/1.13.8/sherpa-onnx-1.13.8.pom",
-    "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-ai/1.0.0.20261012/oem-ime-sdk-ai-1.0.0.20261012.aar", "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-ai/1.0.0.20261012/oem-ime-sdk-ai-1.0.0.20261012.pom",
-    "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-ai-reply/1.0.0.20261012/oem-ime-sdk-ai-reply-1.0.0.20261012.aar", "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-ai-reply/1.0.0.20261012/oem-ime-sdk-ai-reply-1.0.0.20261012.pom",
+    "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-ai/1.0.0.20261125/oem-ime-sdk-ai-1.0.0.20261125.aar", "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-ai/1.0.0.20261125/oem-ime-sdk-ai-1.0.0.20261125.pom",
+    "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-ai-reply/1.0.0.20261125/oem-ime-sdk-ai-reply-1.0.0.20261125.aar", "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-ai-reply/1.0.0.20261125/oem-ime-sdk-ai-reply-1.0.0.20261125.pom",
     "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/internal/paddleocr4android/1.0.0/paddleocr4android-1.0.0.aar", "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/internal/paddleocr4android/1.0.0/paddleocr4android-1.0.0.pom",
-    "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-material/1.0.0.20261012/oem-ime-sdk-material-1.0.0.20261012.aar", "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-material/1.0.0.20261012/oem-ime-sdk-material-1.0.0.20261012.pom",
-    "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-automation/1.0.0.20261012/oem-ime-sdk-automation-1.0.0.20261012.aar", "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-automation/1.0.0.20261012/oem-ime-sdk-automation-1.0.0.20261012.pom",
+    "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-material/1.0.0.20261125/oem-ime-sdk-material-1.0.0.20261125.aar", "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-material/1.0.0.20261125/oem-ime-sdk-material-1.0.0.20261125.pom",
+    "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-automation/1.0.0.20261125/oem-ime-sdk-automation-1.0.0.20261125.aar", "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-automation/1.0.0.20261125/oem-ime-sdk-automation-1.0.0.20261125.pom",
     "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/internal/stellar/stellar-api/1.1/stellar-api-1.1.aar", "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/internal/stellar/stellar-api/1.1/stellar-api-1.1.pom",
     "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/internal/stellar/stellar-aidl/1.1/stellar-aidl-1.1.aar", "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/internal/stellar/stellar-aidl/1.1/stellar-aidl-1.1.pom",
     "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/internal/stellar/stellar-shared/1.1/stellar-shared-1.1.aar", "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/internal/stellar/stellar-shared/1.1/stellar-shared-1.1.pom",
@@ -248,7 +256,7 @@ $urls = @(
     "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/internal/stellar/stellar-server/1.1/stellar-server-1.1.aar", "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/internal/stellar/stellar-server/1.1/stellar-server-1.1.pom",
     "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/internal/stellar/stellar-manager/1.1/stellar-manager-1.1.aar", "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/internal/stellar/stellar-manager/1.1/stellar-manager-1.1.pom",
     "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/internal/stellar/stellar-shizuku-api/1.1/stellar-shizuku-api-1.1.aar", "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/internal/stellar/stellar-shizuku-api/1.1/stellar-shizuku-api-1.1.pom",
-    "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-developer/1.0.0.20261012/oem-ime-sdk-developer-1.0.0.20261012.aar", "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-developer/1.0.0.20261012/oem-ime-sdk-developer-1.0.0.20261012.pom"
+    "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-developer/1.0.0.20261125/oem-ime-sdk-developer-1.0.0.20261125.aar", "https://paopaoime.com/oem/sdk-repo/com/paopaoime/oem/oem-ime-sdk-developer/1.0.0.20261125/oem-ime-sdk-developer-1.0.0.20261125.pom"
 )
 foreach ($u in $urls) {
     $rel = $u.Replace("$repo/", "").Replace("/", "\")
@@ -367,25 +375,25 @@ plugins {
 ```kotlin
 dependencies {
     // core · 基础 + 输入法核心
-    implementation("com.paopaoime.oem:oem-ime-sdk-core:1.0.0.20261012")
-    implementation("com.paopaoime.oem:oem-ime-host-bridge:1.0.0.20261012")
-    implementation("org.fcitx.fcitx5.android:app:1.13")
-    implementation("org.fcitx.fcitx5.android.lib:common:1.0")
-    implementation("org.fcitx.fcitx5.android.lib:fcitx5:1.0")
-    implementation("org.fcitx.fcitx5.android.lib:fcitx5-chinese-addons:1.0")
-    implementation("org.fcitx.fcitx5.android.lib:fcitx5-lua:1.0")
-    implementation("org.fcitx.fcitx5.android.lib:libime:1.0")
+    implementation("com.paopaoime.oem:oem-ime-sdk-core:1.0.0.20261125")
+    implementation("com.paopaoime.oem:oem-ime-host-bridge:1.0.0.20261125")
+    implementation("org.fcitx.fcitx5.android:app:1.14")
+    implementation("org.fcitx.fcitx5.android.lib:common:1.1")
+    implementation("org.fcitx.fcitx5.android.lib:fcitx5:1.1")
+    implementation("org.fcitx.fcitx5.android.lib:fcitx5-chinese-addons:1.1")
+    implementation("org.fcitx.fcitx5.android.lib:fcitx5-lua:1.1")
+    implementation("org.fcitx.fcitx5.android.lib:libime:1.1")
     // voice · 离线语音
-    implementation("com.paopaoime.oem:oem-ime-sdk-voice:1.0.0.20261012")
+    implementation("com.paopaoime.oem:oem-ime-sdk-voice:1.0.0.20261125")
     implementation("com.paopaoime.oem.internal:sherpa-onnx:1.13.8")
     // ai · AI 回复
-    implementation("com.paopaoime.oem:oem-ime-sdk-ai:1.0.0.20261012")
-    implementation("com.paopaoime.oem:oem-ime-sdk-ai-reply:1.0.0.20261012")
+    implementation("com.paopaoime.oem:oem-ime-sdk-ai:1.0.0.20261125")
+    implementation("com.paopaoime.oem:oem-ime-sdk-ai-reply:1.0.0.20261125")
     implementation("com.paopaoime.oem.internal:paddleocr4android:1.0.0")
     // material · 素材库
-    implementation("com.paopaoime.oem:oem-ime-sdk-material:1.0.0.20261012")
+    implementation("com.paopaoime.oem:oem-ime-sdk-material:1.0.0.20261125")
     // automation · Stellar 自动化
-    implementation("com.paopaoime.oem:oem-ime-sdk-automation:1.0.0.20261012")
+    implementation("com.paopaoime.oem:oem-ime-sdk-automation:1.0.0.20261125")
     implementation("com.paopaoime.oem.internal.stellar:stellar-api:1.1")
     implementation("com.paopaoime.oem.internal.stellar:stellar-aidl:1.1")
     implementation("com.paopaoime.oem.internal.stellar:stellar-shared:1.1")
@@ -395,7 +403,7 @@ dependencies {
     implementation("com.paopaoime.oem.internal.stellar:stellar-manager:1.1")
     implementation("com.paopaoime.oem.internal.stellar:stellar-shizuku-api:1.1")
     // developer · 开发者
-    implementation("com.paopaoime.oem:oem-ime-sdk-developer:1.0.0.20261012")
+    implementation("com.paopaoime.oem:oem-ime-sdk-developer:1.0.0.20261125")
     // kotlin-stdlib 下限（SpillingKt 需 ≥2.1.0）；Gradle 自然取最高版本，严禁 force 降级
     implementation("org.jetbrains.kotlin:kotlin-stdlib:2.3.21")
     // SDK 页面基于 AppCompat；core POM 不传递 appcompat，宿主必须显式声明
@@ -405,9 +413,9 @@ dependencies {
 
 必须理解：
 - `oem-ime-host-bridge` 负责 OEM 宿主桥接；
-- `org.fcitx.fcitx5.android:app:1.13` 必须显式加入（core 闭包已含），宿主 Application 需直接继承 `FcitxApplication`，缺它会在输入法服务启动时崩溃。
-- `org.fcitx.fcitx5.android:app:1.13` 当前必须解析到官方仓 `https://paopaoime.com/oem/sdk-repo` 的最新制品，禁止混用历史本地 Maven 仓、私有镜像仓或旧缓存中的同坐标旧包；若命中旧二进制，输入法服务启动会报 `NoSuchMethodError`（典型符号：`FavoriteBridge.bindHostShare` / `bindHostInputRestorePolicy` / `FavoriteHostInputRestorePolicy`）。
-- 上述 `NoSuchMethodError` 的临时止血方案：删除本地 Maven 仓与 Gradle 缓存中当前 `org/fcitx/fcitx5/android/app/1.7` 相关条目后重新构建，并用 `./gradlew app:dependencyInsight --dependency org.fcitx.fcitx5.android:app` 确认最终解析路径指向官方仓。
+- 宿主桥通过 POM 引入 `org.fcitx.fcitx5.android:app:1.14`。宿主 Application 直接继承 `FcitxApplication`。
+- 使用官网 Maven 仓或同版 SDK ZIP。用 `./gradlew app:dependencyInsight --dependency org.fcitx.fcitx5.android:app` 核对最终版本。
+- Release/R8 保留运行时 AAR 提供的 ONNX JNI consumer rules，实际执行一次断网手写推理。
 - `stellar-shizuku-aidl` 禁止显式加入：其 `moe.shizuku.server` 类由 fcitx 官方传递依赖 `dev.rikka.shizuku:aidl` 在运行时提供（与主工程一致）；显式加入 vendored 副本会产生 duplicate class（`IShizukuService` 等）导致构建失败。依赖块以本节模板为准，不得自行补充 stellar 其它构件。
 - kotlin-stdlib 版本红线（强制）：禁止对 `org.jetbrains.kotlin:kotlin-stdlib` 使用 `resolutionStrategy.force`、BOM 钉版或任何降级手段；SDK 协程状态机引用 `kotlin.coroutines.jvm.internal.SpillingKt`（Kotlin 2.1.0 新增），stdlib 解析结果必须 ≥2.1.0。Gradle 默认取最高版本（fcitx POM 声明 2.3.21），无需任何干预；若出现 stdlib 版本冲突告警，靠自然最高版本胜出解决，严禁 force 到 2.1.0 以下（如 2.0.21），否则安装后 IME 服务与 App 启动运行时崩溃 `NoClassDefFoundError: SpillingKt`。
 
@@ -1380,8 +1388,8 @@ adb shell ime set <host_application_id>/com.paopaoime.aikeyboard.ime.service.AiI
 ## 16. 必须检查项
 
 - [ ] settings.gradle 已加 ECS Maven 仓（或离线镜像）与 jitpack，plugins 块未包含 org.jetbrains.kotlin.android
-- [ ] app 依赖已含 `oem-ime-host-bridge` 与 `org.fcitx.fcitx5.android:app:1.13`
-- [ ] `org.fcitx.fcitx5.android:app:1.13` 的最终解析结果来自 `https://paopaoime.com/oem/sdk-repo`，不是历史本地仓 / 私有镜像 / 旧缓存
+- [ ] App 依赖含宿主桥，并解析至 `org.fcitx.fcitx5.android:app:1.14`。
+- [ ] 运行时来自官网 Maven 仓或同版 SDK ZIP。
 - [ ] `packaging.jniLibs.useLegacyPackaging = true` 已写入，白名单未扩大
 - [ ] Manifest 必填 meta 已写入，`tools:replace` 时根节点已声明 xmlns:tools；选购 ai/material 时 `enableUi=true`
 - [ ] 宿主 strings.xml 已覆盖 `oem_ime_display_name`（输入法显示名）
@@ -1400,8 +1408,8 @@ adb shell ime set <host_application_id>/com.paopaoime.aikeyboard.ime.service.AiI
 1. 依赖找不到：核对 §3 直链是否 200；确认 settings.gradle 仓库地址拼写；jitpack 是否已加。
 1.1. 首次联网、Java toolchain、wrapper 镜像或 Gradle 缓存失败：按 §4.1 分类处理。每次修复后重跑相同失败任务，再继续完整 assembleRelease；文档若缺步骤，先更新文档再用最新官网下载副本复验。
 2. 启动即闪退：检查 HostApp 是否继承 FcitxApplication、是否先 `OemHostRuntime.initialize(this, true)`。
-3. 切换输入法后闪退：检查是否显式依赖 `org.fcitx.fcitx5.android:app:1.13`（报 `FcitxApplication has not been created!` 即此因）。
-3.1. 启动即崩溃并报 `NoSuchMethodError: FavoriteBridge.bindHostShare` / `bindHostInputRestorePolicy`：当前解析到的是旧的 `org.fcitx.fcitx5.android:app:1.13` 之前的历史二进制。处理顺序：① 删除本地 Maven 仓与 Gradle 缓存中旧版 `org/fcitx/fcitx5/android/app` 目录；② 删除对应 transforms 缓存；③ 重新构建；④ 用 `./gradlew app:dependencyInsight --dependency org.fcitx.fcitx5.android:app` 确认实际解析来源是 `https://paopaoime.com/oem/sdk-repo`。
+3. 切换输入法后闪退时，检查宿主 Application 是否继承 `FcitxApplication`，并确认解析版本为 `org.fcitx.fcitx5.android:app:1.14`。
+3.1. 出现 `NoSuchMethodError` 时，检查本地 Maven 镜像是否混用了旧版运行时，使用同版 SDK 制品重新构建。
 4. 进首页后 native 闪退：检查 `useLegacyPackaging = true` 与 extractNativeLibs。
 5. direct/dual 无回复：补全 `aiOpenAiBaseUrl/aiOpenAiApiKey/aiOpenAiModel` 三项。
 6. 无法访问 sdk_repo_url：改用 §3.3 离线镜像方案。

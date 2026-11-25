@@ -1,0 +1,239 @@
+__build_info:
+  rime_version: 1.17.0
+  timestamps:
+    default: 1704067200
+    default.custom: 0
+    paopao_frost_pinyin14.custom: 0
+    paopao_frost_pinyin14.schema: 1704067200
+engine:
+  filters:
+    - simplifier
+    - uniquifier
+  processors:
+    - ascii_composer
+    - recognizer
+    - key_binder
+    - speller
+    - punctuator
+    - selector
+    - navigator
+    - express_editor
+  segmentors:
+    - ascii_segmentor
+    - matcher
+    - abc_segmentor
+    - punct_segmentor
+    - fallback_segmentor
+  translators:
+    - punct_translator
+    - script_translator
+key_binder:
+  bindings:
+    - {accept: "Shift+Tab", send: "Shift+Left", when: composing}
+    - {accept: Tab, send: "Shift+Right", when: composing}
+    - {accept: "Alt+Left", send: "Shift+Left", when: composing}
+    - {accept: "Alt+Right", send: "Shift+Right", when: composing}
+    - {accept: minus, send: Page_Up, when: has_menu}
+    - {accept: equal, send: Page_Down, when: has_menu}
+    - {accept: "Control+Shift+3", toggle: ascii_punct, when: always}
+    - {accept: "Control+Shift+numbersign", toggle: ascii_punct, when: always}
+    - {accept: "Control+Shift+4", toggle: traditionalization, when: always}
+    - {accept: "Control+Shift+dollar", toggle: traditionalization, when: always}
+    - {accept: KP_0, send: 0, when: composing}
+    - {accept: KP_1, send: 1, when: composing}
+    - {accept: KP_2, send: 2, when: composing}
+    - {accept: KP_3, send: 3, when: composing}
+    - {accept: KP_4, send: 4, when: composing}
+    - {accept: KP_5, send: 5, when: composing}
+    - {accept: KP_6, send: 6, when: composing}
+    - {accept: KP_7, send: 7, when: composing}
+    - {accept: KP_8, send: 8, when: composing}
+    - {accept: KP_9, send: 9, when: composing}
+    - {accept: KP_Decimal, send: period, when: composing}
+    - {accept: KP_Multiply, send: asterisk, when: composing}
+    - {accept: KP_Add, send: plus, when: composing}
+    - {accept: KP_Subtract, send: minus, when: composing}
+    - {accept: KP_Divide, send: slash, when: composing}
+    - {accept: KP_Enter, send: Return, when: composing}
+  import_preset: default
+  select_first_character: bracketleft
+  select_last_character: bracketright
+menu:
+  page_size: 24
+navigator:
+  bindings:
+    Left: left_by_char_no_loop
+    Right: right_by_char_no_loop
+    "Shift+Left": left_by_syllable
+    "Shift+Right": right_by_syllable
+paopao_resource_version: "frost-1f1ea5d40ebb8b6e9236af081faf359e7fb8381b2ccb87dc1e08a0f838a663ec"
+punctuator:
+  digit_separators: ",.:"
+  full_shape:
+    " ": {commit: "　"}
+    "!": {commit: "！"}
+    "\"": {pair: ["“", "”"]}
+    "#": ["＃", "⌘"]
+    "$": ["￥", "$", "€", "£", "¥", "¢", "¤"]
+    "%": ["％", "°", "℃"]
+    "&": "＆"
+    "'": {pair: ["‘", "’"]}
+    "(": "（"
+    ")": "）"
+    "*": ["＊", "·", "・", "×", "※", "❂"]
+    "+": "＋"
+    ",": {commit: "，"}
+    "-": "－"
+    .: {commit: "。"}
+    "/": ["／", "÷"]
+    ":": {commit: "："}
+    ";": {commit: "；"}
+    "<": ["《", "〈", "«", "‹"]
+    "=": "＝"
+    ">": ["》", "〉", "»", "›"]
+    "?": {commit: "？"}
+    "@": ["＠", "☯"]
+    "[": ["「", "【", "〔", "［"]
+    "\\": ["、", "＼"]
+    "]": ["」", "】", "〕", "］"]
+    "^": {commit: "……"}
+    _: "——"
+    "`": "｀"
+    "{": ["『", "〖", "｛"]
+    "|": ["·", "｜", "§", "¦"]
+    "}": ["』", "〗", "｝"]
+    "~": "～"
+  half_shape:
+    "!": "！"
+    "\"": {pair: ["“", "”"]}
+    "#": "#"
+    "$": "¥"
+    "%": "%"
+    "&": "&"
+    "'": {pair: ["‘", "’"]}
+    "(": "（"
+    ")": "）"
+    "*": "*"
+    "+": "+"
+    ",": "，"
+    "-": "-"
+    .: "。"
+    "/": "/"
+    ":": "："
+    ";": "；"
+    "<": "《"
+    "=": "="
+    ">": "》"
+    "?": "？"
+    "@": "@"
+    "[": "【"
+    "\\": "、"
+    "]": "】"
+    "^": "……"
+    _: "——"
+    "`": "·"
+    "{": "「"
+    "|": "|"
+    "}": "」"
+    "~": "~"
+  import_preset: default
+schema:
+  name: "拼音14键"
+  schema_id: paopao_frost_pinyin14
+  version: "2026-11-09"
+simplifier:
+  opencc_config: s2t.json
+  option_name: traditionalization
+speller:
+  algebra:
+    - "erase/^[A-Z]$/"
+    - "abbrev/^([a-z]).+$/$1/"
+    - "abbrev/^([zcs]h).+$/$1/"
+    - "derive/^(.{0})[qw](.*)$/$1Q$2/"
+    - "derive/^(.{0})[er](.*)$/$1E$2/"
+    - "derive/^(.{0})[ty](.*)$/$1T$2/"
+    - "derive/^(.{0})[ui](.*)$/$1U$2/"
+    - "derive/^(.{0})[op](.*)$/$1O$2/"
+    - "derive/^(.{0})[as](.*)$/$1A$2/"
+    - "derive/^(.{0})[df](.*)$/$1D$2/"
+    - "derive/^(.{0})[gh](.*)$/$1G$2/"
+    - "derive/^(.{0})[jk](.*)$/$1J$2/"
+    - "derive/^(.{0})[zx](.*)$/$1Z$2/"
+    - "derive/^(.{0})[cv](.*)$/$1C$2/"
+    - "derive/^(.{0})[bn](.*)$/$1B$2/"
+    - "derive/^(.{1})[qw](.*)$/$1Q$2/"
+    - "derive/^(.{1})[er](.*)$/$1E$2/"
+    - "derive/^(.{1})[ty](.*)$/$1T$2/"
+    - "derive/^(.{1})[ui](.*)$/$1U$2/"
+    - "derive/^(.{1})[op](.*)$/$1O$2/"
+    - "derive/^(.{1})[as](.*)$/$1A$2/"
+    - "derive/^(.{1})[df](.*)$/$1D$2/"
+    - "derive/^(.{1})[gh](.*)$/$1G$2/"
+    - "derive/^(.{1})[jk](.*)$/$1J$2/"
+    - "derive/^(.{1})[zx](.*)$/$1Z$2/"
+    - "derive/^(.{1})[cv](.*)$/$1C$2/"
+    - "derive/^(.{1})[bn](.*)$/$1B$2/"
+    - "derive/^(.{2})[qw](.*)$/$1Q$2/"
+    - "derive/^(.{2})[er](.*)$/$1E$2/"
+    - "derive/^(.{2})[ty](.*)$/$1T$2/"
+    - "derive/^(.{2})[ui](.*)$/$1U$2/"
+    - "derive/^(.{2})[op](.*)$/$1O$2/"
+    - "derive/^(.{2})[as](.*)$/$1A$2/"
+    - "derive/^(.{2})[df](.*)$/$1D$2/"
+    - "derive/^(.{2})[gh](.*)$/$1G$2/"
+    - "derive/^(.{2})[jk](.*)$/$1J$2/"
+    - "derive/^(.{2})[zx](.*)$/$1Z$2/"
+    - "derive/^(.{2})[cv](.*)$/$1C$2/"
+    - "derive/^(.{2})[bn](.*)$/$1B$2/"
+    - "derive/^(.{3})[qw](.*)$/$1Q$2/"
+    - "derive/^(.{3})[er](.*)$/$1E$2/"
+    - "derive/^(.{3})[ty](.*)$/$1T$2/"
+    - "derive/^(.{3})[ui](.*)$/$1U$2/"
+    - "derive/^(.{3})[op](.*)$/$1O$2/"
+    - "derive/^(.{3})[as](.*)$/$1A$2/"
+    - "derive/^(.{3})[df](.*)$/$1D$2/"
+    - "derive/^(.{3})[gh](.*)$/$1G$2/"
+    - "derive/^(.{3})[jk](.*)$/$1J$2/"
+    - "derive/^(.{3})[zx](.*)$/$1Z$2/"
+    - "derive/^(.{3})[cv](.*)$/$1C$2/"
+    - "derive/^(.{3})[bn](.*)$/$1B$2/"
+    - "derive/^(.{4})[qw](.*)$/$1Q$2/"
+    - "derive/^(.{4})[er](.*)$/$1E$2/"
+    - "derive/^(.{4})[ty](.*)$/$1T$2/"
+    - "derive/^(.{4})[ui](.*)$/$1U$2/"
+    - "derive/^(.{4})[op](.*)$/$1O$2/"
+    - "derive/^(.{4})[as](.*)$/$1A$2/"
+    - "derive/^(.{4})[df](.*)$/$1D$2/"
+    - "derive/^(.{4})[gh](.*)$/$1G$2/"
+    - "derive/^(.{4})[jk](.*)$/$1J$2/"
+    - "derive/^(.{4})[zx](.*)$/$1Z$2/"
+    - "derive/^(.{4})[cv](.*)$/$1C$2/"
+    - "derive/^(.{4})[bn](.*)$/$1B$2/"
+    - "derive/^(.{5})[qw](.*)$/$1Q$2/"
+    - "derive/^(.{5})[er](.*)$/$1E$2/"
+    - "derive/^(.{5})[ty](.*)$/$1T$2/"
+    - "derive/^(.{5})[ui](.*)$/$1U$2/"
+    - "derive/^(.{5})[op](.*)$/$1O$2/"
+    - "derive/^(.{5})[as](.*)$/$1A$2/"
+    - "derive/^(.{5})[df](.*)$/$1D$2/"
+    - "derive/^(.{5})[gh](.*)$/$1G$2/"
+    - "derive/^(.{5})[jk](.*)$/$1J$2/"
+    - "derive/^(.{5})[zx](.*)$/$1Z$2/"
+    - "derive/^(.{5})[cv](.*)$/$1C$2/"
+    - "derive/^(.{5})[bn](.*)$/$1B$2/"
+  alphabet: abcdefghijklmnopqrstuvwxyzQETUOADGJZCB
+  delimiter: " '"
+switches:
+  - name: ascii_mode
+    reset: 0
+    states: ["中文", "西文"]
+  - name: traditionalization
+    states: ["简", "繁"]
+translator:
+  dictionary: paopao_frost
+  enable_completion: true
+  enable_sentence: true
+  enable_user_dict: true
+  prism: paopao_frost_pinyin14
+  spelling_hints: 10
+  user_dict: rime_ice

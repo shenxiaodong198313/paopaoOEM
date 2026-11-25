@@ -34,6 +34,9 @@
 #include <clipboard_public.h>
 
 #include <libime/pinyin/pinyindictionary.h>
+#include <libime/pinyin/pinyinime.h>
+#include <libime/pinyin/pinyincontext.h>
+#include <libime/core/userlanguagemodel.h>
 #include <libime/table/tablebaseddictionary.h>
 
 #include <boost/iostreams/device/file_descriptor.hpp>
@@ -213,6 +216,7 @@ public:
         if (!ic) return nullptr;
         auto *entry = p_instance->inputMethodEntry(ic);
         auto *engine = p_instance->inputMethodEngine(ic);
+        if (!entry || !engine) return nullptr;
         return std::make_unique<InputMethodStatus>(entry, engine, ic);
     }
 
@@ -1030,9 +1034,9 @@ Java_org_fcitx_fcitx5_android_core_Fcitx_setFcitxAddonState(JNIEnv *env, jclass 
     const auto enabled = env->GetBooleanArrayElements(state, nullptr);
     for (int i = 0; i < nameLength; i++) {
         auto jName = JRef<jstring>(env, env->GetObjectArrayElement(name, i));
-        map.insert({CString(env, jName), enabled[i]});
+        map.emplace(CString(env, jName), enabled[i]);
     }
-    env->ReleaseBooleanArrayElements(state, enabled, 0);
+    env->ReleaseBooleanArrayElements(state, enabled, JNI_ABORT);
     Fcitx::Instance().setAddonState(map);
 }
 
@@ -1348,3 +1352,16 @@ Java_org_fcitx_fcitx5_android_utils_Ini_writeAsIni(JNIEnv *env, jclass clazz, js
 }
 
 #pragma GCC diagnostic pop
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_org_fcitx_fcitx5_android_core_OfflinePinyinProbe_validate(JNIEnv *env, jclass, jstring directory) {
+    try {
+        auto path = CString(env, directory);
+        const std::string root = *path;
+        auto ime = std::make_unique<libime::PinyinIME>(std::make_unique<libime::PinyinDictionary>(),
+            std::make_unique<libime::UserLanguageModel>((root + "/zh_CN.lm").c_str()));
+        ime->dict()->load(libime::PinyinDictionary::SystemDict, (root + "/sc.dict").c_str(), libime::PinyinDictFormat::Binary);
+        libime::PinyinContext context(ime.get()); context.type("nihao");
+        return !context.candidates().empty() && context.candidates()[0].toString() == "你好";
+    } catch (...) { return false; }
+}

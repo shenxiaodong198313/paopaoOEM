@@ -6,6 +6,7 @@ package org.fcitx.fcitx5.android.input.keyboard
 
 import android.annotation.SuppressLint
 import android.content.Context
+import kotlin.math.roundToInt
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.view.View
@@ -39,7 +40,7 @@ private class T9DigitKey(
     ),
     arrayOf(
         Popup.AltPreview(letters, digit.toString()),
-        Popup.Keyboard(digit.toString())
+        Popup.Keyboard.Preset(digit.toString())
     )
 )
 
@@ -63,7 +64,7 @@ private class T9PunctuationKey(
     ),
     arrayOf(
         Popup.AltPreview(displayText, altText),
-        Popup.Keyboard(displayText)
+        Popup.Keyboard.Preset(displayText)
     )
 )
 
@@ -85,7 +86,7 @@ private class T9SegmentationKey(
     ),
     arrayOf(
         Popup.AltPreview("分词", "1"),
-        Popup.Keyboard("1")
+        Popup.Keyboard.Preset("1")
     )
 )
 
@@ -107,7 +108,7 @@ private class T9SpaceKey(
     ),
     arrayOf(
         Popup.AltPreview("拼音", "0"),
-        Popup.Keyboard("0")
+        Popup.Keyboard.Preset("0")
     )
 )
 
@@ -166,6 +167,11 @@ class T9Keyboard(
     theme: Theme
 ) : BaseKeyboard(context, theme, emptyList(), "t9") {
 
+    override val sidebarFace: View
+    private val sidebarColumn: View
+    private val firstNeighbor: KeyView
+    private val lastNeighbor: KeyView
+
     private val mode: ImageKeyView
     private val `return`: ImageKeyView
     private val sidebarSlots = mutableListOf<TextKeyView>()
@@ -188,7 +194,11 @@ class T9Keyboard(
         val rows = List(4) { anchorView() }
 
         columns.forEachIndexed { index, anchor ->
-            addView(anchor, columnAnchorLayoutParams(columns, index))
+            addView(anchor, columnAnchorLayoutParams(columns, index, custom?.renderStyle?.t9ColumnWidths ?: emptyList()))
+        }
+        val bottomWidths = custom?.renderStyle?.t9BottomRowWidths ?: emptyList()
+        val bottomColumns = if (bottomWidths.isEmpty()) columns else List(5) { anchorView() }.also { anchors ->
+            anchors.forEachIndexed { index, anchor -> addView(anchor, columnAnchorLayoutParams(anchors, index, bottomWidths)) }
         }
         rows.forEachIndexed { index, anchor ->
             addView(anchor, rowAnchorLayoutParams(rows, index))
@@ -196,13 +206,14 @@ class T9Keyboard(
 
         val punctuationStrip = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            background = custom?.takeIf { it.renderStyle?.unifiedSidebar == true }?.sidebarImage?.toDrawable(context) ?: GradientDrawable().apply {
+            background = sidebarArtwork(custom) ?: GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
                 cornerRadius = keyCornerRadius
                 setColor(theme.altKeyBackgroundColor)
             }
             setPadding(0, 0, 0, 0)
         }
+        val sidebarFraction = custom?.renderStyle?.t9SidebarContentFraction ?: 1f
         listOf("，", "。", "？", "！").forEachIndexed { index, symbol ->
             val slot = createKeyView(T9SidebarSlotKey(symbol), "sidebar:${index + 1}") as TextKeyView
             slot.setOnClickListener {
@@ -225,28 +236,25 @@ class T9Keyboard(
                 LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     0,
-                    1f
+                    sidebarFraction / 4f
                 )
             )
         }
+        if (sidebarFraction < 1f) punctuationStrip.addView(View(context),
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f - sidebarFraction))
         // Draw the shared cap against the same row anchors/insets as regular key faces.
         // Keep the existing symbol-slot container bounds, preserving its touch coordinates.
-        val visualH = if (custom?.renderStyle?.skinLabStandard == true) org.fcitx.fcitx5.android.data.theme.SkinLabStandard.gapX(context) / 2 else custom?.renderStyle?.keyVisualHorizontalInsetDp
-        val visualV = if (custom?.renderStyle?.skinLabStandard == true) org.fcitx.fcitx5.android.data.theme.SkinLabStandard.gapY(context) / 2 else custom?.renderStyle?.keyVisualVerticalInsetDp
-        if (custom?.renderStyle?.unifiedSidebar == true && visualH != null && visualV != null) {
-            val sidebarBackground = punctuationStrip.background
-            punctuationStrip.background = null
-            val surface = (custom.renderStyle?.ambientSidebarEffect?.let { SkinAmbientView(context, it) }
-                ?: View(context)).apply {
-                background = sidebarBackground
-                isClickable = false
-                isFocusable = false
-                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-            }
-            addCell(surface, columns[0], rows[0], rows[2],
-                kotlin.math.round(dp(visualH.coerceIn(0f, 24f))).toInt(),
-                kotlin.math.round(dp(visualV.coerceIn(0f, 24f))).toInt())
+        sidebarColumn = columns.first()
+        sidebarFace = (custom?.renderStyle?.ambientSidebarEffect?.let { SkinAmbientView(context, it) }
+            ?: View(context)).apply {
+            background = org.fcitx.fcitx5.android.data.theme.SkinInkFitDrawable(punctuationStrip.background)
+            isClickable = false
+            isFocusable = false
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         }
+        if (custom?.keyStateImages?.containsKey("t9/sidebar") == true) sidebarPressSurface = sidebarFace
+        punctuationStrip.background = null
+        addCell(sidebarFace, sidebarColumn, rows[0], rows[2])
         addCell(
             punctuationStrip,
             columns[0],
@@ -265,11 +273,12 @@ class T9Keyboard(
                     viewId = R.id.button_punctuation
                 ), "r4c1"
             ),
-            columns[0],
+            bottomColumns[0],
             rows[3]
         )
 
-        addCell(createKeyView(T9SegmentationKey(), "r1c2"), columns[1], rows[0])
+        firstNeighbor = createKeyView(T9SegmentationKey(), "r1c2")
+        addCell(firstNeighbor, columns[1], rows[0])
         addCell(createKeyView(T9DigitKey('2', "ABC"), "r1c3"), columns[2], rows[0])
         addCell(createKeyView(T9DigitKey('3', "DEF"), "r1c4"), columns[3], rows[0])
 
@@ -277,7 +286,8 @@ class T9Keyboard(
         addCell(sampleKey, columns[2], rows[1])
         addCell(createKeyView(T9DigitKey('6', "MNO"), "r2c4"), columns[3], rows[1])
 
-        addCell(createKeyView(T9DigitKey('7', "PQRS"), "r3c2"), columns[1], rows[2])
+        lastNeighbor = createKeyView(T9DigitKey('7', "PQRS"), "r3c2")
+        addCell(lastNeighbor, columns[1], rows[2])
         addCell(createKeyView(T9DigitKey('8', "TUV"), "r3c3"), columns[2], rows[2])
         addCell(createKeyView(T9DigitKey('9', "WXYZ"), "r3c4"), columns[3], rows[2])
 
@@ -288,8 +298,8 @@ class T9Keyboard(
                 viewId = R.id.button_lang
             ), "r4c2"
         ) as ImageKeyView
-        addCell(mode, columns[1], rows[3])
-        addCell(createKeyView(T9SpaceKey(), "r4c3"), columns[2], rows[3])
+        addCell(mode, bottomColumns[1], rows[3])
+        addCell(createKeyView(T9SpaceKey(), "r4c3"), bottomColumns[2], rows[3])
         addCell(
             createKeyView(
                 LayoutSwitchKey(
@@ -299,7 +309,7 @@ class T9Keyboard(
                     viewId = R.id.button_number_mode
                 ), "r4c4"
             ),
-            columns[3],
+            bottomColumns[3],
             rows[3]
         )
 
@@ -311,7 +321,17 @@ class T9Keyboard(
         addCell(createKeyView(T9ResetKey(percentWidth = 0.1f), "r2c5"), columns[4], rows[1])
         addCell(createKeyView(T9EmojiKey(), "r3c5"), columns[4], rows[2])
         `return` = createKeyView(ReturnKey(percentWidth = 0.1f), "r4c5") as ImageKeyView
-        addCell(`return`, columns[4], rows[3])
+        addCell(`return`, bottomColumns[4], rows[3])
+    }
+
+    override fun alignSharedFaces() {
+        val first = firstNeighbor.skinShadowBoundsIn(this)
+        val last = lastNeighbor.skinShadowBoundsIn(this)
+        if (first.isEmpty || last.isEmpty) return
+        // Use the adjacent row's side inset, including the configured cap scale.
+        val side = (first.left - firstNeighbor.left).roundToInt().coerceIn(0, sidebarColumn.width / 2)
+        sidebarFace.layout(sidebarColumn.left + side, first.top.roundToInt(),
+            sidebarColumn.right - side, last.bottom.roundToInt())
     }
 
     private fun anchorView(): View = View(context).apply {
@@ -321,12 +341,13 @@ class T9Keyboard(
 
     private fun columnAnchorLayoutParams(
         columns: List<View>,
-        index: Int
+        index: Int,
+        widths: List<Float> = emptyList()
     ): ConstraintLayout.LayoutParams =
         ConstraintLayout.LayoutParams(0, 0).apply {
             topToTop = ConstraintLayout.LayoutParams.PARENT_ID
             bottomToBottom = ConstraintLayout.LayoutParams.PARENT_ID
-            horizontalWeight = 1f
+            horizontalWeight = widths.getOrNull(index) ?: 1f
             if (index == 0) {
                 leftToLeft = ConstraintLayout.LayoutParams.PARENT_ID
                 horizontalChainStyle = ConstraintLayout.LayoutParams.CHAIN_SPREAD

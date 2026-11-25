@@ -84,7 +84,7 @@ dependencies {
     compileOnly project(':oem-ime-host-bridge')
 
     implementation project(':oem-ime-sdk-ai-reply')
-    implementation 'org.fcitx.fcitx5.android:app:1.8'
+    implementation "org.fcitx.fcitx5.android:app:${rootProject.ext.oemFcitxRuntimeVersion}"
 
     implementation "org.jetbrains.kotlin:kotlin-stdlib:${versions.kotlinStdlib}"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:${versions.coroutines}"

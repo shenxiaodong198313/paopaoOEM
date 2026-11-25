@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "org.fcitx.fcitx5.android.lib"
-version = "1.0"
+version = oemRuntimeProperty("oemFcitxNativeVersion")
 
 android {
     namespace = "org.fcitx.fcitx5.android.lib.fcitx5_lua"

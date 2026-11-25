@@ -31,11 +31,19 @@ class LabeledCandidateItemUi(
         val fg = if (active) theme.genericActiveForegroundColor else theme.candidateTextColor
         val altFg = if (active) theme.genericActiveForegroundColor else theme.candidateCommentColor
         root.text = buildSpannedString {
-            color(labelFg) { append(candidate.label) }
-            color(fg) { append(candidate.text) }
+            color(labelFg) {
+                append(candidate.label)
+            }
+            color(fg) {
+                append(candidate.text)
+            }
             if (candidate.comment.isNotBlank()) {
-                append(" ")
-                color(altFg) { append(candidate.comment) }
+                if (candidate.spaceBetweenComment) {
+                    append(" ")
+                }
+                color(altFg) {
+                    append(candidate.comment)
+                }
             }
         }
         val bg = if (active) theme.genericActiveBackgroundColor else Color.TRANSPARENT

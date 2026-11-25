@@ -1,6 +1,6 @@
 # 外部版 SDK 集成手册
 
-> 2026-10-12：新增自定义抽屉 entryHandler 和剪贴板 OemClipboardQuickReplyHandler，支持宿主完全接管入口：主线程回调、忽略返回值、异常静默，不收键盘或启动 SDK 页面。OEM 剪贴板去掉标题与叉号，按钮改“智能回复”，工具条加高 12 布局单位。未注册保持原 SDK 流程；八公开 SDK Release/R8，runtime app:1.13。 SDK `1.0.0.20261012`。
+> 2026-11-25 交付 SDK `1.0.0.20261125`。新增离线中文手写、按键动效和 30 款音效，白霜词库随包启用，雾凇和 Rime 按需下载。完善九宫格候选、词库切换与升级后资源恢复。输入法运行时更新至 app:1.14。
 
 本文档只说明第三方宿主如何集成 SDK，不展开介绍内部架构。
 
@@ -8,6 +8,7 @@
 
 | 日期 | SDK 版本 | 修改说明 |
 | --- | --- | --- |
+| 2026-11-25 | `1.0.0.20261125` | 新增离线中文手写、按键动效和 30 款音效，白霜词库随包启用，雾凇和 Rime 按需下载。完善九宫格候选、词库切换与升级后资源恢复。输入法运行时更新至 app:1.14。 |
 | 2026-10-12 | `1.0.0.20261012` | 新增自定义抽屉 entryHandler 和剪贴板 OemClipboardQuickReplyHandler，支持宿主完全接管入口：主线程回调、忽略返回值、异常静默，不收键盘或启动 SDK 页面。OEM 剪贴板去掉标题与叉号，按钮改“智能回复”，工具条加高 12 布局单位。未注册保持原 SDK 流程；八公开 SDK Release/R8，runtime app:1.13。 |
 | 2026-10-11 | `1.0.0.202610111` | 同一宿主复制后仅展示一次临时剪贴板和高情商回复；关闭、打字或离开宿主后不重现。快捷回复直接打开结果抽屉，选中仅回填草稿。复用客户 AI 回复模型配置，支持客户自绘内容及整块抽屉、状态回调和原文重试。八公开 SDK Release/R8，运行时 app:1.12。 |
 | 2026-10-11 | `1.0.0.20261011` | 复制文本不再自动替换工具栏，包含键盘显示中、重新唤起及旧设置为开启的场景；保留手动剪贴板、历史和粘贴。移除无效的工具栏剪贴板建议/超时设置。八个公开 SDK 全量重建并执行 Release/R8，输入法运行时升级至 app:1.11。 |
@@ -17,7 +18,7 @@
 
 ## 当前版本说明
 
-- 当前记录时间：`2026-10-12`
+- 当前记录时间为 `2026-11-25`
 - 当前交付包已经包含：输入法宿主桥接、AI 相关运行时、输入法资源运行时，以及可选的 `ADB自动化` 运行时
 - 当前版本已经完成：标准 SDK 压缩包导出、宿主接入步骤、自动化授权步骤、输入法候选词修复、自动化同包默认授权修复、宿主截图回调（OemScreenshotProvider）、滑屏宿主回调超时可配置
 - 当前构建要求：八个公开 `AAR` 执行 Release/R8；JNI 与公开兼容接口按既有规则保留，不将 R8 等同于所有代码均被重命名
@@ -31,18 +32,18 @@
 ```text
 oem-sdk-delivery/
   repo/
-    com/paopaoime/oem/oem-ime-sdk-ai/1.0.0.20261012/
-      oem-ime-sdk-ai-1.0.0.20261012.aar
-      oem-ime-sdk-ai-1.0.0.20261012.pom
-      oem-ime-sdk-ai-1.0.0.20261012.module
-    com/paopaoime/oem/oem-ime-sdk-core/1.0.0.20261012/
-      oem-ime-sdk-core-1.0.0.20261012.aar
-      oem-ime-sdk-core-1.0.0.20261012.pom
-      oem-ime-sdk-core-1.0.0.20261012.module
-    com/paopaoime/oem/oem-ime-host-bridge/1.0.0.20261012/
-      oem-ime-host-bridge-1.0.0.20261012.aar
-      oem-ime-host-bridge-1.0.0.20261012.pom
-      oem-ime-host-bridge-1.0.0.20261012.module
+    com/paopaoime/oem/oem-ime-sdk-ai/1.0.0.20261125/
+      oem-ime-sdk-ai-1.0.0.20261125.aar
+      oem-ime-sdk-ai-1.0.0.20261125.pom
+      oem-ime-sdk-ai-1.0.0.20261125.module
+    com/paopaoime/oem/oem-ime-sdk-core/1.0.0.20261125/
+      oem-ime-sdk-core-1.0.0.20261125.aar
+      oem-ime-sdk-core-1.0.0.20261125.pom
+      oem-ime-sdk-core-1.0.0.20261125.module
+    com/paopaoime/oem/oem-ime-host-bridge/1.0.0.20261125/
+      oem-ime-host-bridge-1.0.0.20261125.aar
+      oem-ime-host-bridge-1.0.0.20261125.pom
+      oem-ime-host-bridge-1.0.0.20261125.module
     internal/
       自动化引擎相关内部制品（已随包提供）
     org/fcitx/fcitx5/android/app/1.13/
@@ -80,7 +81,7 @@ dependencyResolutionManagement {
 
 ```gradle
 dependencies {
-    implementation "com.paopaoime.oem:oem-ime-host-bridge:1.0.0.20261012"
+    implementation "com.paopaoime.oem:oem-ime-host-bridge:1.0.0.20261125"
 }
 ```
 
@@ -91,19 +92,19 @@ dependencies {
 ```gradle
 dependencies {
     // AI 回复（依赖 core；未集成自动化模块时自动降级为手动截图）
-    implementation "com.paopaoime.oem:oem-ime-sdk-ai:1.0.0.20261012"
-    implementation "com.paopaoime.oem:oem-ime-sdk-ai-reply:1.0.0.20261012"
+    implementation "com.paopaoime.oem:oem-ime-sdk-ai:1.0.0.20261125"
+    implementation "com.paopaoime.oem:oem-ime-sdk-ai-reply:1.0.0.20261125"
     implementation "com.paopaoime.oem.internal:paddleocr4android:1.0.0"
 
     // 素材库（依赖 core + ai-reply）
-    implementation "com.paopaoime.oem:oem-ime-sdk-material:1.0.0.20261012"
+    implementation "com.paopaoime.oem:oem-ime-sdk-material:1.0.0.20261125"
 
     // Stellar 自动化（可选增强；AI回复检测到该模块后自动启用自动化截屏）
-    implementation "com.paopaoime.oem:oem-ime-sdk-automation:1.0.0.20261012"
+    implementation "com.paopaoime.oem:oem-ime-sdk-automation:1.0.0.20261125"
     implementation "com.paopaoime.oem.internal.stellar:stellar-manager:1.1"
 
     // 开发者工具（可选）
-    implementation "com.paopaoime.oem:oem-ime-sdk-developer:1.0.0.20261012"
+    implementation "com.paopaoime.oem:oem-ime-sdk-developer:1.0.0.20261125"
 }
 ```
 
@@ -691,7 +692,7 @@ OemImeSdk.setDiagnosticListener { event ->
 
 ## 本地默认皮肤（1.0.0.20260921）
 
-浅色为「日光瓷白」，深色为「夜幕石墨」。两款资源随 `org.fcitx.fcitx5.android:app:1.13` 内置，离线可用。新装默认浅色；用户可在输入法设置的布局与显示中选择浅色、深色或跟随系统。
+浅色为「日光瓷白」，深色为「夜幕石墨」。两款资源随 `org.fcitx.fcitx5.android:app:1.14` 内置，离线可用。新装默认浅色；用户可在输入法设置的布局与显示中选择浅色、深色或跟随系统。
 
 从旧版升级会迁移旧默认皮肤，保留自定义皮肤与跟随系统选择。企业只需更新七个公开 SDK 的统一版本以及显式 `app:1.9` 依赖并重新构建，不需要新增皮肤 API、服务器或下载权限。禁止混用 `app:1.6`。
 
@@ -710,7 +711,7 @@ OemImeSdk.setDiagnosticListener { event ->
 
 ```groovy
 // 在基础输入法 core + host-bridge 的依赖之外按需添加：
-implementation "com.paopaoime.oem:oem-ime-sdk-voice:1.0.0.20261012"
+implementation "com.paopaoime.oem:oem-ime-sdk-voice:1.0.0.20261125"
 // sherpa-onnx:1.13.8 由语音 SDK 传递引入，无需手工添加。
 ```
 
@@ -820,6 +821,16 @@ SDK 内置默认配置；企业需要调整时，将官网 `downloads/oem_voice_
 - 未集成 voice 的宿主依赖树和 APK 无 sherpa AAR/JNI、无语音入口，普通键盘正常。
 - `enabled: false` 的独立构建中所有语音入口消失，拼音与其他已授权 OEM 功能仍可用。
 
+
+### 手写、按键效果与词库管理
+
+- 在键盘工具面板可选择手写、拼音九宫格、拼音 14 键、拼音 26 键、双拼或英文 26 键。随包中文手写模型支持断网识别和选字。
+- 在输入法设置的「按键效果」中选择按键动效、气泡、触感和 30 款音色。
+- 「词库管理」默认启用随包白霜。雾凇和 Rime 下载就绪后可手动启用并离线使用。启用 Rime 后可使用五笔和五笔拼音。
+- 基础输入法包含手写、按键效果和词库管理。语音可独立选装，手写页的语音入口随语音模块启用状态显示。
+
+使用 `oem-ime-host-bridge` 传递的输入法运行时，保留 AAR 的 ONNX JNI consumer rules。验收时构建 Release/R8，并断网点按拼音九宫格 `64426` 上屏「你好」，写一横上屏「一」。
+
 ### 临时剪贴板高情商回复（1.0.0.20261012）
 
 当前聊天宿主的新复制事件仅展示一次；关闭、开始打字或展示后收起键盘都会消费，切换宿主清除。快捷入口直接生成结果，使用标准 AI 回复的客户模型/域名/直连、分发回调、提示词、语气、超时和错误文案配置，无需新增模型配置文件。关闭 AI 回复或缺少 material/ai-reply 切片时不显示高情商回复入口。
@@ -927,4 +938,4 @@ OemImeSdk.setClipboardQuickReplyHandler(null)
 - `hostPackageName` 为本次复制会话记录的来源宿主，可为 null；SDK 不读取其他应用的剪贴板历史。敏感文本和跨宿主过滤保持现状。
 - 建议在 SDK 初始化之后、首次展示键盘前注册；`null` 反注册。回调内反注册也不会使本次点击转入内置流程或清除建议条。
 - OEM UI 去掉整块标题及关闭叉号，按钮文案为“智能回复”；文本区单行省略，点击粘贴保持原行为。工具条在当前皮肤值基础上增加 12 布局单位（标准竖屏总高 60→72，横屏 56→68），候选行与测量同步。泡泡主版不变。
-- 请同步升级全部 SDK 到 `1.0.0.20261012`、runtime 到 `app:1.13`，并重新编译宿主。
+- 请同步升级全部公开 SDK 到 `1.0.0.20261125`，核对运行时 `app:1.14` 后重新编译宿主。

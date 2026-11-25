@@ -44,18 +44,18 @@
 
 ### 对外主 SDK
 
-> 自 `1.0.0.20260816` 起采用统一版本号：`com.paopaoime.oem` 组下全部制品版本一致，版本唯一来源为 `OEM/android/gradle.properties` 的 `oemSdkVersion`，每次发布仅递增末位编号。当前构建基线：`1.0.0.20261012`；线上版本以发布验收记录为准。
+> 自 `1.0.0.20260816` 起采用统一版本号：`com.paopaoime.oem` 组下全部制品版本一致，版本唯一来源为 `OEM/android/gradle.properties` 的 `oemSdkVersion`，每次发布仅递增末位编号。当前构建基线：`1.0.0.20261125`；线上版本以发布验收记录为准。
 
-- `com.paopaoime.oem:oem-ime-sdk-core:1.0.0.20261012`（必选：注册表/门禁/授权桥）
-- `com.paopaoime.oem:oem-ime-host-bridge:1.0.0.20261012`（必选：输入法内核与资源）
-- `com.paopaoime.oem:oem-ime-sdk-ai:1.0.0.20261012`（AI 运行时）
+- `com.paopaoime.oem:oem-ime-sdk-core:1.0.0.20261125`（必选：注册表/门禁/授权桥）
+- `com.paopaoime.oem:oem-ime-host-bridge:1.0.0.20261125`（必选：输入法内核与资源）
+- `com.paopaoime.oem:oem-ime-sdk-ai:1.0.0.20261125`（AI 运行时）
 
 ### 对外可选功能模块（2026-08-04 新增）
 
-- `com.paopaoime.oem:oem-ime-sdk-ai-reply:1.0.0.20261012`（AI回复，依赖 core；自动化截屏可选）
-- `com.paopaoime.oem:oem-ime-sdk-material:1.0.0.20261012`（素材库，依赖 core + ai-reply）
-- `com.paopaoime.oem:oem-ime-sdk-automation:1.0.0.20261012`（Stellar 自动化，可选增强）
-- `com.paopaoime.oem:oem-ime-sdk-developer:1.0.0.20261012`（开发者工具，可选）
+- `com.paopaoime.oem:oem-ime-sdk-ai-reply:1.0.0.20261125`（AI回复，依赖 core；自动化截屏可选）
+- `com.paopaoime.oem:oem-ime-sdk-material:1.0.0.20261125`（素材库，依赖 core + ai-reply）
+- `com.paopaoime.oem:oem-ime-sdk-automation:1.0.0.20261125`（Stellar 自动化，可选增强）
+- `com.paopaoime.oem:oem-ime-sdk-developer:1.0.0.20261125`（开发者工具，可选）
 
 模块勾选口径见 `OEM/SDK/catalog/oem-sdk-catalog.json`，未集成自动化模块时 AI回复降级为手动截图并提示「当前未集成自动化模块」。功能默认策略：基础输入法必选；语音模块按需集成，集成后默认开启；其余功能默认关闭，企业按开通范围显式开启。
 
@@ -91,7 +91,7 @@
 - `说明：已移除历史本地大模型与 TTS 运行时；本版恢复独立 sherpa-onnx 离线 ASR 运行时，模型权重按需下载。`
 - `com.paopaoime.oem.internal:sherpa-onnx:1.13.8`
 - `com.paopaoime.oem.internal:paddleocr4android:1.0.0`
-- `org.fcitx.fcitx5.android:app:1.13`
+- `org.fcitx.fcitx5.android:app:1.14`
 - `org.fcitx.fcitx5.android.lib:{common,fcitx5,fcitx5-lua,libime,fcitx5-chinese-addons}:1.0`
 
 ### 如果本次交付包含自动化套餐，还要一起输出
@@ -176,7 +176,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Fcitx 发布失败，停止后续阶段' }
 强制规则：
 
 - 只要改动了 `OEM/android/ai-ime/app` 下任何运行时 UI、抽屉、`MaterialHubFavoriteController`、`AiCommunicatePanelController` 或 `InputView/FcitxInputMethodService`，必须同时发布 `:ai-ime:host-bridge:publishReleasePublicationToOemLocalRepository`
-- 只发布 `oem-ime-sdk-core / oem-ime-host-bridge` 不足以让 `OEM/company/android` 吃到 `org.fcitx.fcitx5.android:app:1.13` 的最新实现
+- 只发布 `oem-ime-sdk-core / oem-ime-host-bridge` 不足以让 `OEM/company/android` 使用 `org.fcitx.fcitx5.android:app:1.14` 的最新实现
 - 发布完成后必须核对 `OEM/android/build/oem-sdk-repo/org/fcitx/fcitx5/android/app/1.13/app-1.13.aar` 的更新时间，再同步到独立宿主的 `local-sdk/repo`
 - OEM 当前标准保留运行时为：`paddleocr4android / stellar-*`
 - `sherpa-onnx` 从本版恢复为必要内部依赖：固定官方 1.13.8 静态 ONNX Runtime AAR，第二阶段同时发布 `:sherpa-onnx:publishReleasePublicationToOemLocalRepository`；必须保留 JNI consumer rules，不打包语音模型权重
@@ -385,3 +385,7 @@ OEM/SDK/
 独立公开源码仓库为 https://github.com/shenxiaodong198313/paopaoOEM 。其中 `android/app/build.gradle` 与 `android/oem-ime-host-bridge/build.gradle` 不再提供真实微信 App ID 默认值；`WECHAT_APP_ID` 依次从环境变量、`android/local.properties`、Gradle 项目属性读取，未配置时为空字符串。需要微信能力的构建须自行提供其应用标识，`local.properties` 继续由 Git 忽略，AppSecret 不应写入客户端源码。
 
 本次仅调整独立公开仓库的构建默认配置，不发布 SDK/AAR、APK 或线上服务，不修改主开发工程的构建配置。核验范围为源码差异、配置入口、Git 忽略规则和公开目录凭据扫描；未进行 Android 整包构建或真机回归。GitHub 告警 #1 检测的是 App ID 应用标识，未提供 AppSecret 泄露证据；修正最新源码不等于清除历史提交中的该标识。后续从主工程导出公开副本时仍须执行同样的配置清理。
+
+## 20261125 Android 输入法发布
+
+本次发布使用公开 SDK 坐标 `1.0.0.20261125`、Fcitx 运行时 `app:1.14` 与内部组件 `1.1`。先构建 Fcitx 运行时与宿主桥，再分别用仅依赖 Maven 制品的精简和完整宿主构建 Release/R8。包内核对手写模型、音效及白霜摘要，启动宿主后实际执行一次离线手写推理，覆盖运行时 AAR 的 JNI 保留规则。正式发布状态和验证记录见 [Android 输入法同步](23-20261125-Android输入法同步.md)。

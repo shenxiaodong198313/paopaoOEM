@@ -179,6 +179,13 @@ class StatusAreaWindow(
                 }
             }
             is StatusAreaEntry.Android -> when (entry.type) {
+                StatusAreaEntry.Android.Type.T9Model -> windowManager.attachWindow(T9ModelWindow())
+                StatusAreaEntry.Android.Type.EnglishGlide -> {
+                    val preference = AppPrefs.getInstance().internal.englishGlideEnabled
+                    preference.setValue(!preference.getValue())
+                    showKeyboardSelectionPage()
+                }
+                StatusAreaEntry.Android.Type.Handwriting -> service.showDialog(org.fcitx.fcitx5.android.input.handwriting.HandwritingSettingsDialog(service, theme))
                 VoiceInput -> service.launchLocalVoiceInput()
 
                 CustomizeToolbar -> {
@@ -241,7 +248,24 @@ class StatusAreaWindow(
     }
 
     private fun handleKeyboardSelectionClick(entry: StatusAreaEntry.KeyboardSelection) {
+        if (entry.target == Target.Handwriting && !service.canUseHandwriting()) {
+            context.toast("当前输入框请使用键盘输入"); return
+        }
+        AppPrefs.getInstance().internal.handwritingSelected.setValue(entry.target == Target.Handwriting)
         when (entry.target) {
+            Target.Handwriting -> windowManager.attachWindow(org.fcitx.fcitx5.android.input.handwriting.HandwritingWindow())
+            Target.Spanish -> {
+                service.selectExtendedKeyboard("spanish")
+                windowManager.attachWindow(KeyboardWindow)
+            }
+            Target.JapaneseRomaji, Target.JapaneseKana -> {
+                service.selectExtendedKeyboard(if (entry.target == Target.JapaneseKana) "japanese_kana" else "japanese_romaji")
+                windowManager.attachWindow(KeyboardWindow)
+            }
+            Target.Pinyin14 -> {
+                service.selectExtendedKeyboard("pinyin14")
+                windowManager.attachWindow(KeyboardWindow)
+            }
             Target.Pinyin9 -> switchKeyboardSelection(KeyboardSelectionPreset.T9, useT9Layout = true)
             Target.Pinyin26 -> switchKeyboardSelection(KeyboardSelectionPreset.PINYIN, useT9Layout = false)
             Target.English26 -> switchKeyboardSelection(KeyboardSelectionPreset.ENGLISH, useT9Layout = false)
@@ -368,7 +392,13 @@ class StatusAreaWindow(
     }
 
     private fun buildEntries(actions: Array<Action>): List<StatusAreaEntry> {
-        val traditionalEntry = buildTraditionalEntry(actions)
+        // Prefer the active Rime schema's switch to avoid presenting two converters.
+        // Native pinyin still needs the global converter when no schema switch exists.
+        val hasSchemaConversion = actions.any {
+            it.name.startsWith("fcitx-rime-") &&
+                (it.name.endsWith("-traditionalization") || it.name.endsWith("-simplification"))
+        }
+        val traditionalEntry = if (hasSchemaConversion) null else buildTraditionalEntry(actions)
         val paopaoEntries = buildList<StatusAreaEntry> {
             if (org.fcitx.fcitx5.android.input.voice.OemVoiceBridge.enabled(context)) add(
                 StatusAreaEntry.Android(
@@ -423,7 +453,8 @@ class StatusAreaWindow(
                     CustomizeToolbar
                 )
             )
-            add(traditionalEntry)
+            traditionalEntry?.let(::add)
+            add(StatusAreaEntry.Android("手写设置", R.drawable.ic_oem_toolbar_handwriting, StatusAreaEntry.Android.Type.Handwriting))
             add(
                 StatusAreaEntry.Android(
                     context.getString(R.string.status_area_keyboard_adjust),
@@ -450,7 +481,7 @@ class StatusAreaWindow(
         val currentIme = currentImeOverride ?: fcitx.runImmediately { inputMethodEntryCached }
         val useT9Layout = useT9LayoutOverride ?: prefs.keyboard.useT9KeyboardLayout.getValue()
         val rememberedChineseIme = prefs.internal.lastFullKeyboardChineseIme.getValue()
-        val activeTarget = service.currentKeyboardSelectionTarget(
+        val activeTarget = if (prefs.internal.handwritingSelected.getValue()) Target.Handwriting else service.currentKeyboardSelectionTarget(
             currentImeOverride = currentIme,
             useT9LayoutOverride = useT9Layout
         )
@@ -470,7 +501,12 @@ class StatusAreaWindow(
             )
         )
         // #endregion
-        return listOf(
+        return listOf<StatusAreaEntry>(
+            StatusAreaEntry.KeyboardSelection("手写", R.drawable.ic_oem_toolbar_handwriting, Target.Handwriting, activeTarget == Target.Handwriting),
+            // 1.0.4 market scope: keep handwriting and Pinyin14; optional language,
+            // glide and T9 model entries remain implemented but are not exposed here.
+            StatusAreaEntry.KeyboardSelection("拼音 14 键", R.drawable.ic_oem_layout_pinyin26,
+                Target.Pinyin14, active = activeTarget == Target.Pinyin14),
             StatusAreaEntry.KeyboardSelection(
                 context.getString(R.string.status_area_keyboard_selection_pinyin_9),
                 R.drawable.ic_oem_layout_pinyin9,
@@ -507,7 +543,7 @@ class StatusAreaWindow(
                 Target.WubiPinyin,
                 active = activeTarget == Target.WubiPinyin
             )
-        )
+        ).filter { it !is StatusAreaEntry.KeyboardSelection || it.target !in setOf(Target.Wubi, Target.WubiPinyin) || PinyinDictionaryPackages.wubiEnabled() }
     }
 
     private fun buildTraditionalEntry(actions: Array<Action>): StatusAreaEntry {

@@ -14,14 +14,18 @@
 #include <ctime>
 #include <fcitx-utils/event.h>
 #include <fcitx-utils/eventloopinterface.h>
+#include <fcitx-utils/inputbuffer.h>
 #include <fcitx/candidateaction.h>
 #include <fcitx/candidatelist.h>
 #include <fcitx/inputcontext.h>
 #include <fcitx/text.h>
 #include <libime/core/lattice.h>
 #include <memory>
+#include <optional>
+#include <span>
 #include <string>
 #include <string_view>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -55,10 +59,10 @@ public:
     virtual std::string customPhraseString() const = 0;
 };
 
-class ForgettableCandidateInterface {
+class PinyinCandidateIndexInterface {
 public:
-    virtual ~ForgettableCandidateInterface();
-    virtual size_t candidateIndex() const = 0;
+    virtual ~PinyinCandidateIndexInterface();
+    virtual int candidateIndex() const = 0;
 };
 
 using CandidateOrder = std::pair<size_t, size_t>;
@@ -76,9 +80,11 @@ public:
     virtual bool isPinyinCandidate() const { return false; }
     virtual bool isCustomPhrase() const { return false; }
 
+    void setSortOrder(CandidateOrder order) { order_ = order; }
+
 protected:
     const size_t selectLength_;
-    const CandidateOrder order_;
+    CandidateOrder order_;
 };
 
 class StrokeCandidateWord : public PinyinAbstractCandidateWord {
@@ -128,40 +134,6 @@ private:
     std::string word_;
 };
 
-class FilteredCandidateWord : public CandidateWord {
-public:
-    FilteredCandidateWord(PinyinEngine *engine, InputContext *inputContext,
-                          Text text, int index);
-
-    void select(InputContext *inputContext) const override;
-
-    int originalIndex() const { return index_; }
-    PinyinEngine *engine() const { return engine_; }
-    InputContext *inputContext() const { return inputContext_; }
-
-private:
-    PinyinEngine *engine_;
-    InputContext *inputContext_;
-    int index_;
-};
-
-class FilteredInsertableAsCustomPhrase
-    : public InsertableAsCustomPhraseInterface {
-public:
-    std::string customPhraseString() const override;
-};
-
-class FilteredForgettableCandidate : public ForgettableCandidateInterface {
-public:
-    size_t candidateIndex() const override;
-};
-
-template <typename... Args>
-class StrokeFilterCandidateWord : public FilteredCandidateWord, public Args... {
-public:
-    using FilteredCandidateWord::FilteredCandidateWord;
-};
-
 class ForgetCandidateWord : public CandidateWord {
 public:
     ForgetCandidateWord(PinyinEngine *engine, Text text, size_t index);
@@ -187,15 +159,17 @@ private:
 };
 
 class SymbolCandidateWord : public CandidateWord,
-                            public InsertableAsCustomPhraseInterface {
+                            public InsertableAsCustomPhraseInterface,
+                            public PinyinCandidateIndexInterface {
 public:
     SymbolCandidateWord(PinyinEngine *engine, std::string symbol,
                         std::string encodedPinyin, size_t selectLength,
-                        bool isFull);
+                        bool isFull, int pinyinCandidateIndex);
 
     void select(InputContext *inputContext) const override;
 
     std::string customPhraseString() const override;
+    int candidateIndex() const override { return pinyinCandidateIndex_; }
 
 private:
     PinyinEngine *engine_;
@@ -203,6 +177,7 @@ private:
     size_t candidateSegmentLength_ = 0;
     const bool isFull_ = false;
     std::string encodedPinyin_;
+    int pinyinCandidateIndex_;
 };
 
 class SpellCandidateWord : public PinyinAbstractCandidateWord,
@@ -222,7 +197,7 @@ private:
 
 class PinyinCandidateWord : public PinyinAbstractCandidateWord,
                             public InsertableAsCustomPhraseInterface,
-                            public ForgettableCandidateInterface {
+                            public PinyinCandidateIndexInterface {
 public:
     PinyinCandidateWord(PinyinEngine *engine, InputContext *inputContext,
                         Text text, size_t selectLength, size_t idx,
@@ -231,12 +206,15 @@ public:
     void select(InputContext *inputContext) const override;
 
     std::string customPhraseString() const override;
-    size_t candidateIndex() const override { return idx_; }
+    int candidateIndex() const override { return idx_; }
     bool isPinyinCandidate() const override { return true; }
 
     bool isCustomPhrase() const override { return isCustomPhrase_; }
     void setCustomPhrase() { isCustomPhrase_ = true; }
 
+    void setPinyinInComment();
+
+private:
     PinyinEngine *engine_;
     InputContext *inputContext_;
     size_t idx_;
@@ -286,8 +264,8 @@ public:
     void triggerAction(const CandidateWord &candidate, int id) override;
 
 private:
-    static bool isForgettable(const CandidateWord &candidate) {
-        return dynamic_cast<const ForgettableCandidateInterface *>(&candidate);
+    static bool isPinyinCandidate(const CandidateWord &candidate) {
+        return dynamic_cast<const PinyinCandidateWord *>(&candidate);
     }
 
     static bool canBeInsertedAsCustomPhrase(const CandidateWord &candidate) {
@@ -310,6 +288,67 @@ private:
 
     PinyinEngine *engine_;
     InputContext *inputContext_;
+};
+
+class PinyinTabbedCandidateList : public TabbedCandidateList {
+public:
+    PinyinTabbedCandidateList(PinyinEngine *engine, InputContext *inputContext,
+                              CommonCandidateList *candidateList);
+
+    std::span<const CandidateAction> tabActions() override;
+
+    void triggerTabAction(int id) override;
+    bool inStrokeFilterMode() const { return strokeFilterMode_; }
+    bool hasFilter() const { return checked() || !strokeBuffer_.empty(); }
+    const std::string &strokeBuffer() const {
+        return strokeBuffer_.userInput();
+    }
+    void setStrokeFilterMode();
+    void resetStrokeFilterMode();
+    void pushStroke(char stroke);
+    // Return whether pop is successful.
+    bool popStroke();
+
+    bool checked() const {
+        return checkedPinyinActionId_.has_value() || checkedSingleAction_;
+    }
+
+    bool filter(const CandidateWord &candidate) const;
+
+private:
+    void triggerStrokeAction(int id);
+    void triggerMainAction(int id);
+    bool filterByCheckedAction(const CandidateWord &candidate) const;
+    bool filterByStroke(const CandidateWord &candidate) const;
+
+    std::optional<int> idToActionIndex(int id) const;
+
+    void buildTabActions();
+
+    enum ActionId {
+        SINGLE_ACTION = -1,
+        STROKE_ACTION = -2,
+        STROKE_SUB_ACTION_H = -3,
+        STROKE_SUB_ACTION_S = -4,
+        STROKE_SUB_ACTION_P = -5,
+        STROKE_SUB_ACTION_N = -6,
+        STROKE_SUB_ACTION_Z = -7,
+        STROKE_SUB_ACTION_RETURN = -8,
+        SEPARATOR_ACTION = -9,
+    };
+
+    PinyinEngine *engine_;
+    InputContext *inputContext_;
+    CommonCandidateList *candidateList_;
+
+    // Lazily initialized actions, since it requires scan all actions.
+    std::optional<std::vector<CandidateAction>> actions_;
+    std::vector<CandidateAction> strokeActions_;
+    std::optional<int> checkedPinyinActionId_ = std::nullopt;
+    bool checkedSingleAction_ = false;
+    bool strokeFilterMode_ = false;
+    InputBuffer strokeBuffer_;
+    std::vector<std::unordered_set<int>> actionIdToCandidates_;
 };
 
 } // namespace fcitx

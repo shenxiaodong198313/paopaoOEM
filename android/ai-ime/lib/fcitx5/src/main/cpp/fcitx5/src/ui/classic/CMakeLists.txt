@@ -13,7 +13,7 @@ if (WAYLAND_FOUND)
         Fcitx5::Module::Wayland Fcitx5::Module::WaylandIM Wayland::Client Fcitx5::Wayland::Core
         Wayland::Cursor
         Fcitx5::Wayland::InputMethod Fcitx5::Wayland::InputMethodV2
-        Fcitx5::Wayland::Blur
+        Fcitx5::Wayland::ExtBackgroundEffect
         Fcitx5::Wayland::FractionalScale Fcitx5::Wayland::Viewporter
         Fcitx5::Wayland::CursorShape)
 else()
@@ -42,7 +42,7 @@ endif()
 target_link_libraries(classicui
     Fcitx5::Core
     PkgConfig::Cairo PkgConfig::Pango
-    PkgConfig::GdkPixbuf PkgConfig::GioUnix
+    PkgConfig::GdkPixbuf PkgConfig::Rsvg PkgConfig::GioUnix
     Fcitx5::Module::NotificationItem
     ${YOGA_TARGET}
     ${CLASSICUI_LIBS}

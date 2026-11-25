@@ -14,7 +14,9 @@ object SkinLabStandard {
     fun circleToolbar(context: Context) = context.getSharedPreferences("paopao_skin_lab", Context.MODE_PRIVATE).getBoolean("circle_toolbar", false)
     fun landscape(context: Context) = context.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     fun width(context: Context) = if (landscape(context)) 800 else 400
-    fun grid(context: Context) = if (landscape(context)) 160 else 240
+    fun grid(context: Context, style: SkinRenderStyle? = null) =
+        if (landscape(context)) style?.keyGridHeightLandscapeDp ?: 160
+        else style?.keyGridHeightDp ?: 240
     fun bar(context: Context) = if (landscape(context)) 36 else 40
     fun gapX(context: Context) = if (landscape(context)) 8f else 6f
     fun gapY(context: Context) = if (landscape(context)) 8f else 10f

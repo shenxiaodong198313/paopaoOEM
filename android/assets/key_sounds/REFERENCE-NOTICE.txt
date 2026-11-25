@@ -1,0 +1,9 @@
+Additional 23 key sounds — local reference candidate, 2026-10-21
+
+22 samples are selected from the public Baidu Input sound catalog; bd_default is the connected Android phone system FX_KEYPRESS_STANDARD sample.
+Source URLs, source names, hashes, device-default mapping and conversion details are recorded in design/key-sounds/reference-20261021/manifest.json.
+
+These are third-party reference recordings, not original Paopao compositions. No separate redistribution license was obtained in this task. Existing AOSP/Kenney notices cover the original seven sounds only and must not be read as licensing these additions. No public release was performed.
+
+Conversion: original OGG decoded to mono PCM16, peak normalized to 10000/32768. No trimming, resampling or pitch shifting.
+The requested name 嘟哒音 corresponds to the source catalog entry 嘟嗒音 (1475).

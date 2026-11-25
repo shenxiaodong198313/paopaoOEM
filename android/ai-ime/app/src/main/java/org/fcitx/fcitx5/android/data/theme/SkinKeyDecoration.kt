@@ -15,7 +15,8 @@ data class SkinKeyDecoration(
     val anchorY: Float = .5f,
     val offsetXDp: Float = 0f,
     val offsetYDp: Float = 0f,
-    val maxOverflowDp: Float = 0f
+    val maxOverflowDp: Float = 0f,
+    val fitToKey: Boolean = false
 ) : Parcelable {
     init {
         require(widthDp.isFinite() && widthDp in 4f..128f)

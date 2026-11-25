@@ -13,10 +13,12 @@
 #include <string>
 #include <utility>
 #include <fcitx-utils/capabilityflags.h>
+#include <fcitx-utils/flags.h>
 #include <fcitx-utils/key.h>
 #include <fcitx-utils/macros.h>
 #include <fcitx/fcitxcore_export.h>
 #include <fcitx/userinterface.h>
+#include <span>
 
 /// \addtogroup FcitxCore
 /// \{
@@ -206,6 +208,18 @@ enum class EventType : uint32_t {
     VirtualKeyboardVisibilityChanged = InstanceEventFlag | 0x8,
 };
 
+template <EventType T>
+struct EventForType;
+
+template <EventType T>
+using EventFor = typename EventForType<T>::type;
+
+#define FCITX_DEFINE_EVENT_TYPE(KLASS, TYPE)                                   \
+    template <>                                                                \
+    struct EventForType<EventType::TYPE> {                                     \
+        using type = KLASS;                                                    \
+    }
+
 /**
  * Base class for fcitx event.
  */
@@ -266,6 +280,45 @@ public:
 protected:
     InputContext *ic_;
 };
+
+/**
+ * Key event matching mode.
+ * @since 5.1.23
+ */
+enum class KeyEventMatchingMode {
+    /**
+     * Match the normalized key event.
+     *
+     * This is the default matching mode.
+     * If the matching key using key code, the raw key will be used to avoid
+     * missing the key states.
+     */
+    MatchNormalizedKey = (1 << 0),
+    /**
+     * Match the original key event.
+     *
+     * This is the key event before any layout conversion.
+     */
+    MatchOrigKey = (1 << 1),
+    /**
+     * Match the original key event before layout conversion, after
+     * normalization.
+     *
+     * This can be used to match key with system layout.
+     * Similar to MatchNormalizedKey, the key code mode matching will be using
+     * the unnormalized orig key.
+     */
+    MatchNormalizedOrigKey = (1 << 2),
+    /**
+     * Match the raw key event.
+     *
+     * This is the key event after layout conversion before normalization.
+     */
+    MatchRawKey = (1 << 3),
+    MatchAllNormalizedKeys = MatchNormalizedKey | MatchNormalizedOrigKey,
+};
+
+using KeyEventMatchingModes = Flags<KeyEventMatchingMode>;
 
 class FCITXCORE_EXPORT KeyEventBase : public InputContextEvent {
 public:
@@ -346,6 +399,33 @@ public:
      * @since 5.1.2
      */
     bool isVirtual() const { return origKey_.isVirtual(); }
+
+    /**
+     * Check if the key event matches the given key according to the specified
+     * mode.
+     *
+     * @param key The key to check against.
+     * @param mode The matching mode.
+     * @return bool True if the key event matches, false otherwise.
+     * @since 5.1.23
+     */
+    bool check(const Key &key,
+               KeyEventMatchingModes mode =
+                   KeyEventMatchingMode::MatchNormalizedKey) const;
+
+    /**
+     * Check if the key event matches any key in the given list according to the
+     * specified mode.
+     *
+     * @param keys The list of keys to check against.
+     * @param mode The matching mode.
+     * @return bool True if the key event matches any key in the list, false
+     * otherwise.
+     * @since 5.1.23
+     */
+    bool checkKeyList(std::span<const Key> keys,
+                      KeyEventMatchingModes mode =
+                          KeyEventMatchingMode::MatchNormalizedKey) const;
 
 protected:
     Key key_, origKey_, rawKey_;
@@ -689,6 +769,44 @@ public:
         : CapabilityEvent(ic, EventType::InputContextCapabilityAboutToChange,
                           oldFlags, newFlags) {}
 };
+
+FCITX_DEFINE_EVENT_TYPE(InputContextCreatedEvent, InputContextCreated);
+FCITX_DEFINE_EVENT_TYPE(InputContextDestroyedEvent, InputContextDestroyed);
+FCITX_DEFINE_EVENT_TYPE(FocusInEvent, InputContextFocusIn);
+FCITX_DEFINE_EVENT_TYPE(FocusOutEvent, InputContextFocusOut);
+FCITX_DEFINE_EVENT_TYPE(KeyEvent, InputContextKeyEvent);
+FCITX_DEFINE_EVENT_TYPE(ResetEvent, InputContextReset);
+FCITX_DEFINE_EVENT_TYPE(SurroundingTextUpdatedEvent,
+                        InputContextSurroundingTextUpdated);
+FCITX_DEFINE_EVENT_TYPE(CursorRectChangedEvent, InputContextCursorRectChanged);
+FCITX_DEFINE_EVENT_TYPE(CapabilityChangedEvent, InputContextCapabilityChanged);
+FCITX_DEFINE_EVENT_TYPE(CapabilityAboutToChangeEvent,
+                        InputContextCapabilityAboutToChange);
+FCITX_DEFINE_EVENT_TYPE(InputContextSwitchInputMethodEvent,
+                        InputContextSwitchInputMethod);
+FCITX_DEFINE_EVENT_TYPE(InputMethodActivatedEvent,
+                        InputContextInputMethodActivated);
+FCITX_DEFINE_EVENT_TYPE(InputMethodDeactivatedEvent,
+                        InputContextInputMethodDeactivated);
+FCITX_DEFINE_EVENT_TYPE(InvokeActionEvent, InputContextInvokeAction);
+FCITX_DEFINE_EVENT_TYPE(VirtualKeyboardEvent, InputContextVirtualKeyboardEvent);
+FCITX_DEFINE_EVENT_TYPE(ForwardKeyEvent, InputContextForwardKey);
+FCITX_DEFINE_EVENT_TYPE(CommitStringEvent, InputContextCommitString);
+FCITX_DEFINE_EVENT_TYPE(UpdatePreeditEvent, InputContextUpdatePreedit);
+FCITX_DEFINE_EVENT_TYPE(InputContextUpdateUIEvent, InputContextUpdateUI);
+FCITX_DEFINE_EVENT_TYPE(CommitStringWithCursorEvent,
+                        InputContextCommitStringWithCursor);
+FCITX_DEFINE_EVENT_TYPE(InputContextFlushUIEvent, InputContextFlushUI);
+FCITX_DEFINE_EVENT_TYPE(InputMethodGroupChangedEvent, InputMethodGroupChanged);
+FCITX_DEFINE_EVENT_TYPE(InputMethodGroupAboutToChangeEvent,
+                        InputMethodGroupAboutToChange);
+FCITX_DEFINE_EVENT_TYPE(UIChangedEvent, UIChanged);
+FCITX_DEFINE_EVENT_TYPE(CheckUpdateEvent, CheckUpdate);
+FCITX_DEFINE_EVENT_TYPE(FocusGroupFocusChangedEvent, FocusGroupFocusChanged);
+FCITX_DEFINE_EVENT_TYPE(InputMethodModeChangedEvent, InputMethodModeChanged);
+FCITX_DEFINE_EVENT_TYPE(GlobalConfigReloadedEvent, GlobalConfigReloaded);
+FCITX_DEFINE_EVENT_TYPE(VirtualKeyboardVisibilityChangedEvent,
+                        VirtualKeyboardVisibilityChanged);
 
 } // namespace fcitx
 

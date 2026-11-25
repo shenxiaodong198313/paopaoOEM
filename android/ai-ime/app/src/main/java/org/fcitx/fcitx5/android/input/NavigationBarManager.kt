@@ -94,7 +94,10 @@ class NavigationBarManager {
             WindowCompat.getInsetsController(window, window.decorView)
                 .isAppearanceLightNavigationBars = !theme.isDark
         }
-        if (shouldUpdateNavbarBackground) {
+        if ((theme as? Theme.Custom)?.renderStyle?.localConfiguration?.background == "transparent") {
+            // Also clear a color previously applied by ColorOnly or the Samsung fallback.
+            window.setNavbarBackgroundColor(Color.TRANSPARENT)
+        } else if (shouldUpdateNavbarBackground) {
             window.setNavbarBackgroundColor(
                 if (!keyBorder && theme is Theme.Builtin) theme.keyboardColor else theme.backgroundColor
             )

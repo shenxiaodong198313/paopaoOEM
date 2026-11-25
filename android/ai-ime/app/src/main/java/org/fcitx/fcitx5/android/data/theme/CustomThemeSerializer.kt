@@ -17,7 +17,9 @@ import org.fcitx.fcitx5.android.utils.NostalgicSerializer
 
 object CustomThemeSerializer : JsonTransformingSerializer<Theme.Custom>(Theme.Custom.serializer()) {
 
-    val supportedPackageVersions: Set<String> = setOf("2.4", "2.5", "2.6", "2.7", "2.8", "2.9", "2.10", "2.11", "2.12", "2.13", "2.14", CURRENT_VERSION)
+    const val MAX_SKIN_ENGINE = 9
+
+    val supportedPackageVersions: Set<String> = setOf("2.4", "2.5", "2.6", "2.7", "2.8", "2.9", "2.10", "2.11", "2.12", "2.13", "2.14", "2.15", "2.16", CURRENT_VERSION)
 
     val WithMigrationStatus = NostalgicSerializer(this) {
         it.jsonObject[VERSION]?.jsonPrimitive?.content !in supportedPackageVersions
@@ -27,13 +29,20 @@ object CustomThemeSerializer : JsonTransformingSerializer<Theme.Custom>(Theme.Cu
         element.jsonObject.addVersion()
 
     override fun transformDeserialize(element: JsonElement): JsonElement {
+        val required = element.jsonObject["minimumSkinEngine"]?.jsonPrimitive?.content?.toIntOrNull() ?: 1
+        require(required in 1..MAX_SKIN_ENGINE) { "此皮肤需要更新泡泡输入法" }
         val version = element.jsonObject[VERSION]?.let {
             val version = it.jsonPrimitive.content
             if (version !in knownVersions)
                 error("$version is not in known versions: $knownVersions")
             version
         } ?: FALLBACK_VERSION
-        return applyStrategy(version, element.jsonObject).removeVersion()
+        val migrated = applyStrategy(version, element.jsonObject).removeVersion()
+        // An invalid optional sound contract must not disable an otherwise usable visual skin.
+        val sound = migrated["skinSound"]
+        return if (sound != null && sound != JsonNull && runCatching {
+            decodeSkinSound(sound)
+        }.isFailure) JsonObject(migrated - "skinSound") else migrated
     }
 
     private fun JsonObject.addVersion(): JsonObject {
@@ -77,8 +86,38 @@ object CustomThemeSerializer : JsonTransformingSerializer<Theme.Custom>(Theme.Cu
             motionDefaults.any { (key, default) -> effect?.get(key)?.jsonPrimitive?.content?.let {
                 if (key == "motion") it != default else it.toDoubleOrNull() != default.toDoubleOrNull()
             } == true }
-        val version = if (needsMotionRenderer) CURRENT_VERSION else if (needsRippleRenderer) "2.14" else if (ambient) "2.13" else if (extendedWidths) "2.12" else if (needsStateRenderer) "2.11" else if (needsDecorationRenderer) "2.10" else if (needsLayoutRenderer) "2.9" else if (needsEffectRenderer) "2.8" else if (needsRevisionRenderer) "2.7" else if (needsContentRenderer(this)) "2.6" else if (needsNewRenderer(this)) "2.5" else "2.4"
-        return JsonObject(this + (VERSION to JsonPrimitive(version)))
+        val needsTextShadowRenderer = style?.get("keyTextShadow")?.let { it != JsonNull } == true ||
+            (style?.get("keyLabelCenterXByKey") as? JsonObject)?.isNotEmpty() == true ||
+            style?.get("keyImageHorizontalOutsetDp")?.jsonPrimitive?.content?.toFloatOrNull()?.let { it > 0f } == true
+        val declaredEngine = this["minimumSkinEngine"]?.jsonPrimitive?.content?.toIntOrNull() ?: 1
+        val fitsDecoration = (this["keyDecorations"] as? JsonObject)?.values?.any {
+            (it as? JsonObject)?.get("fitToKey")?.jsonPrimitive?.content == "true"
+        } == true
+        val hasReplyInset = (style?.get("quickReplyTopInsetDp")?.jsonPrimitive?.content?.toFloatOrNull() ?: 0f) > 0f
+        val newLayout = fitsDecoration || hasReplyInset
+        val hasSkinSound = this["skinSound"]?.let { it != JsonNull } == true
+        fun hasSourceClip(value: kotlinx.serialization.json.JsonElement): Boolean = when (value) {
+            is JsonObject -> value["sourceCornerRadiusPx"]?.let { it != JsonNull } == true || value.values.any(::hasSourceClip)
+            is kotlinx.serialization.json.JsonArray -> value.any(::hasSourceClip)
+            else -> false
+        }
+        val hasAuthoredResponse = hasSourceClip(this) || (style?.get("customToolbarLayout")?.jsonPrimitive?.content == "true" && (this["toolbarTopInsetDp"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0) > 0) || listOf("keyMotion", "authoredPreeditHeightDp", "inlinePreeditHeightDp").any { style?.get(it)?.let { value -> value != JsonNull } == true } ||
+            listOf("keyLabelCenterYByKey", "keyHintCenterYByKey").any { (style?.get(it) as? JsonObject)?.isNotEmpty() == true } ||
+            listOf("t9ColumnWidths", "t9BottomRowWidths", "hiddenKeyHints").any { (style?.get(it) as? kotlinx.serialization.json.JsonArray)?.isNotEmpty() == true } ||
+            style?.get("qwertyFiveKeyBottomRow")?.jsonPrimitive?.content == "true" ||
+            (style?.get("t9SidebarContentFraction")?.jsonPrimitive?.content?.toFloatOrNull() ?: 1f) < 1f ||
+            (this["keyStateImages"] as? JsonObject)?.isNotEmpty() == true || this["preeditImage"]?.let { it != JsonNull } == true
+        val hasSequenceRenderer = (this["keyAnimations"] as? JsonObject)?.isNotEmpty() == true ||
+            listOf("qwertyMinHeightMatchesT9", "preeditInTopSpacing").any { style?.get(it)?.jsonPrimitive?.content == "true" } ||
+            listOf("defaultKeyWidthPercent", "defaultKeyHeightPercent").any { style?.get(it)?.jsonPrimitive?.content?.toIntOrNull()?.let { n -> n != 100 } == true } ||
+            style?.get("defaultDigitHints")?.jsonPrimitive?.content == "false"
+        val hasPopupPalette = style?.get("popupStyle")?.let { it != JsonNull } == true
+        val aboveFaces = style?.get("keyEffectAboveFaces")?.jsonPrimitive?.content == "true"
+        val hasParticleSprites = (effect?.get("particleSprites") as? kotlinx.serialization.json.JsonArray)?.isNotEmpty() == true
+        val minimumEngine = maxOf(declaredEngine, if (hasParticleSprites || (this["keyStateImages"] as? JsonObject)?.keys?.any { it == "t9/sidebar" || it == "number/sidebar" } == true) 9 else if (aboveFaces) 8 else if (hasPopupPalette) 7 else if (hasSequenceRenderer) 6 else if (hasAuthoredResponse) 5 else if (hasSkinSound) 4 else if (newLayout) 3 else 2)
+        val needsSkinLabRenderer = hasParticleSprites || aboveFaces || hasPopupPalette || hasSequenceRenderer || hasAuthoredResponse || hasSkinSound || newLayout || declaredEngine > 1 || listOf("skinLabStandard", "numberReturnUsesFunctionKey", "customKeyFaceInsets", "preserveToolbarArtwork", "preeditTextColor", "preeditShadowColor").any { style?.get(it)?.let { value -> value != JsonNull } == true }
+        val version = if (needsSkinLabRenderer) CURRENT_VERSION else if (needsTextShadowRenderer) "2.16" else if (needsMotionRenderer) "2.15" else if (needsRippleRenderer) "2.14" else if (ambient) "2.13" else if (extendedWidths) "2.12" else if (needsStateRenderer) "2.11" else if (needsDecorationRenderer) "2.10" else if (needsLayoutRenderer) "2.9" else if (needsEffectRenderer) "2.8" else if (needsRevisionRenderer) "2.7" else if (needsContentRenderer(this)) "2.6" else if (needsNewRenderer(this)) "2.5" else "2.4"
+        return JsonObject((this - "minimumSkinEngine") + (VERSION to JsonPrimitive(version)) + if (version == CURRENT_VERSION) mapOf("minimumSkinEngine" to JsonPrimitive(minimumEngine)) else emptyMap())
     }
 
     private fun JsonObject.removeVersion() =

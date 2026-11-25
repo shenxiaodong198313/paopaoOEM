@@ -95,10 +95,10 @@ InputContextManager &WaylandIMServerV2::inputContextManager() {
 Instance *WaylandIMServerV2::instance() { return parent_->instance(); }
 
 bool WaylandIMServerV2::hasKeyboardGrab() const {
-    return std::any_of(icMap_.begin(), icMap_.end(),
-                       [](const decltype(icMap_)::value_type &ic) {
-                           return ic.second && ic.second->hasKeyboardGrab();
-                       });
+    return std::ranges::any_of(
+        icMap_, [](const decltype(icMap_)::value_type &ic) {
+            return ic.second && ic.second->hasKeyboardGrab();
+        });
 }
 
 void WaylandIMServerV2::init() {
@@ -159,6 +159,7 @@ WaylandIMInputContextV2::WaylandIMInputContextV2(
         });
     ic_->activate().connect([this]() {
         WAYLANDIM_DEBUG() << "ACTIVATE";
+        setCapabilityFlagsWrapper(baseFlags);
         pendingActivate_ = true;
     });
     ic_->deactivate().connect([this]() {
@@ -241,6 +242,16 @@ WaylandIMInputContextV2::WaylandIMInputContextV2(
                     });
                 focusInWrapper();
                 updateSurroundingTextWrapper();
+            }
+        }
+        // force some update in response to done.
+        // Some zwp_input_method_v2 implementation wants to synchronize the
+        // text_input_v3 commit/done with the zwp_input_method_v2 commit/done.
+        // So we need to do some no-op commit to trigger the done. This is a
+        // workaround for those implementation.
+        if (realFocus()) {
+            if (auto *focusedIC = delegatedInputContext()) {
+                focusedIC->updatePreedit(/*forceUpdate=*/true);
             }
         }
     });
@@ -558,10 +569,8 @@ void WaylandIMInputContextV2::modifiersCallback(uint32_t /*serial*/,
                           mods_locked, 0, 0, group);
     server_->instance()->updateXkbStateMask(
         server_->group()->display(), mods_depressed, mods_latched, mods_locked);
-    mask = xkb_state_serialize_mods(
-        server_->state_.get(),
-        static_cast<xkb_state_component>(XKB_STATE_MODS_DEPRESSED |
-                                         XKB_STATE_MODS_LATCHED));
+    mask = xkb_state_serialize_mods(server_->state_.get(),
+                                    XKB_STATE_MODS_EFFECTIVE);
 
     server_->modifiers_ = 0;
     if (mask & server_->stateMask_.shift_mask) {
@@ -599,7 +608,7 @@ void WaylandIMInputContextV2::repeatInfoCallback(int32_t rate, int32_t delay) {
 }
 
 void WaylandIMInputContextV2::sendKeyToVK(uint32_t time, const Key &key,
-                                          uint32_t state) const {
+                                          uint32_t state) {
     if (!vkReady_) {
         return;
     }
@@ -618,8 +627,8 @@ void WaylandIMInputContextV2::sendKeyToVK(uint32_t time, const Key &key,
     vk_->key(time, code, state);
 }
 
-void WaylandIMInputContextV2::forwardKeyDelegate(
-    InputContext * /*ic*/, const ForwardKeyEvent &key) const {
+void WaylandIMInputContextV2::forwardKeyDelegate(InputContext * /*ic*/,
+                                                 const ForwardKeyEvent &key) {
     uint32_t code = 0;
     if (key.rawKey().code()) {
         code = key.rawKey().code();
@@ -646,7 +655,7 @@ void WaylandIMInputContextV2::forwardKeyDelegate(
     }
 }
 
-void WaylandIMInputContextV2::updatePreeditDelegate(InputContext *ic) const {
+void WaylandIMInputContextV2::updatePreeditDelegate(InputContext *ic) {
     if (!realFocus()) {
         return;
     }
@@ -696,8 +705,9 @@ void WaylandIMInputContextV2::updatePreeditDelegate(InputContext *ic) const {
     ic_->commit(serial_);
 }
 
-void WaylandIMInputContextV2::deleteSurroundingTextDelegate(
-    InputContext *ic, int offset, unsigned int size) const {
+void WaylandIMInputContextV2::deleteSurroundingTextDelegate(InputContext *ic,
+                                                            int offset,
+                                                            unsigned int size) {
     if (!realFocus()) {
         return;
     }

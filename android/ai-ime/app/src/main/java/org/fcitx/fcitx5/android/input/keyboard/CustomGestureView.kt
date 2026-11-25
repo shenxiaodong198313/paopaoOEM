@@ -19,13 +19,51 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.fcitx.fcitx5.android.data.InputFeedbacks
 import org.fcitx.fcitx5.android.data.prefs.AppPrefs
-import org.fcitx.fcitx5.android.input.keyboard.CustomGestureView.OnGestureListener
+
+/** A second finger may lift before the first. Only confirmed taps leave in down order. */
+internal class LetterTapOrder {
+    class Tap(val click: () -> Unit) {
+        var resolved = false
+        var accepted = false
+    }
+
+    private val pending = ArrayDeque<Tap>()
+    fun begin(click: () -> Unit) = Tap(click).also { pending.addLast(it) }
+
+    fun finish(tap: Tap, accepted: Boolean) {
+        tap.accepted = accepted
+        tap.resolved = true
+        while (pending.firstOrNull()?.resolved == true) {
+            val next = pending.removeFirst()
+            if (next.accepted) next.click()
+        }
+    }
+
+    fun afterLetters(click: () -> Unit) {
+        if (pending.isEmpty()) click() else finish(begin(click), true)
+    }
+
+    fun clear() = pending.clear()
+}
 
 open class CustomGestureView(ctx: Context) : FrameLayout(ctx) {
+    internal var letterTapOrder: LetterTapOrder? = null
+    private var pendingLetter: LetterTapOrder.Tap? = null
+    private var letterPointer = -1
+    private var downX = 0f
+
+    private fun finishLetter(accepted: Boolean) {
+        val tap = pendingLetter ?: return
+        pendingLetter = null
+        letterTapOrder?.finish(tap, accepted)
+    }
+
+    var deleteGesture: org.fcitx.fcitx5.android.input.deletion.DeleteKeyGesture? = null
+
 
     enum class SwipeAxis { X, Y }
 
-    enum class GestureType { Down, Move, Up }
+    enum class GestureType { Down, Move, Up, Cancel }
 
     data class Event(
         val type: GestureType,
@@ -90,6 +128,8 @@ open class CustomGestureView(ctx: Context) : FrameLayout(ctx) {
     var onGestureListener: OnGestureListener? = null
 
     var soundEffect: InputFeedbacks.SoundEffect = InputFeedbacks.SoundEffect.Standard
+    var skinSoundCandidates: List<String> = emptyList()
+    var soundOnTouch: Boolean = true
 
     private val touchSlop: Float = ViewConfiguration.get(ctx).scaledTouchSlop.toFloat()
 
@@ -107,10 +147,9 @@ open class CustomGestureView(ctx: Context) : FrameLayout(ctx) {
     }
 
     private fun pointInView(x: Float, y: Float): Boolean {
-        return -touchSlop <= x &&
-                -touchSlop <= y &&
-                x < (width + touchSlop) &&
-                y < (height + touchSlop)
+        val horizontal = x >= -touchSlop && x < width + touchSlop ||
+                letterTapOrder != null && kotlin.math.abs(x - downX) <= width
+        return horizontal && y >= -touchSlop && y < height + touchSlop
     }
 
     private fun resetState() {
@@ -138,17 +177,61 @@ open class CustomGestureView(ctx: Context) : FrameLayout(ctx) {
         // double tap state should be preserved on touch up
     }
 
+    fun cancelGestures() {
+        letterPointer = -1
+        finishLetter(false)
+        deleteGesture?.cancel()
+        isPressed = false
+        resetState()
+        // reset double tap state on cancel
+        if (doubleTapEnabled) {
+            maybeDoubleTap = false
+            lastClickTime = 0
+        }
+        // Cancellation releases listeners' state without triggering an Up action or click.
+        dispatchGestureEvent(GestureType.Cancel, 0f, 0f)
+    }
+
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        val x = event.x
-        val y = event.y
+        deleteGesture?.let { return it.touch(event) }
+        if (letterTapOrder == null) return handleTouch(event.actionMasked, event.x, event.y)
+        val index = event.actionIndex
+        val id = event.getPointerId(index)
         when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> letterPointer = id
+            MotionEvent.ACTION_POINTER_DOWN -> {
+                // Android groups both contacts when two fingers land on the very same key.
+                val prior = event.findPointerIndex(letterPointer)
+                if (prior >= 0) handleTouch(MotionEvent.ACTION_UP, event.getX(prior), event.getY(prior))
+                letterPointer = id
+                return handleTouch(MotionEvent.ACTION_DOWN, event.getX(index), event.getY(index))
+            }
+            MotionEvent.ACTION_POINTER_UP, MotionEvent.ACTION_UP -> {
+                if (id != letterPointer) return true
+                letterPointer = -1
+                return handleTouch(MotionEvent.ACTION_UP, event.getX(index), event.getY(index))
+            }
+            MotionEvent.ACTION_MOVE -> {
+                val active = event.findPointerIndex(letterPointer)
+                return active < 0 || handleTouch(MotionEvent.ACTION_MOVE, event.getX(active), event.getY(active))
+            }
+        }
+        return handleTouch(event.actionMasked, event.x, event.y)
+    }
+
+    private fun handleTouch(action: Int, x: Float, y: Float): Boolean {
+        when (action) {
             MotionEvent.ACTION_DOWN -> {
                 if (!isEnabled) return false
+                downX = x
+                finishLetter(false)
+                pendingLetter = letterTapOrder?.begin { performClick() }
+                InputFeedbacks.beginTouch()
                 drawableHotspotChanged(x, y)
                 isPressed = true
                 InputFeedbacks.hapticFeedback(this)
-                InputFeedbacks.soundEffect(soundEffect)
+                if (soundOnTouch) InputFeedbacks.soundEffect(soundEffect, skinSoundCandidates)
                 dispatchGestureEvent(GestureType.Down, x, y)
                 if (longPressEnabled) {
                     longPressJob?.cancel()
@@ -158,6 +241,7 @@ open class CustomGestureView(ctx: Context) : FrameLayout(ctx) {
                             InputFeedbacks.hapticFeedback(this@CustomGestureView, true)
                         }
                         longPressTriggered = performLongClick()
+                        if (longPressTriggered) finishLetter(false)
                     }
                 }
                 if (repeatEnabled) {
@@ -182,14 +266,16 @@ open class CustomGestureView(ctx: Context) : FrameLayout(ctx) {
             MotionEvent.ACTION_UP -> {
                 isPressed = false
                 InputFeedbacks.hapticFeedback(this, longPress = true, keyUp = true)
-                dispatchGestureEvent(GestureType.Up, event.x, event.y)
+                dispatchGestureEvent(GestureType.Up, x, y)
                 val shouldPerformClick = !(touchMovedOutside ||
                         longPressTriggered ||
                         repeatStarted ||
                         swipeRepeatTriggered ||
                         gestureConsumed)
                 resetState()
-                if (shouldPerformClick) {
+                if (letterTapOrder != null) {
+                    finishLetter(shouldPerformClick)
+                } else if (shouldPerformClick) {
                     if (doubleTapEnabled) {
                         val now = System.currentTimeMillis()
                         if (maybeDoubleTap && now - lastClickTime <= longPressDelay) {
@@ -211,6 +297,7 @@ open class CustomGestureView(ctx: Context) : FrameLayout(ctx) {
                 drawableHotspotChanged(x, y)
                 if (!touchMovedOutside && !pointInView(x, y)) {
                     touchMovedOutside = true
+                    finishLetter(false)
                     if (longPressEnabled) {
                         longPressJob?.cancel()
                         longPressJob = null
@@ -232,14 +319,7 @@ open class CustomGestureView(ctx: Context) : FrameLayout(ctx) {
                 return true
             }
             MotionEvent.ACTION_CANCEL -> {
-                isPressed = false
-                dispatchGestureEvent(GestureType.Up, event.x, event.y)
-                resetState()
-                // reset double tap state on cancel
-                if (doubleTapEnabled) {
-                    maybeDoubleTap = false
-                    lastClickTime = 0
-                }
+                cancelGestures()
                 return true
             }
         }
@@ -299,6 +379,20 @@ open class CustomGestureView(ctx: Context) : FrameLayout(ctx) {
             }
         }
         return count
+    }
+
+    override fun onVisibilityAggregated(isVisible: Boolean) {
+        super.onVisibilityAggregated(isVisible)
+        if (!isVisible) {
+            deleteGesture?.cancel()
+            if (pendingLetter != null) cancelGestures()
+        }
+    }
+
+    override fun onDetachedFromWindow() {
+        deleteGesture?.cancel()
+        if (pendingLetter != null) cancelGestures()
+        super.onDetachedFromWindow()
     }
 
     override fun setOnLongClickListener(l: OnLongClickListener?) {

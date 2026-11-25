@@ -7,6 +7,8 @@
 #ifndef _FCITX_CANDIDATELIST_H_
 #define _FCITX_CANDIDATELIST_H_
 
+#include <cstddef>
+#include <functional>
 #include <memory>
 #include <string>
 #include <utility>
@@ -16,6 +18,7 @@
 #include <fcitx/candidateaction.h>
 #include <fcitx/fcitxcore_export.h>
 #include <fcitx/text.h>
+#include <span>
 
 namespace fcitx {
 
@@ -275,10 +278,20 @@ public:
     /**
      * Return a list of tab actions.
      *
+     * From UI perspective, the returned vector is expected to be small (less
+     * than 10). The text should at most be 6 latin-letters or 2 Chinese
+     * characters.
+     *
+     * The return value is only valid at the time the function is called. The
+     * caller should not keep reference.
+     *
+     * The implementatino can choose lazily construct the return value upon
+     * calling the function.
+     *
      * @return vector of CandidateAction.
      * @since 5.1.20
      */
-    virtual std::vector<CandidateAction> tabActions() const = 0;
+    virtual std::span<const CandidateAction> tabActions() = 0;
 
     /**
      * Trigger the tab action based on the index returned from tabActions.
@@ -424,6 +437,47 @@ public:
      * @since 5.1.20
      */
     void setTabbedImpl(std::unique_ptr<TabbedCandidateList> tabbed);
+
+    /**
+     * Set a filter function for the candidate list.
+     *
+     * Any modification to the candidate list may clear the filter, so it's
+     * better to set filter after all modification is done.
+     *
+     * @param filterFunc A function that takes a CandidateWord and returns a
+     * boolean. Only candidates for which the function returns true will be
+     * included.
+     *
+     * @since 5.1.20
+     */
+    void
+    setFilter(const std::function<bool(const CandidateWord &)> &filterFunc);
+
+    /**
+     * Clear the filter function for the candidate list.
+     *
+     * @since 5.1.20
+     * @see CommonCandidateList::setFilter
+     */
+    void clearFilter();
+
+    /**
+     * Return the candidate at the specified index, ignore filter.
+     *
+     * @param idx Index of the candidate.
+     * @return Reference to the candidate.
+     * @since 5.1.20
+     */
+    const CandidateWord &originCandidate(size_t idx) const;
+
+    /**
+     * Return the total number of candidates, ignore filter.
+     *
+     * @return Total number of candidates.
+     * @since 5.1.20
+     * @see totalSize
+     */
+    size_t originSize() const;
 
 private:
     void fixAfterUpdate();

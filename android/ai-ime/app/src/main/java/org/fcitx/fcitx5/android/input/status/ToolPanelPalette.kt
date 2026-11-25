@@ -4,6 +4,17 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
 
+/** A separate surface from the horizontal candidate strip's artwork. */
+class ExpandedCandidatePalette(background: Int, foreground: Int, comment: Int, accent: Int) {
+    private val panel = ToolPanelPalette(background, foreground, accent)
+    val surface = panel.surface
+    val ink = panel.ink
+    val pressed = panel.selectedCard
+    val commentInk = (comment or 0xff000000.toInt()).let {
+        if (ToolPanelPalette.contrast(surface, it) >= 4.5 && ToolPanelPalette.contrast(pressed, it) >= 4.5) it else ink
+    }
+}
+
 /** Shared Android/iOS/Harmony contract: design/keyboard-tool-panel.json. */
 class ToolPanelPalette(background: Int, foreground: Int, accent: Int) {
     val surface = background or 0xff000000.toInt()

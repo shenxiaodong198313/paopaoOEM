@@ -123,15 +123,14 @@ class PopupComponent :
     private fun showKeyboard(viewId: Int, keyboard: KeyDef.Popup.Keyboard, bounds: Rect) {
         val keys = when (keyboard) {
             is KeyDef.Popup.Keyboard.Explicit -> keyboard.items
-            else -> PopupPreset[keyboard.label]
-                ?: EmojiModifier.produceSkinTones(keyboard.label, EmojiModifier.SkinTone.Default)
-                ?: return
+            is KeyDef.Popup.Keyboard.Preset -> PopupPreset[keyboard.label] ?: return
         }
+        val transformPunctuation = keyboard is KeyDef.Popup.Keyboard.Preset && keyboard.transformPunctuation
         // clear popup preview text         OR create empty popup preview
         if (org.fcitx.fcitx5.android.data.theme.SkinLabStandard.enabled(theme)) {
             showingEntryUi[viewId]?.let { dismissPopupEntry(viewId, it) }
         } else showingEntryUi[viewId]?.setText("") ?: showPopup(viewId, "", bounds)
-        reallyShowKeyboard(viewId, keys, bounds, keyboard.transformPunctuation)
+        reallyShowKeyboard(viewId, keys, bounds, transformPunctuation)
     }
 
     private fun reallyShowKeyboard(

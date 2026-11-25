@@ -10,8 +10,9 @@ plugins {
 
 group = "org.fcitx.fcitx5.android.build_logic"
 
-val gitVersion: groovy.lang.Closure<String> by extra
-version = gitVersion()
+val gitVersion = extra["gitVersion"] as groovy.lang.Closure<*>
+// Allow a recorded source revision for monorepo builds without scanning unrelated assets.
+version = providers.environmentVariable("PAOPAO_BUILD_REVISION").orNull ?: gitVersion()
 
 java {
     withSourcesJar()

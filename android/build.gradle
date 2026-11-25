@@ -61,7 +61,7 @@ ext.versions = [
         aaltoXml            : '1.3.3',
         staxApi             : '1.0.1',
         log4jApi            : '2.25.2',
-        onnxruntimeAndroid  : '1.17.1',
+        onnxruntimeAndroid  : '1.32.0',
         readability4j       : '1.0.8',
         progressDialog      : '1.5.1',
         spinkit             : '1.4.0',
@@ -110,6 +110,7 @@ ext.serverConfig = [
 // OEM SDK unified version: every com.paopaoime.oem artifact publishes with this version.
 // Single source of truth lives in gradle.properties (oemSdkVersion); releases only bump that one place.
 ext.oemSdkVersion = (findProperty('oemSdkVersion') ?: '1.0.0.202608248').toString()
+ext.oemFcitxRuntimeVersion = providers.gradleProperty('oemFcitxRuntimeVersion').get()
 
 tasks.register('clean', Delete) {
     delete project.layout.buildDirectory

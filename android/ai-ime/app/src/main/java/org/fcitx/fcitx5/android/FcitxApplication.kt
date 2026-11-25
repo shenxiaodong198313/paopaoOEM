@@ -17,6 +17,10 @@ import androidx.core.content.edit
 import androidx.preference.PreferenceManager
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
+import org.fcitx.fcitx5.android.core.RawConfig
 import kotlinx.coroutines.plus
 import org.fcitx.fcitx5.android.daemon.FcitxDaemon
 import org.fcitx.fcitx5.android.data.clipboard.ClipboardManager
@@ -150,6 +154,26 @@ open class FcitxApplication : Application() {
             null,
             ContextCompat.RECEIVER_EXPORTED
         )
+        // Warm immutable dictionaries off the UI thread. The IME takes over this
+        // connection when it starts; no regular input session or learning keys.
+        coroutineScope.launch(Dispatchers.IO) {
+            val client = "dictionary-launch"
+            try {
+                val connection = FcitxDaemon.connect(client)
+                withTimeout(60_000) {
+                    connection.runOnReady {
+                        setAddonSubConfig("rime", "paopao-schema", RawConfig(arrayOf(
+                            RawConfig("Action", "prepare"), RawConfig("Schema", "paopao_frost_pinyin"),
+                            RawConfig("RequestId", "launch-prewarm")
+                        )))
+                        val result = getAddonSubConfig("rime", "paopao-schema").findByName("cfg")
+                        check(result?.findByName("PreparedSchema")?.value == "paopao_frost_pinyin" &&
+                            result.findByName("ErrorCode")?.value.isNullOrEmpty()) { "Dictionary warmup not confirmed" }
+                    }
+                }
+            } catch (error: Exception) { FcitxDaemon.disconnect(client); Timber.w(error, "Dictionary warmup deferred") }
+        }
+
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {

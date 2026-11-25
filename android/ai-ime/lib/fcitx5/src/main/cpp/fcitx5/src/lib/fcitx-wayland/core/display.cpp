@@ -8,8 +8,15 @@
 #include "display.h"
 #include <errno.h>
 #include <poll.h>
+#include <cstdint>
+#include <memory>
+#include <string>
 #include "wl_output.h"
 #include "wl_registry.h"
+
+#if defined(WL_FIXES_ACK_GLOBAL_REMOVE)
+#include "wl_fixes.h"
+#endif
 
 namespace fcitx::wayland {
 
@@ -19,6 +26,10 @@ void Display::createGlobalHelper(
                                          std::shared_ptr<void>>> &globalsPair) {
     std::get<std::shared_ptr<void>>(globalsPair.second) = factory->create(
         *registry(), globalsPair.first, std::get<2>(globalsPair.second));
+
+    if (!std::get<std::shared_ptr<void>>(globalsPair.second)) {
+        return;
+    }
 
     globalCreatedSignal_(std::get<std::string>(globalsPair.second),
                          std::get<std::shared_ptr<void>>(globalsPair.second));
@@ -37,15 +48,28 @@ Display::Display(wl_display *display) : display_(display) {
             }
         });
     reg->globalRemove().connect([this](uint32_t name) {
+#if defined(WL_FIXES_ACK_GLOBAL_REMOVE)
+        std::shared_ptr<WlFixes> fixes = this->getGlobal<wayland::WlFixes>();
+#endif
         auto iter = globals_.find(name);
         if (iter != globals_.end()) {
-            globalRemovedSignal_(std::get<std::string>(iter->second),
-                                 std::get<std::shared_ptr<void>>(iter->second));
+            const auto &globalObject =
+                std::get<std::shared_ptr<void>>(iter->second);
+            if (globalObject) {
+                globalRemovedSignal_(std::get<std::string>(iter->second),
+                                     globalObject);
+            }
             const auto &interface = std::get<std::string>(iter->second);
             auto localGlobalIter = requestedGlobals_.find(interface);
             if (localGlobalIter != requestedGlobals_.end()) {
                 localGlobalIter->second->erase(name);
             }
+#if defined(WL_FIXES_ACK_GLOBAL_REMOVE)
+            if (fixes && fixes->actualVersion() >=
+                             WL_FIXES_ACK_GLOBAL_REMOVE_SINCE_VERSION) {
+                fixes->ackGlobalRemove(registry(), name);
+            }
+#endif
             globals_.erase(iter);
         }
     });
@@ -67,6 +91,9 @@ Display::Display(wl_display *display) : display_(display) {
         auto *output = static_cast<wayland::WlOutput *>(data.get());
         removeOutput(output);
     });
+#ifdef WL_FIXES_ACK_GLOBAL_REMOVE
+    requestGlobalsWithMinimalVersion<wayland::WlFixes>(2);
+#endif
 }
 
 Display::~Display() {}

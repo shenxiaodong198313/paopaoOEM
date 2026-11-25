@@ -32,6 +32,7 @@ import android.view.inputmethod.InlineSuggestionsRequest
 import android.view.inputmethod.InlineSuggestionsResponse
 import android.view.inputmethod.InputMethodSubtype
 import android.widget.FrameLayout
+import android.widget.Toast
 import android.widget.inline.InlinePresentationSpec
 import androidx.annotation.Keep
 import androidx.annotation.RequiresApi
@@ -44,19 +45,21 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.launch
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.core.CapabilityFlags
-import org.fcitx.fcitx5.android.core.Action
+import org.fcitx.fcitx5.android.core.CapabilityFlag
 import org.fcitx.fcitx5.android.core.CandidateWord
 import org.fcitx.fcitx5.android.core.FcitxAPI
 import org.fcitx.fcitx5.android.core.FcitxEvent
 import org.fcitx.fcitx5.android.core.FcitxKeyMapping
 import org.fcitx.fcitx5.android.core.FormattedText
 import org.fcitx.fcitx5.android.core.InputMethodEntry
+import org.fcitx.fcitx5.android.core.InputMethodSubMode
 import org.fcitx.fcitx5.android.core.KeyStates
 import org.fcitx.fcitx5.android.core.KeySym
 import org.fcitx.fcitx5.android.core.ScancodeMapping
@@ -73,14 +76,19 @@ import org.fcitx.fcitx5.android.data.theme.ThemeManager
 import org.fcitx.fcitx5.android.input.cursor.CursorRange
 import org.fcitx.fcitx5.android.input.bar.KawaiiBarComponent
 import org.fcitx.fcitx5.android.input.keyboard.T9Keyboard
+import org.fcitx.fcitx5.android.input.keyboard.KanaKeyboard
+import org.fcitx.fcitx5.android.input.keyboard.FourteenKeyboard
 import org.fcitx.fcitx5.android.input.keyboard.TextKeyboard
 import org.fcitx.fcitx5.android.input.favorite.FavoriteComposerSession
 import org.fcitx.fcitx5.android.input.status.KeyboardSelectionPreset
+import org.fcitx.fcitx5.android.input.status.PinyinDictionaryRouting
+import org.fcitx.fcitx5.android.input.status.PinyinDictionarySchemaProtocol
 import org.fcitx.fcitx5.android.input.status.StatusAreaEntry
 import org.fcitx.fcitx5.android.input.cursor.CursorTracker
 import org.fcitx.fcitx5.android.input.t9.T9CandidateBudget
 import org.fcitx.fcitx5.android.input.t9.T9CompositionTracker
 import org.fcitx.fcitx5.android.input.t9.T9PresentationState
+import org.fcitx.fcitx5.android.input.t9.T9CandidateText
 import org.fcitx.fcitx5.android.input.t9.T9PinyinUtils
 import org.fcitx.fcitx5.android.input.t9.T9ResolvedSegment
 import org.fcitx.fcitx5.android.input.t9.T9SidebarState
@@ -90,6 +98,7 @@ import org.fcitx.fcitx5.android.utils.forceShowSelf
 import org.fcitx.fcitx5.android.utils.inputMethodManager
 import org.fcitx.fcitx5.android.utils.isTypeNull
 import org.fcitx.fcitx5.android.utils.monitorCursorAnchor
+import org.fcitx.fcitx5.android.utils.styledColorOrDefault
 import org.fcitx.fcitx5.android.utils.styledFloat
 import org.fcitx.fcitx5.android.utils.withBatchEdit
 import splitties.bitflags.hasFlag
@@ -97,6 +106,7 @@ import splitties.dimensions.dp
 import splitties.resources.styledColor
 import timber.log.Timber
 import java.net.URL
+import java.util.UUID
 import kotlin.math.max
 
 open class FcitxInputMethodService : LifecycleInputMethodService() {
@@ -175,7 +185,7 @@ open class FcitxInputMethodService : LifecycleInputMethodService() {
 
     private var cursorUpdateIndex: Int = 0
 
-    private var highlightColor: Int = 0x66008577 // material_deep_teal_500 with alpha 0.4
+    private var highlightColor: Int = DefaultHighlightColor
 
     private val prefs = AppPrefs.getInstance()
     private val inlineSuggestions by prefs.keyboard.inlineSuggestions
@@ -183,6 +193,10 @@ open class FcitxInputMethodService : LifecycleInputMethodService() {
     private val useT9KeyboardLayout by prefs.keyboard.useT9KeyboardLayout
     private val useLocalT9CandidatePipeline = false
     private val lastFullKeyboardChineseImePref = prefs.internal.lastFullKeyboardChineseIme
+    private val dictionaryProfilePref = prefs.internal.pinyinDictionaryProfile
+    private val frostDoublePinyinSchemaPref = prefs.internal.frostDoublePinyinSchema
+    private var failedDictionaryRoute: PinyinDictionaryRouting.Route? = null
+    private var reportedDictionaryRouteError: Pair<PinyinDictionaryRouting.Route, String>? = null
 
     private enum class T9InputMode {
         CHINESE,
@@ -192,7 +206,6 @@ open class FcitxInputMethodService : LifecycleInputMethodService() {
     private var currentT9Mode = T9InputMode.CHINESE
     private val t9ChineseIme = KeyboardSelectionPreset.T9
     private val t9EnglishIme = KeyboardSelectionPreset.ENGLISH
-    private val t9ChineseSchemaId = "t9"
 
     private val t9CompositionTracker = T9CompositionTracker()
     private var t9ResolvedSegments: List<T9ResolvedSegment> = emptyList()
@@ -256,6 +269,19 @@ open class FcitxInputMethodService : LifecycleInputMethodService() {
     @Keep
     private val recreateCandidatesViewListener = ManagedPreferenceProvider.OnChangeListener {
         replaceCandidateView(ThemeManager.activeTheme)
+    }
+
+    @Keep
+    private val dictionaryProfileListener = ManagedPreference.OnChangeListener<String> { _, _ ->
+        // Both preferences may be committed together. Read their latest values inside
+        // the same ordered job queue used by input, without touching layout preferences.
+        lifecycleScope.launch {
+            reportedDictionaryRouteError = null
+            postFcitxJob {
+                ensureCurrentDictionaryRoute()
+                dispatchImeStateRefresh(stableImeForInteraction(currentIme()))
+            }
+        }
     }
 
     @Keep
@@ -337,11 +363,36 @@ open class FcitxInputMethodService : LifecycleInputMethodService() {
     private fun InputMethodEntry.isFullKeyboardEnglishEntry(): Boolean =
         uniqueName == KeyboardSelectionPreset.ENGLISH || languageCode.startsWith("en", ignoreCase = true)
 
+    /** Keep the logical keyboard identity independent from its backing dictionary engine. */
+    fun displayImeForInteraction(entry: InputMethodEntry): InputMethodEntry {
+        if (entry.uniqueName == t9ChineseIme && prefs.internal.extendedKeyboard.getValue().startsWith("japanese_"))
+            return entry.copy(uniqueName = prefs.internal.extendedKeyboard.getValue(), name = "日本語", nativeName = "日本語", label = "あ", languageCode = "ja", subMode = InputMethodSubMode())
+        if (entry.uniqueName == t9ChineseIme && prefs.internal.extendedKeyboard.getValue() == "pinyin14")
+            return entry.copy(uniqueName = "pinyin14", name = "拼音 14 键", nativeName = "拼音 14 键", label = "14", subMode = InputMethodSubMode())
+        if (entry.uniqueName != t9ChineseIme || useT9KeyboardLayout ||
+            !PinyinDictionaryRouting.usesRimeForPinyin(dictionaryProfilePref.getValue())
+        ) return entry
+        return when (sanitizeRememberedFullKeyboardChineseIme()) {
+            KeyboardSelectionPreset.PINYIN -> entry.copy(
+                uniqueName = KeyboardSelectionPreset.PINYIN,
+                name = "拼音", nativeName = "拼音", label = "拼", icon = "fcitx-pinyin",
+                subMode = InputMethodSubMode()
+            )
+            KeyboardSelectionPreset.SHUANGPIN -> entry.copy(
+                uniqueName = KeyboardSelectionPreset.SHUANGPIN,
+                name = getString(R.string.status_area_keyboard_selection_shuangpin),
+                nativeName = "双拼", label = "双", subMode = InputMethodSubMode()
+            )
+            else -> entry
+        }
+    }
+
     private fun stableImeForInteraction(entry: InputMethodEntry): InputMethodEntry {
-        val hiddenRimeUnderFullKeyboard = !useT9KeyboardLayout && entry.uniqueName == t9ChineseIme
-        if (entry.uniqueName.isNotEmpty() && !hiddenRimeUnderFullKeyboard) {
-            lastStableImeEntry = entry
-            return entry
+        val display = displayImeForInteraction(entry)
+        val hiddenRimeUnderFullKeyboard = !useT9KeyboardLayout && display.uniqueName == t9ChineseIme
+        if (display.uniqueName.isNotEmpty() && !hiddenRimeUnderFullKeyboard) {
+            lastStableImeEntry = display
+            return display
         }
         return lastStableImeEntry ?: InputMethodEntry(
             KeyboardSelectionPreset.PINYIN,
@@ -380,42 +431,138 @@ open class FcitxInputMethodService : LifecycleInputMethodService() {
             ?: KeyboardSelectionPreset.PINYIN
     }
 
-    private fun InputMethodEntry.isRimeT9Entry(): Boolean {
-        if (uniqueName != t9ChineseIme) return false
-        return subMode.name.equals(t9ChineseSchemaId, ignoreCase = true) ||
-            subMode.label.contains("九键") ||
-            subMode.label.equals(t9ChineseSchemaId, ignoreCase = true)
+    private fun dictionaryRoute(logicalIme: String): PinyinDictionaryRouting.Route {
+        val route = PinyinDictionaryRouting.route(
+            logicalIme, dictionaryProfilePref.getValue(), frostDoublePinyinSchemaPref.getValue()
+        )
+        return if (logicalIme == KeyboardSelectionPreset.T9 && route.schemaId != null &&
+            org.fcitx.fcitx5.android.input.status.T9LanguageModel.enabled)
+            route.copy(schemaId = org.fcitx.fcitx5.android.input.status.T9LanguageModel.schema(route.schemaId)) else route
     }
 
-    private fun Action.matchesT9SchemaAction(): Boolean {
-        if (isSeparator) return false
-        val fields = listOf(name, shortText, longText)
-        return fields.any {
-            it.equals(t9ChineseSchemaId, ignoreCase = true) ||
-                it.contains("中文九键") ||
-                it.contains("九键")
-        }
+    private fun canRouteCurrentEditor(): Boolean {
+        val inputClass = currentInputEditorInfo?.inputType?.and(InputType.TYPE_MASK_CLASS)
+        return !capabilityFlags.has(CapabilityFlag.Password) &&
+            !capabilityFlags.has(CapabilityFlag.Alpha) &&
+            inputClass != InputType.TYPE_CLASS_NUMBER && inputClass != InputType.TYPE_CLASS_PHONE
     }
 
-    private fun flattenActions(actions: Array<Action>): Sequence<Action> =
-        actions.asSequence().flatMap { action ->
-            sequenceOf(action) + (action.menu?.let(::flattenActions) ?: emptySequence())
-        }
-
-    private suspend fun FcitxAPI.ensureT9ChineseImeAndSchema() {
+    /** All callers use postFcitxJob, so deployment/selection completes before queued keys. */
+    private suspend fun FcitxAPI.activateLogicalIme(logicalIme: String): Boolean {
+        val route = dictionaryRoute(logicalIme)
         val before = currentIme()
-        if (before.isRimeT9Entry()) return
-        if (before.uniqueName != t9ChineseIme) {
-            activateIme(t9ChineseIme)
+        if (route.schemaId == null) {
+            if (org.fcitx.fcitx5.android.input.status.PinyinAssociation.supports(route.nativeIme)) {
+                // Runs in the existing serial engine job before keys, never on the UI thread.
+                try {
+                    org.fcitx.fcitx5.android.input.status.PinyinAssociation.change {
+                        org.fcitx.fcitx5.android.input.status.PinyinAssociation.apply(
+                            this, prefs.internal.chineseAssociationEnabled.getValue()
+                        )
+                    }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    Timber.w(error, "Prediction setting unavailable; retry on next input start")
+                }
+            }
+            if (before.uniqueName != route.nativeIme) activateIme(route.nativeIme)
+            failedDictionaryRoute = null
+            reportedDictionaryRouteError = null
+            return true
         }
-        val target = flattenActions(statusArea()).firstOrNull { it.matchesT9SchemaAction() }
-        if (target != null) {
-            activateAction(target.id)
+        if (before.uniqueName != route.nativeIme) activateIme(route.nativeIme)
+        val requestId = UUID.randomUUID().toString()
+        val errorCode = try {
+            val error = PinyinDictionarySchemaProtocol.select(route.schemaId, requestId) { request ->
+                setAddonSubConfig("rime", "paopao-schema", request)
+                getAddonSubConfig("rime", "paopao-schema")
+            }
+            if (error == null) {
+                org.fcitx.fcitx5.android.input.status.PinyinAssociation.change {
+                    org.fcitx.fcitx5.android.input.status.PinyinAssociation.applyRime(
+                        this, prefs.internal.chineseAssociationEnabled.getValue()
+                    )
+                }
+                failedDictionaryRoute = null
+                reportedDictionaryRouteError = null
+                return true
+            }
+            error
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            Timber.w(error, "Dictionary schema selection failed")
+            "SCHEMA_SELECTION_FAILED"
         }
+        // A failed deployment must not change the saved profile or pretend that a
+        // different schema is ready. A later input start retries the exact route.
+        failedDictionaryRoute = route
+        if (before.uniqueName.isNotEmpty() && before.uniqueName != route.nativeIme) {
+            activateIme(before.uniqueName)
+        }
+        if (errorCode != "NO_INPUT_CONTEXT" && reportedDictionaryRouteError != (route to errorCode)) {
+            reportedDictionaryRouteError = route to errorCode
+            lifecycleScope.launch {
+                Toast.makeText(this@FcitxInputMethodService, "词库暂未准备好，请稍后重新打开键盘重试", Toast.LENGTH_SHORT).show()
+            }
+        }
+        return false
+    }
+
+    private suspend fun FcitxAPI.ensureT9ChineseImeAndSchema(): Boolean {
+        if (activateLogicalIme(KeyboardSelectionPreset.T9)) return true
+        if (org.fcitx.fcitx5.android.input.status.T9LanguageModel.enabled) {
+            prefs.internal.t9LanguageModelEnabled.setValue(false)
+            return activateLogicalIme(KeyboardSelectionPreset.T9)
+        }
+        return false
+    }
+
+    private suspend fun FcitxAPI.ensureCurrentDictionaryRoute() {
+        if (!canRouteCurrentEditor()) return
+        val entry = currentIme()
+        if (prefs.internal.extendedKeyboard.getValue() in extendedKeyboardIds) {
+            activateLogicalIme(prefs.internal.extendedKeyboard.getValue())
+            return
+        }
+        if (entry.uniqueName.isEmpty() || entry.isFullKeyboardEnglishEntry()) return
+        if (useT9KeyboardLayout) {
+            if (currentT9Mode == T9InputMode.CHINESE) ensureT9ChineseImeAndSchema()
+        } else {
+            val currentLogical = PinyinDictionaryRouting.logicalIme(
+                entry.uniqueName, "", false, lastFullKeyboardChineseImePref.getValue()
+            )
+            val logical = when {
+                (currentLogical == KeyboardSelectionPreset.WUBI || currentLogical == KeyboardSelectionPreset.WUBI_PINYIN) &&
+                    PinyinDictionaryRouting.usesRimeForPinyin(dictionaryProfilePref.getValue()) -> {
+                    // The selected dictionary hides Wubi. Drop the live and remembered Wubi route.
+                    rememberFullKeyboardChineseIme(KeyboardSelectionPreset.PINYIN)
+                    KeyboardSelectionPreset.PINYIN
+                }
+                currentLogical == KeyboardSelectionPreset.PINYIN || currentLogical == KeyboardSelectionPreset.SHUANGPIN -> {
+                    failedDictionaryRoute?.logicalIme?.takeIf {
+                        it == KeyboardSelectionPreset.PINYIN || it == KeyboardSelectionPreset.SHUANGPIN
+                    } ?: currentLogical
+                }
+                else -> currentLogical
+            }
+            activateLogicalIme(logical)
+        }
+    }
+
+    private suspend fun FcitxAPI.activateSystemIme(uniqueName: String) {
+        val logical = if (uniqueName == t9ChineseIme && prefs.internal.extendedKeyboard.getValue() in extendedKeyboardIds) {
+            prefs.internal.extendedKeyboard.getValue()
+        } else if (uniqueName == t9ChineseIme && !useT9KeyboardLayout) {
+            sanitizeRememberedFullKeyboardChineseIme()
+        } else uniqueName
+        if (!useT9KeyboardLayout) rememberFullKeyboardChineseIme(logical)
+        activateLogicalIme(logical)
     }
 
     private fun ensureT9ChineseSession() {
-        if (!useT9KeyboardLayout) return
+        if (!useT9KeyboardLayout || !canRouteCurrentEditor()) return
         currentT9Mode = T9InputMode.CHINESE
         onT9ModeChanged?.invoke(getCurrentT9ModeLabel())
         postFcitxJob {
@@ -614,7 +761,13 @@ open class FcitxInputMethodService : LifecycleInputMethodService() {
 
     private fun keyboardLayoutNameForSelectionTarget(
         target: StatusAreaEntry.KeyboardSelection.Target
-    ): String = if (target == StatusAreaEntry.KeyboardSelection.Target.Pinyin9) {
+    ): String = if (target == StatusAreaEntry.KeyboardSelection.Target.Spanish) {
+        TextKeyboard.SpanishName
+    } else if (target == StatusAreaEntry.KeyboardSelection.Target.JapaneseKana) {
+        KanaKeyboard.Name
+    } else if (target == StatusAreaEntry.KeyboardSelection.Target.Pinyin14) {
+        FourteenKeyboard.Name
+    } else if (target == StatusAreaEntry.KeyboardSelection.Target.Pinyin9) {
         T9Keyboard.Name
     } else {
         TextKeyboard.Name
@@ -624,6 +777,15 @@ open class FcitxInputMethodService : LifecycleInputMethodService() {
         entry: InputMethodEntry,
         useT9Layout: Boolean = prefs.keyboard.useT9KeyboardLayout.getValue()
     ): StatusAreaEntry.KeyboardSelection.Target {
+        val logicalIme = displayImeForInteraction(entry)
+        if (!useT9Layout && prefs.internal.extendedKeyboard.getValue() == "spanish")
+            return StatusAreaEntry.KeyboardSelection.Target.Spanish
+        if (!useT9Layout && prefs.internal.extendedKeyboard.getValue() == "japanese_romaji")
+            return StatusAreaEntry.KeyboardSelection.Target.JapaneseRomaji
+        if (!useT9Layout && prefs.internal.extendedKeyboard.getValue() == "japanese_kana")
+            return StatusAreaEntry.KeyboardSelection.Target.JapaneseKana
+        if (!useT9Layout && prefs.internal.extendedKeyboard.getValue() == "pinyin14")
+            return StatusAreaEntry.KeyboardSelection.Target.Pinyin14
         if (useT9Layout) {
             return if (entry.isT9EnglishEntry()) {
                 StatusAreaEntry.KeyboardSelection.Target.English26
@@ -632,18 +794,18 @@ open class FcitxInputMethodService : LifecycleInputMethodService() {
             }
         }
         return when {
-            entry.uniqueName == KeyboardSelectionPreset.ENGLISH ||
-                entry.languageCode.startsWith("en", ignoreCase = true) ->
+            logicalIme.uniqueName == KeyboardSelectionPreset.ENGLISH ||
+                logicalIme.languageCode.startsWith("en", ignoreCase = true) ->
                 StatusAreaEntry.KeyboardSelection.Target.English26
-            entry.uniqueName == KeyboardSelectionPreset.SHUANGPIN ->
+            logicalIme.uniqueName == KeyboardSelectionPreset.SHUANGPIN ->
                 StatusAreaEntry.KeyboardSelection.Target.Shuangpin
-            entry.uniqueName == KeyboardSelectionPreset.WUBI ->
+            logicalIme.uniqueName == KeyboardSelectionPreset.WUBI ->
                 StatusAreaEntry.KeyboardSelection.Target.Wubi
-            entry.uniqueName == KeyboardSelectionPreset.WUBI_PINYIN ->
+            logicalIme.uniqueName == KeyboardSelectionPreset.WUBI_PINYIN ->
                 StatusAreaEntry.KeyboardSelection.Target.WubiPinyin
-            entry.uniqueName == KeyboardSelectionPreset.PINYIN ->
+            logicalIme.uniqueName == KeyboardSelectionPreset.PINYIN ->
                 StatusAreaEntry.KeyboardSelection.Target.Pinyin26
-            entry.uniqueName == KeyboardSelectionPreset.T9 ->
+            logicalIme.uniqueName == KeyboardSelectionPreset.T9 ->
                 lastKeyboardSelectionTarget
             else -> lastKeyboardSelectionTarget
         }
@@ -676,10 +838,10 @@ open class FcitxInputMethodService : LifecycleInputMethodService() {
             onT9ModeChanged?.invoke(getCurrentT9ModeLabel())
         }
         onKeyboardLayoutSwitchRequested?.invoke(layoutName)
-        if (ensureImeConsistency && target == StatusAreaEntry.KeyboardSelection.Target.Pinyin9) {
+        if (ensureImeConsistency && target != StatusAreaEntry.KeyboardSelection.Target.English26) {
             postFcitxJob {
-                ensureT9ChineseImeAndSchema()
-                onKeyboardLayoutSwitchRequested?.invoke(T9Keyboard.Name)
+                ensureCurrentDictionaryRoute()
+                onKeyboardLayoutSwitchRequested?.invoke(layoutName)
                 dispatchImeStateRefresh(stableImeForInteraction(currentIme()))
             }
         } else {
@@ -725,6 +887,194 @@ open class FcitxInputMethodService : LifecycleInputMethodService() {
         refreshT9CandidatesView()
     }
 
+    @Volatile var extendedInputEpoch = 0L
+        private set
+
+    private val deleteClearSession = org.fcitx.fcitx5.android.input.deletion.DeleteClearSession()
+    private fun canUseDeleteGesture(): Boolean = currentInputConnection != null && canRouteCurrentEditor() &&
+        !capabilityFlags.has(CapabilityFlag.Password)
+    fun deleteClearAvailable(): Boolean = canUseDeleteGesture() &&
+        deleteClearSession.hasContent(currentInputConnection)
+    fun deleteUndoAvailable(): Boolean = canUseDeleteGesture() &&
+        deleteClearSession.available(currentInputConnection, extendedInputEpoch)
+    fun clearFromDeleteGesture() = performDeleteGesture(false)
+    fun undoDeleteGesture() = performDeleteGesture(true)
+    private fun performDeleteGesture(undo: Boolean) {
+        if (!canUseDeleteGesture()) return
+        val connection = currentInputConnection ?: return
+        val epoch = extendedInputEpoch
+        postFcitxJob {
+            if (epoch != extendedInputEpoch || currentInputConnection !== connection) return@postFcitxJob
+            reset()
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                if (epoch != extendedInputEpoch || currentInputConnection !== connection || !canUseDeleteGesture()) return@withContext
+                clearT9Composition()
+                hostClipboard.dismiss()
+                if (undo) deleteClearSession.undo(connection, epoch)
+                else {
+                    val selected = selection.latest
+                    deleteClearSession.clear(connection, epoch, selected.start, selected.end)
+                }
+            }
+        }
+    }
+
+    fun usesChineseCandidateGrid() = when (lastKeyboardSelectionTarget) {
+        StatusAreaEntry.KeyboardSelection.Target.Pinyin26, StatusAreaEntry.KeyboardSelection.Target.Pinyin9,
+        StatusAreaEntry.KeyboardSelection.Target.Pinyin14, StatusAreaEntry.KeyboardSelection.Target.Shuangpin,
+        StatusAreaEntry.KeyboardSelection.Target.Wubi, StatusAreaEntry.KeyboardSelection.Target.WubiPinyin -> !isT9EnglishMode()
+        else -> false
+    }
+
+    fun canUseHandwriting(): Boolean = getRuntimeInputBlockState() == null &&
+        currentInputConnection != null && canRouteCurrentEditor()
+
+    /** A handwritten choice may select a real native candidate, including a partial syllable. */
+    fun selectHandwrittenCandidate(word: String, reading: String, current: () -> Boolean, finished: () -> Unit) {
+        val connection = currentInputConnection ?: return finished()
+        val epoch = extendedInputEpoch
+        fun sameEditor() = epoch == extendedInputEpoch && connection === currentInputConnection
+        postFcitxJob {
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main.immediate) {
+                try {
+                    var offset = 0
+                    while (sameEditor() && current()) {
+                        val batch = getCandidates(offset, 48)
+                        val hit = batch.indexOfFirst { T9CandidateText.clean(it).text == word }
+                        if (hit >= 0) {
+                            if (sameEditor() && current()) select(offset + hit)
+                            return@withContext
+                        }
+                        if (batch.size < 48) break
+                        offset += batch.size
+                        kotlinx.coroutines.yield()
+                    }
+                    if (!sameEditor() || !current()) return@withContext
+                    val target = keyboardSelectionTargetForIme(currentIme())
+                    val syllables = reading.trim().split(Regex("[ ']+"))
+                    // Only replay a phonetic remainder when its input codes can be recovered.
+                    val phonetic = target == StatusAreaEntry.KeyboardSelection.Target.Pinyin26 ||
+                        target == StatusAreaEntry.KeyboardSelection.Target.Pinyin14 ||
+                        target == StatusAreaEntry.KeyboardSelection.Target.Pinyin9
+                    if (!phonetic || syllables.any { !it.matches(Regex("[a-zA-Z]+")) }) {
+                        android.widget.Toast.makeText(this@FcitxInputMethodService, "当前编码下没有这个字，可重写或切换候选", android.widget.Toast.LENGTH_SHORT).show()
+                        return@withContext
+                    }
+                    val tail = syllables.drop(1)
+                    val keys = if (target == StatusAreaEntry.KeyboardSelection.Target.Pinyin9) {
+                        val digits = t9CompositionTracker.getFullComposition()
+                        val consumed = T9PinyinUtils.pinyinToT9Keys(syllables.first().lowercase())
+                        if (consumed.isEmpty() || !digits.startsWith(consumed)) return@withContext
+                        digits.drop(consumed.length).trimStart('\'')
+                    } else tail.joinToString("'")
+                    if (!sameEditor() || !current()) return@withContext
+                    commitText(word)
+                    clearT9Composition()
+                    reset()
+                    if (sameEditor() && keys.isNotEmpty()) {
+                        if (target == StatusAreaEntry.KeyboardSelection.Target.Pinyin9) t9CompositionTracker.replace(keys)
+                        keys.forEach { if (sameEditor()) sendKey(it) }
+                        if (target == StatusAreaEntry.KeyboardSelection.Target.Pinyin9) refreshT9CandidatesView()
+                    }
+                } finally {
+                    finished()
+                }
+            }
+        }
+    }
+
+    /** Finish the native composition in the same ordered queue before accepting ink. */
+    fun prepareHandwriting(isCurrent: () -> Boolean, ready: () -> Unit) {
+        val epoch = extendedInputEpoch
+        val connection = currentInputConnection
+        postFcitxJob {
+            if (epoch != extendedInputEpoch || currentInputConnection !== connection || !isCurrent()) return@postFcitxJob
+            if (clientPreeditCached.isNotEmpty() || inputPanelCached.preedit.isNotEmpty()) sendKey(' ')
+            reset()
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                if (epoch == extendedInputEpoch && currentInputConnection === connection && isCurrent()) {
+                    clearT9Composition()
+                    connection?.finishComposingText()
+                    ready()
+                }
+            }
+        }
+    }
+
+    private var englishGlideDecoder: org.fcitx.fcitx5.android.input.glide.EnglishGlideDecoder? = null
+    fun submitEnglishGlide(request: org.fcitx.fcitx5.android.input.glide.GlideRequest) {
+        if (capabilityFlags.has(CapabilityFlag.Password)) return
+        val connection = currentInputConnection ?: return
+        val editor = currentInputEditorInfo
+        val epoch = extendedInputEpoch
+        postFcitxJob {
+            if (epoch != extendedInputEpoch || currentInputConnection !== connection || currentInputEditorInfo !== editor ||
+                currentIme().uniqueName != KeyboardSelectionPreset.ENGLISH) return@postFcitxJob
+            val choices = try { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                val decoder = englishGlideDecoder ?: org.fcitx.fcitx5.android.input.glide.EnglishGlideDecoder(
+                    assets.open("usr/share/fcitx5/spell/en_dict.fscd")).also { englishGlideDecoder = it }
+                decoder.decode(request)
+            } } catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) {
+                Timber.w(error, "English glide dictionary unavailable")
+                emptyList()
+            }
+            if (epoch != extendedInputEpoch || currentInputConnection !== connection || currentInputEditorInfo !== editor ||
+                currentIme().uniqueName != KeyboardSelectionPreset.ENGLISH) return@postFcitxJob
+            val word = choices.firstOrNull()
+            if (word == null) {
+                lifecycleScope.launch { Toast.makeText(this@FcitxInputMethodService, "未识别出单词，请重试", Toast.LENGTH_SHORT).show() }
+                return@postFcitxJob
+            }
+            if (clientPreeditCached.isNotEmpty() || inputPanelCached.preedit.isNotEmpty()) sendKey(' ')
+            else {
+                val before = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    if (epoch == extendedInputEpoch && currentInputConnection === connection && currentInputEditorInfo === editor)
+                        connection.getTextBeforeCursor(1, 0)?.lastOrNull() else null
+                }
+                if (before?.isLetterOrDigit() == true) sendKey(' ')
+            }
+            if (epoch != extendedInputEpoch || currentInputConnection !== connection || currentInputEditorInfo !== editor) return@postFcitxJob
+            word.forEach { sendKey(it) }
+        }
+    }
+
+    private val extendedKeyboardIds = setOf("pinyin14", "japanese_romaji", "japanese_kana", "spanish")
+    private var extendedSelectionRevision = 0L
+
+    fun selectExtendedKeyboard(id: String) {
+        require(id in extendedKeyboardIds)
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            lifecycleScope.launch { selectExtendedKeyboard(id) }; return
+        }
+        if (PinyinDictionaryRouting.bundledExtendedKeyboard(id).isEmpty()) {
+            Toast.makeText(this, "日语词库下载功能尚未开放", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val revision = ++extendedSelectionRevision
+        clearT9Composition(resetEngine = t9ResolvedSegments.isNotEmpty())
+        prefs.keyboard.useT9KeyboardLayout.setValue(false)
+        prefs.internal.extendedKeyboard.setValue(id)
+        failedDictionaryRoute = null
+        // Queue schema preparation before the new layout can emit any key events.
+        postFcitxJob {
+            if (revision != extendedSelectionRevision || prefs.internal.extendedKeyboard.getValue() != id) return@postFcitxJob
+            val native = dictionaryRoute(id).nativeIme
+            val enabled = enabledIme().map { it.uniqueName }
+            if (native !in enabled) setEnabledIme((enabled + native).toTypedArray())
+            reset()
+            val activated = activateLogicalIme(id)
+            if (revision != extendedSelectionRevision || prefs.internal.extendedKeyboard.getValue() != id) return@postFcitxJob
+            if (!activated) {
+                prefs.internal.extendedKeyboard.setValue("")
+                activateLogicalIme(KeyboardSelectionPreset.ENGLISH)
+            }
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                if (revision == extendedSelectionRevision) restoreKeyboardWindowForCurrentSelection()
+            }
+        }
+    }
+
     open fun selectT9Keyboard() {
         if (Looper.myLooper() != Looper.getMainLooper()) {
             lifecycleScope.launch { selectT9Keyboard() }
@@ -746,7 +1096,9 @@ open class FcitxInputMethodService : LifecycleInputMethodService() {
             )
         )
         // #endregion
+        prefs.internal.extendedKeyboard.setValue("")
         prefs.keyboard.useT9KeyboardLayout.setValue(true)
+        failedDictionaryRoute = null
         updateKeyboardSelectionTarget(StatusAreaEntry.KeyboardSelection.Target.Pinyin9)
         clearT9Composition(resetEngine = t9ResolvedSegments.isNotEmpty())
         currentT9Mode = T9InputMode.CHINESE
@@ -784,7 +1136,9 @@ open class FcitxInputMethodService : LifecycleInputMethodService() {
         if (uniqueName != KeyboardSelectionPreset.ENGLISH) {
             rememberFullKeyboardChineseIme(uniqueName)
         }
+        prefs.internal.extendedKeyboard.setValue("")
         prefs.keyboard.useT9KeyboardLayout.setValue(false)
+        failedDictionaryRoute = null
         updateKeyboardSelectionTarget(
             when (uniqueName) {
                 KeyboardSelectionPreset.ENGLISH -> StatusAreaEntry.KeyboardSelection.Target.English26
@@ -799,7 +1153,7 @@ open class FcitxInputMethodService : LifecycleInputMethodService() {
         onT9ModeChanged?.invoke(getCurrentT9ModeLabel())
         onKeyboardLayoutSwitchRequested?.invoke(TextKeyboard.Name)
         postFcitxJob {
-            activateIme(uniqueName)
+            activateLogicalIme(uniqueName)
             onKeyboardLayoutSwitchRequested?.invoke(TextKeyboard.Name)
             dispatchImeStateRefresh(stableImeForInteraction(currentIme()))
         }
@@ -811,6 +1165,7 @@ open class FcitxInputMethodService : LifecycleInputMethodService() {
             lifecycleScope.launch { toggleFullKeyboardChineseEnglish() }
             return
         }
+        prefs.internal.extendedKeyboard.setValue("")
         prefs.keyboard.useT9KeyboardLayout.setValue(false)
         clearT9Composition(resetEngine = t9ResolvedSegments.isNotEmpty())
         currentT9Mode = T9InputMode.CHINESE
@@ -835,7 +1190,7 @@ open class FcitxInputMethodService : LifecycleInputMethodService() {
                     else -> StatusAreaEntry.KeyboardSelection.Target.Pinyin26
                 }
             )
-            activateIme(targetIme)
+            activateLogicalIme(targetIme)
             onKeyboardLayoutSwitchRequested?.invoke(TextKeyboard.Name)
             dispatchImeStateRefresh(stableImeForInteraction(currentIme()))
         }
@@ -957,6 +1312,13 @@ open class FcitxInputMethodService : LifecycleInputMethodService() {
     open fun isClipboardQuickReplyHostHandled(): Boolean = false
 
     override fun onCreate() {
+        // An older release may have left Japanese selected. Restore the saved
+        // Chinese route before the engine/layout starts; keep user dictionaries.
+        val previousExtended = prefs.internal.extendedKeyboard.getValue()
+        val bundledExtended = PinyinDictionaryRouting.bundledExtendedKeyboard(previousExtended)
+        if (bundledExtended != previousExtended) {
+            prefs.internal.extendedKeyboard.setValue(bundledExtended)
+        }
         fcitx = FcitxDaemon.connect(javaClass.name)
         lifecycleScope.launch {
             jobs.consumeEach { it.join() }
@@ -971,6 +1333,8 @@ open class FcitxInputMethodService : LifecycleInputMethodService() {
             it.registerOnChangeListener(recreateInputViewListener)
         }
         prefs.candidates.registerOnChangeListener(recreateCandidatesViewListener)
+        dictionaryProfilePref.registerOnChangeListener(dictionaryProfileListener)
+        frostDoublePinyinSchemaPref.registerOnChangeListener(dictionaryProfileListener)
         ThemeManager.addOnChangedListener(onThemeChangeListener)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             postFcitxJob {
@@ -992,7 +1356,7 @@ open class FcitxInputMethodService : LifecycleInputMethodService() {
         when (event) {
             is FcitxEvent.CommitStringEvent -> {
                 clearT9Composition()
-                commitText(event.data.text, event.data.cursor)
+                commitKeyboardText(event.data.text, event.data.cursor)
             }
             is FcitxEvent.KeyEvent -> event.data.let event@{
                 if (it.states.virtual) {
@@ -1003,7 +1367,7 @@ open class FcitxInputMethodService : LifecycleInputMethodService() {
                         FcitxKeyMapping.FcitxKey_Left -> handleArrowKey(KeyEvent.KEYCODE_DPAD_LEFT)
                         FcitxKeyMapping.FcitxKey_Right -> handleArrowKey(KeyEvent.KEYCODE_DPAD_RIGHT)
                         else -> if (it.unicode > 0) {
-                            commitText(Character.toString(it.unicode))
+                            commitKeyboardText(Character.toString(it.unicode))
                         } else {
                             Timber.w("Unhandled Virtual KeyEvent: $it")
                         }
@@ -1072,8 +1436,10 @@ open class FcitxInputMethodService : LifecycleInputMethodService() {
                 handleDeleteSurrounding(before, after)
             }
             is FcitxEvent.IMChangeEvent -> {
-                if (!prefs.keyboard.useT9KeyboardLayout.getValue() &&
-                    event.data.uniqueName == t9ChineseIme
+                if (prefs.internal.extendedKeyboard.getValue() !in extendedKeyboardIds &&
+                    !prefs.keyboard.useT9KeyboardLayout.getValue() &&
+                    event.data.uniqueName == t9ChineseIme &&
+                    dictionaryRoute(sanitizeRememberedFullKeyboardChineseIme()).nativeIme != t9ChineseIme
                 ) {
                     val normalizedIme = sanitizeRememberedFullKeyboardChineseIme()
                     // #region debug-point H:normalize-hidden-rime-ime
@@ -1091,9 +1457,26 @@ open class FcitxInputMethodService : LifecycleInputMethodService() {
                     )
                     // #endregion
                     postFcitxJob {
-                        activateIme(normalizedIme)
+                        activateLogicalIme(normalizedIme)
                     }
                     return
+                }
+                // Native input-method pickers can still select their stable logical
+                // pinyin/shuangpin IDs. Translate those choices through the selected
+                // dictionary without changing the layout or entering a retry loop.
+                if (!useT9KeyboardLayout && canRouteCurrentEditor() &&
+                    event.data.uniqueName in setOf(KeyboardSelectionPreset.PINYIN, KeyboardSelectionPreset.SHUANGPIN)
+                ) {
+                    val desired = dictionaryRoute(event.data.uniqueName)
+                    if (desired.nativeIme != event.data.uniqueName && failedDictionaryRoute == null) {
+                        val logicalIme = event.data.uniqueName
+                        postFcitxJob {
+                            if (currentIme().uniqueName == logicalIme && failedDictionaryRoute == null) {
+                                rememberFullKeyboardChineseIme(logicalIme)
+                                activateLogicalIme(logicalIme)
+                            }
+                        }
+                    }
                 }
                 val uiIme = stableImeForInteraction(event.data)
                 updateKeyboardSelectionTarget(
@@ -1117,14 +1500,14 @@ open class FcitxInputMethodService : LifecycleInputMethodService() {
                 }
                 dispatchImeStateRefresh(uiIme)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                    val im = event.data.uniqueName
+                    val im = uiIme.uniqueName
                     val subtype = SubtypeManager.subtypeOf(im) ?: return
                     skipNextSubtypeChange = im
                     // [^1]: notify system that input method subtype has changed
                     switchInputMethod(InputMethodUtil.componentName, subtype)
                 }
                 if (inputDeviceMgr.evaluateOnInputMethodActivate()) {
-                    showStatusIcon(StatusIconMapping.fromEntry(event.data))
+                    showStatusIcon(StatusIconMapping.fromEntry(uiIme))
                 }
             }
             is FcitxEvent.SwitchInputMethodEvent -> {
@@ -1217,7 +1600,7 @@ open class FcitxInputMethodService : LifecycleInputMethodService() {
         } else if (lastSelection.start > 0) {
             selection.predictOffset(-1)
         }
-        // In practice nobody (apart form ourselves) would set `privateImeOptions` to our
+        // In practice nobody (apart from ourselves) would set `privateImeOptions` to our
         // `DeleteSurroundingFlag`, leading to a behavior of simulating backspace key pressing
         // in almost every EditText.
         if (currentInputEditorInfo.privateImeOptions != DeleteSurroundingFlag ||
@@ -1242,7 +1625,11 @@ open class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     private fun handleReturnKey() {
-        currentInputEditorInfo.run {
+        val editor = currentInputEditorInfo ?: return
+        val search = editor.imeOptions and EditorInfo.IME_MASK_ACTION == EditorInfo.IME_ACTION_SEARCH &&
+                !editor.imeOptions.hasFlag(EditorInfo.IME_FLAG_NO_ENTER_ACTION)
+        if (!search && handleReturnKeyOverride()) return
+        editor.run {
             if (inputType and InputType.TYPE_MASK_CLASS == InputType.TYPE_NULL ||
                 imeOptions.hasFlag(EditorInfo.IME_FLAG_NO_ENTER_ACTION)
             ) {
@@ -1260,6 +1647,8 @@ open class FcitxInputMethodService : LifecycleInputMethodService() {
             }
         }
     }
+
+    protected open fun handleReturnKeyOverride(): Boolean = false
 
     private fun handleArrowKey(keyCode: Int) {
         val type = currentInputEditorInfo.inputType and InputType.TYPE_MASK_CLASS
@@ -1281,7 +1670,33 @@ open class FcitxInputMethodService : LifecycleInputMethodService() {
         currentInputConnection.setSelection(target, target)
     }
 
+    /** Keyboard/engine delivery only; clipboard, voice and material commits stay literal. */
+    fun commitKeyboardText(text: String, cursor: Int = -1) {
+        val pairing = org.fcitx.fcitx5.android.input.keyboard.SymbolPairAssist
+        val ic = currentInputConnection ?: return
+        val info = currentInputEditorInfo
+        val variation = info.inputType and InputType.TYPE_MASK_VARIATION
+        val allowed = !capabilityFlags.has(CapabilityFlag.Password) &&
+            (info.inputType and InputType.TYPE_MASK_CLASS) == InputType.TYPE_CLASS_TEXT &&
+            variation !in setOf(InputType.TYPE_TEXT_VARIATION_URI, InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
+                InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS)
+        if (!prefs.internal.assistPairSymbols.getValue() || !allowed || !pairing.isSymbol(text)) {
+            commitText(text, cursor); return
+        }
+        val collapsed = selection.latest.isEmpty()
+        val plan = pairing.plan(text, cursor, true, allowed,
+            if (collapsed) null else ic.getSelectedText(0)?.toString(), collapsed,
+            ic.getTextBeforeCursor(1, 0)?.toString(),
+            if (composing.isEmpty()) ic.getTextAfterCursor(1, 0)?.toString() else null)
+        if (plan.skip > 0) {
+            val target = selection.latest.start + plan.skip
+            if (ic.setSelection(target, target)) selection.predict(target)
+            else commitText(text, cursor)
+        } else commitText(plan.text, plan.cursor)
+    }
+
     open fun commitText(text: String, cursor: Int = -1) {
+        if (text.isNotEmpty()) deleteClearSession.invalidate()
         if (text.isNotEmpty()) hostClipboard.dismiss()
         val ic = currentInputConnection ?: return
         // when composing text equals commit content, finish composing text as-is
@@ -1424,12 +1839,10 @@ open class FcitxInputMethodService : LifecycleInputMethodService() {
 
     override fun onWindowShown() {
         super.onWindowShown()
-        try {
-            highlightColor = styledColor(android.R.attr.colorAccent).alpha(0.4f)
-        } catch (_: Exception) {
-            Timber.w("Device does not support android.R.attr.colorAccent which it should have.")
-        }
+        highlightColor =
+            styledColorOrDefault(android.R.attr.colorAccent, DefaultHighlightColor).alpha(0.4f)
         InputFeedbacks.syncSystemPrefs()
+        InputFeedbacks.prepareSoundEffects()
     }
 
     override fun onCreateInputView(): View? {
@@ -1589,7 +2002,7 @@ open class FcitxInputMethodService : LifecycleInputMethodService() {
                 )
                 // #endregion
                 postFcitxJob {
-                    activateIme(im)
+                    activateSystemIme(im)
                 }
             }
         }
@@ -1633,12 +2046,15 @@ open class FcitxInputMethodService : LifecycleInputMethodService() {
                 return
             }
             postFcitxJob {
-                activateIme(im)
+                activateSystemIme(im)
             }
         }
     }
 
     override fun onStartInput(attribute: EditorInfo, restarting: Boolean) {
+        deleteClearSession.invalidate()
+        extendedInputEpoch++
+        org.fcitx.fcitx5.android.data.theme.SkinTrialSession.editor(attribute)
         hostClipboard.startInput(attribute)
         // update selection as soon as possible
         // sometimes when restarting input, onUpdateSelection happens before onStartInput, and
@@ -1667,11 +2083,15 @@ open class FcitxInputMethodService : LifecycleInputMethodService() {
             // for hardware keyboard, focus to allow switching input methods before onStartInputView
             if (!isNullType) {
                 focus(true)
+                // Retry a deferred NO_INPUT_CONTEXT only after this editor is ready.
+                // This job precedes hardware/virtual keys in the existing Channel.
+                ensureCurrentDictionaryRoute()
             }
         }
     }
 
     override fun onStartInputView(info: EditorInfo, restarting: Boolean) {
+        org.fcitx.fcitx5.android.data.theme.SkinTrialSession.editor(info)
         Timber.d("onStartInputView: restarting=$restarting")
         syncMainWindowLayout()
         val inputClass = info.inputType and InputType.TYPE_MASK_CLASS
@@ -1681,7 +2101,7 @@ open class FcitxInputMethodService : LifecycleInputMethodService() {
             if (currentKeyboardSelectionTarget() == StatusAreaEntry.KeyboardSelection.Target.Pinyin9) {
                 ensureT9ChineseSession()
             } else {
-                restoreKeyboardWindowForCurrentSelection()
+                restoreKeyboardWindowForCurrentSelection(ensureImeConsistency = true)
             }
         }
         postFcitxJob {
@@ -1719,10 +2139,17 @@ open class FcitxInputMethodService : LifecycleInputMethodService() {
         candidatesStart: Int,
         candidatesEnd: Int
     ) {
+        if (deleteClearSession.hasRecord && !deleteUndoAvailable()) deleteClearSession.invalidate()
         // onUpdateSelection can left behind when user types quickly enough, eg. long press backspace
         cursorUpdateIndex += 1
-        Timber.d("onUpdateSelection: old=[$oldSelStart,$oldSelEnd] new=[$newSelStart,$newSelEnd]")
-        handleCursorUpdate(newSelStart, newSelEnd, cursorUpdateIndex)
+        Timber.d("onUpdateSelection: old=[$oldSelStart,$oldSelEnd] new=[$newSelStart,$newSelEnd] cand=[$candidatesStart,$candidatesEnd]")
+        handleCursorUpdate(
+            newSelStart,
+            newSelEnd,
+            candidatesStart,
+            candidatesEnd,
+            cursorUpdateIndex
+        )
         inputView?.updateSelection(newSelStart, newSelEnd)
     }
 
@@ -1781,8 +2208,22 @@ open class FcitxInputMethodService : LifecycleInputMethodService() {
         candidatesView?.updateCursorAnchor(anchorPosition, contentSize)
     }
 
-    private fun handleCursorUpdate(newSelStart: Int, newSelEnd: Int, updateIndex: Int) {
+    private fun handleCursorUpdate(
+        newSelStart: Int,
+        newSelEnd: Int,
+        newComposingStart: Int,
+        newComposingEnd: Int,
+        updateIndex: Int
+    ) {
         if (selection.consume(newSelStart, newSelEnd)) {
+            // try restore composing range in case it was dropped by InputFilter
+            // but only when prediction matches, since InputFilter can also change editor content
+            // ref:
+            // https://android.googlesource.com/platform/frameworks/base/+/refs/tags/android-15.0.0_r36/core/java/android/widget/Editor.java#2083
+            // https://android.googlesource.com/platform/frameworks/base/+/refs/tags/android-15.0.0_r36/core/java/android/widget/TextView.java#7351
+            if (newComposingStart == -1 && newComposingEnd == -1 && composing.isNotEmpty()) {
+                currentInputConnection?.setComposingRegion(composing.start, composing.end)
+            }
             return // do nothing if prediction matches
         } else {
             // cursor update can't match any prediction: it's treated as a user input
@@ -1962,6 +2403,10 @@ open class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     override fun onFinishInputView(finishingInput: Boolean) {
+        deleteClearSession.invalidate()
+        inputView?.cancelSkinKeyFeedback()
+        extendedInputEpoch++
+        org.fcitx.fcitx5.android.data.theme.SkinTrialSession.leaveEditor()
         hostClipboard.hideKeyboard()
         Timber.d("onFinishInputView: finishingInput=$finishingInput")
         inputView?.dismissKeyboardAdjustment()
@@ -1981,16 +2426,22 @@ open class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     override fun onFinishInput() {
+        deleteClearSession.invalidate()
+        inputView?.cancelSkinKeyFeedback()
+        extendedInputEpoch++
+        org.fcitx.fcitx5.android.data.theme.SkinTrialSession.leaveEditor()
         hostClipboard.finishInput()
         Timber.d("onFinishInput")
         clearT9Composition()
         postFcitxJob {
             focus(false)
+            save()
         }
         capabilityFlags = CapabilityFlags.DefaultFlags
     }
 
     override fun onUnbindInput() {
+        extendedInputEpoch++
         hostClipboard.unbindInput()
         cachedKeyEvents.evictAll()
         cachedKeyEventIndex = 0
@@ -2009,6 +2460,8 @@ open class FcitxInputMethodService : LifecycleInputMethodService() {
             it.unregisterOnChangeListener(recreateInputViewListener)
         }
         prefs.candidates.unregisterOnChangeListener(recreateCandidatesViewListener)
+        dictionaryProfilePref.unregisterOnChangeListener(dictionaryProfileListener)
+        frostDoublePinyinSchemaPref.unregisterOnChangeListener(dictionaryProfileListener)
         ThemeManager.removeOnChangedListener(onThemeChangeListener)
         super.onDestroy()
         // Fcitx might be used in super.onDestroy()
@@ -2080,6 +2533,7 @@ open class FcitxInputMethodService : LifecycleInputMethodService() {
 
     @Suppress("ConstPropertyName")
     companion object {
+        const val DefaultHighlightColor = 0x008577  // material_deep_teal_500
         const val DeleteSurroundingFlag = "org.fcitx.fcitx5.android.DELETE_SURROUNDING"
     }
 }

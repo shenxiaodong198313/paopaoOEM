@@ -86,12 +86,16 @@ abstract class CandidateTabActionsAdapter(val theme: Theme, val indicatorStyle: 
         val indicatorStyle: Boolean = false
     ) : Ui {
 
+        private val panel = org.fcitx.fcitx5.android.input.status.ExpandedCandidatePalette(
+            theme.backgroundColor, theme.candidateTextColor, theme.candidateCommentColor, theme.accentKeyBackgroundColor
+        )
+
         private val label = view(::AutoScaleTextView) {
             scaleMode = AutoScaleTextView.Mode.Proportional
             textSize = 16f // sp
             isSingleLine = true
             gravity = gravityCenter
-            setTextColor(theme.candidateTextColor)
+            setTextColor(panel.ink)
         }
 
         override val root = view(::CustomGestureView) {
@@ -116,10 +120,10 @@ abstract class CandidateTabActionsAdapter(val theme: Theme, val indicatorStyle: 
 
         private fun createBackground(checkable: Boolean, indicatorStyle: Boolean): Drawable {
             if (!checkable) {
-                return pressHighlightDrawable(theme.keyPressHighlightColor)
+                return pressHighlightDrawable(panel.pressed)
             }
             if (!indicatorStyle) {
-                val highlight = ColorDrawable(theme.keyPressHighlightColor)
+                val highlight = ColorDrawable(panel.pressed)
                 return StateListDrawable().apply {
                     addState(intArrayOf(android.R.attr.state_pressed), highlight)
                     addState(intArrayOf(android.R.attr.state_activated), highlight)
@@ -138,7 +142,7 @@ abstract class CandidateTabActionsAdapter(val theme: Theme, val indicatorStyle: 
                     ShapeDrawable(RectShape()).apply {
                         setTintList(ColorStateList(states, colors))
                     },
-                    pressHighlightDrawable(theme.keyPressHighlightColor)
+                    pressHighlightDrawable(panel.pressed)
                 )
             ).apply {
                 setLayerSize(0, ctx.dp(11), ctx.dp(2))

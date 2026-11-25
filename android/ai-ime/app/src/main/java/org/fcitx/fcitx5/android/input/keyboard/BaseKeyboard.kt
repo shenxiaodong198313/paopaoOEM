@@ -8,10 +8,15 @@ import android.content.Context
 import android.graphics.Rect
 import android.graphics.Canvas
 import android.view.MotionEvent
-import android.view.View
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.annotation.CallSuper
 import androidx.annotation.DrawableRes
 import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.core.view.allViews
 import androidx.core.view.children
 import androidx.core.view.updateLayoutParams
 import org.fcitx.fcitx5.android.core.FcitxKeyMapping
@@ -22,6 +27,8 @@ import org.fcitx.fcitx5.android.data.InputFeedbacks
 import org.fcitx.fcitx5.android.data.prefs.AppPrefs
 import org.fcitx.fcitx5.android.data.prefs.ManagedPreference
 import org.fcitx.fcitx5.android.data.theme.Theme
+import org.fcitx.fcitx5.android.data.theme.SkinSoundResolver
+import org.fcitx.fcitx5.android.input.picker.PickerWindow
 import org.fcitx.fcitx5.android.input.keyboard.CustomGestureView.GestureType
 import org.fcitx.fcitx5.android.input.keyboard.CustomGestureView.OnGestureListener
 import org.fcitx.fcitx5.android.input.popup.PopupAction
@@ -41,7 +48,6 @@ import splitties.views.dsl.constraintlayout.rightOfParent
 import splitties.views.dsl.constraintlayout.rightToLeftOf
 import splitties.views.dsl.constraintlayout.topOfParent
 import splitties.views.dsl.core.add
-import timber.log.Timber
 import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
 
@@ -49,14 +55,40 @@ abstract class BaseKeyboard(
     context: Context,
     protected val theme: Theme,
     private val keyLayout: List<List<KeyDef>>,
-    val skinLayoutId: String = ""
+    val skinLayoutId: String = "",
+    private val forceKeyboardPopups: Boolean = false
 ) : ConstraintLayout(context) {
 
+    private val letterTaps = LetterTapOrder()
     var keyActionListener: KeyActionListener? = null
 
-    private val skinPressRenderer = (theme as? Theme.Custom)?.renderStyle?.keyPressEffect
-        ?.takeIf { skinLayoutId.isNotEmpty() }
-        ?.let { SkinKeyPressRenderer(resources.displayMetrics.density, it) }
+    private val skinStyle = (theme as? Theme.Custom)?.renderStyle
+    private val useFallbackParticles = skinStyle?.keyPressEffect == null && skinStyle?.suppressDefaultKeyEffect != true &&
+        (skinStyle?.localConfiguration?.effectId ?: "skin") == "skin" &&
+        skinStyle?.ambientSpaceEffect == null && skinStyle?.ambientSidebarEffect == null &&
+        (theme as? Theme.Custom)?.keyAnimations.isNullOrEmpty()
+    private val skinPressRenderer = if (skinLayoutId.isEmpty()) null else
+        (skinStyle?.keyPressEffect ?: if (useFallbackParticles)
+            org.fcitx.fcitx5.android.data.theme.SkinKeyPressEffect.lightweight(theme.keyTextColor) else null)
+            ?.let { SkinKeyPressRenderer(resources.displayMetrics.density, it) }
+
+    private var spriteLoad: Job? = null
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        val renderer = skinPressRenderer ?: return
+        val images = (theme as? Theme.Custom)?.renderStyle?.keyPressEffect?.particleSprites.orEmpty()
+        if (images.isEmpty()) return
+        spriteLoad = CoroutineScope(Dispatchers.Main.immediate).launch {
+            // Ordinary and protected assets use the same ownership-aware image cache.
+            val ready = withContext(Dispatchers.IO) { images.mapNotNull { it.toDrawable(context) } }
+            renderer.setParticleSprites(ready)
+        }
+    }
+
+    private val effectAboveFaces = skinStyle?.localConfiguration?.effectAboveFaces ?:
+        (useFallbackParticles || (skinStyle?.keyEffectAboveFaces == true && skinStyle.keyPressEffect?.particleSprites?.isNotEmpty() == true))
+    private val scaleEffectToKeyPitch = skinStyle?.keyEffectAboveFaces == true || useFallbackParticles
 
     val activeSkinEffectCount: Int get() = skinPressRenderer?.activeCount ?: 0
 
@@ -64,23 +96,80 @@ abstract class BaseKeyboard(
         ?.takeIf { it.isNotEmpty() }
         ?.let { SkinKeyDecorationRenderer(resources.displayMetrics.density, it) }
 
+    private val skinShadowRenderer = (theme as? Theme.Custom)?.renderStyle?.keyFaceShadow
+        ?.let { SkinKeyShadowRenderer(resources.displayMetrics.density, it) }
+
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
         super.onLayout(changed, left, top, right, bottom)
+        alignSharedFaces()
         skinDecorationRenderer?.layout(this)
+        skinShadowRenderer?.layout(this)
+        if (theme is Theme.Custom) toolbarKeyEdges = outerKeyEdges()
+    }
+
+    protected open fun alignSharedFaces() {}
+    internal open val sidebarFace: android.view.View? get() = null
+
+    internal var toolbarKeyEdges: Pair<Int, Int>? = null
+        private set
+
+    private fun outerKeyEdges(): Pair<Int, Int>? {
+        var left = width
+        var right = 0
+        allViews.filterIsInstance<KeyView>().filter { it.paintsSkinCap && !it.sharedSidebarSlot }.forEach {
+            val face = it.skinShadowBoundsIn(this)
+            if (!face.isEmpty) {
+                left = minOf(left, face.left.roundToInt())
+                right = maxOf(right, face.right.roundToInt())
+            }
+        }
+        sidebarFace?.let {
+            left = minOf(left, it.left)
+            right = maxOf(right, it.right)
+        }
+        return if (right > left) left to right else null
+    }
+
+    private var sidebarTouch: KeyView? = null
+    protected var sidebarPressSurface: android.view.View? = null
+
+    protected fun sidebarArtwork(custom: Theme.Custom?): android.graphics.drawable.Drawable? {
+        val rest = custom?.takeIf { it.renderStyle?.unifiedSidebar == true }?.sidebarImage?.toDrawable(context) ?: return null
+        val states = custom.keyStateImages["$skinLayoutId/sidebar"] ?: return rest
+        val pressed = states.pressed.toDrawable(context) ?: return rest
+        return SkinKeyStateDrawable(rest, pressed, states.released?.toDrawable(context), custom.renderStyle?.keyMotion?.releaseMs ?: 380)
     }
 
     internal fun onSkinKeyPress(key: KeyView) {
-        if (isShown && skinPressRenderer?.press(key.skinBoundsIn(this), token = key) == true) postInvalidateOnAnimation()
+        if (key.sharedSidebarSlot && sidebarPressSurface != null) {
+            sidebarTouch = key
+            sidebarPressSurface?.isPressed = true
+        }
+        val renderer = skinPressRenderer ?: return
+        if (!isShown) return
+        val bounds = key.skinBoundsIn(this)
+        val nominal = 100f * resources.displayMetrics.density
+        val columns = if (skinLayoutId == "qwerty") 10 else 5
+        val spanX = if (scaleEffectToKeyPitch) minOf(bounds.width(), width.toFloat() / columns) / nominal else 1f
+        val spanY = if (scaleEffectToKeyPitch) minOf(bounds.height(), height / 4f) / nominal else 1f
+        if (renderer.press(bounds, token = key, spanX = spanX, spanY = spanY)) postInvalidateOnAnimation()
     }
 
     internal fun onSkinKeyRelease(key: KeyView) {
+        if (sidebarTouch === key) {
+            sidebarTouch = null
+            sidebarPressSurface?.isPressed = false
+        }
         skinPressRenderer?.release(key)
     }
 
     override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        if (event.actionMasked == MotionEvent.ACTION_DOWN || event.actionMasked == MotionEvent.ACTION_CANCEL) letterTaps.clear()
         // T9 candidate/sidebar updates can replace the touched child before UP.
         // End the gesture at its stable owner as well, so no orphan glow survives.
         if (event.actionMasked == MotionEvent.ACTION_UP || event.actionMasked == MotionEvent.ACTION_CANCEL) {
+            sidebarTouch = null
+            sidebarPressSurface?.isPressed = false
             skinPressRenderer?.releaseAll()
             if ((skinPressRenderer?.activeCount ?: 0) > 0) postInvalidateOnAnimation()
         }
@@ -88,25 +177,41 @@ abstract class BaseKeyboard(
     }
 
     override fun dispatchDraw(canvas: Canvas) {
-        // Parent/background first, then this effect, then all keycap containers and labels.
-        if (skinPressRenderer?.draw(canvas) == true) postInvalidateOnAnimation()
+        skinShadowRenderer?.draw(canvas, width, height)
+        if (!effectAboveFaces) drawPressEffect(canvas)
         super.dispatchDraw(canvas)
+        if (effectAboveFaces) drawPressEffect(canvas)
         skinDecorationRenderer?.draw(canvas, this)
+    }
+
+    private fun drawPressEffect(canvas: Canvas) {
+        if (skinPressRenderer?.draw(canvas) == true) postInvalidateOnAnimation()
     }
 
     override fun onVisibilityAggregated(isVisible: Boolean) {
         super.onVisibilityAggregated(isVisible)
-        if (!isVisible) skinPressRenderer?.clear()
+        if (!isVisible) {
+            letterTaps.clear()
+            skinPressRenderer?.clear()
+        }
     }
 
     override fun onDetachedFromWindow() {
+        letterTaps.clear()
+        sidebarTouch = null
+        sidebarPressSurface?.isPressed = false
+        spriteLoad?.cancel()
+        spriteLoad = null
+        skinPressRenderer?.setParticleSprites(emptyList())
+        skinShadowRenderer?.clear()
         skinPressRenderer?.clear()
         super.onDetachedFromWindow()
     }
 
     private val prefs = AppPrefs.getInstance()
 
-    private val popupOnKeyPress by prefs.keyboard.popupOnKeyPress
+    private val popupOnKeyPress: Boolean get() = (theme as? Theme.Custom)?.renderStyle?.localConfiguration?.bubbles
+        ?: prefs.keyboard.popupOnKeyPress.getValue()
     private val expandKeypressArea by prefs.keyboard.expandKeypressArea
     private val swipeSymbolDirection by prefs.keyboard.swipeSymbolDirection
 
@@ -130,13 +235,7 @@ abstract class BaseKeyboard(
     // a rather large threshold effectively disables swipe of the direction
     private val disabledSwipeThreshold = dp(800f)
 
-    private val bounds = Rect()
     private val keyRows: List<ConstraintLayout>
-
-    /**
-     * HashMap of [PointerId (Int)][MotionEvent.getPointerId] to [KeyView]
-     */
-    private val touchTarget = hashMapOf<Int, View>()
 
     init {
         isMotionEventSplittingEnabled = true
@@ -157,6 +256,7 @@ abstract class BaseKeyboard(
                 else row.map { it.appearance.percentWidth }
             }
             constraintLayout Row@{
+                isMotionEventSplittingEnabled = true
                 var totalWidth = 0f
                 keyViews.forEachIndexed { index, view ->
                     add(view, lParams {
@@ -220,6 +320,36 @@ abstract class BaseKeyboard(
             is KeyDef.Appearance.Text -> TextKeyView(context, theme, def.appearance, address)
             is KeyDef.Appearance.Image -> ImageKeyView(context, theme, def.appearance, address)
         }.apply {
+            val action = def.behaviors.filterIsInstance<KeyDef.Behavior.Press>().firstOrNull()?.action
+            if (def is AlphabetKey || def is AlphabetDigitKey) letterTapOrder = letterTaps
+            val command = when (action) {
+                is KeyAction.SymAction -> when (action.sym.sym) {
+                    FcitxKeyMapping.FcitxKey_space -> "space"
+                    FcitxKeyMapping.FcitxKey_Return -> "enter"
+                    FcitxKeyMapping.FcitxKey_BackSpace -> "backspace"
+                    else -> ""
+                }
+                is KeyAction.FcitxKeyAction -> if (skinLayoutId == "t9" && action.act == "'") "separator" else action.act
+                is KeyAction.CommitAction -> action.text
+                is KeyAction.CapsAction -> "shift"
+                KeyAction.LangSwitchAction, KeyAction.T9ModeSwitchAction -> "language"
+                KeyAction.T9ResetAction -> "retype"
+                KeyAction.MainKeyboardSwitchAction -> if (skinLayoutId == "number") "number_return" else ""
+                is KeyAction.LayoutSwitchAction -> when (action.act) {
+                    NumberKeyboard.Name -> "number_mode"
+                    PickerWindow.Key.Symbol.name -> "symbol"
+                    PickerWindow.Key.Emoji.name -> "emoji"
+                    else -> ""
+                }
+                is KeyAction.PickerSwitchAction -> when (action.key) {
+                    PickerWindow.Key.Emoji -> "emoji"
+                    PickerWindow.Key.Symbol -> "symbol"
+                    else -> ""
+                }
+                else -> ""
+            }
+            skinSoundCandidates = SkinSoundResolver.candidates((theme as? Theme.Custom)?.skinSound,
+                SkinSoundResolver.key(skinLayoutId, positionId, command, skinKeyId))
             soundEffect = when (def) {
                 is SpaceKey -> InputFeedbacks.SoundEffect.SpaceBar
                 is MiniSpaceKey -> InputFeedbacks.SoundEffect.SpaceBar
@@ -227,7 +357,8 @@ abstract class BaseKeyboard(
                 is ReturnKey -> InputFeedbacks.SoundEffect.Return
                 else -> InputFeedbacks.SoundEffect.Standard
             }
-            if (def is SpaceKey) {
+            // Custom T9/number/mini space keys share the same action, not the preset class.
+            if (command == "space") {
                 spaceKeys.add(this)
                 swipeEnabled = spaceSwipeMoveCursor.getValue()
                 swipeRepeatEnabled = true
@@ -270,6 +401,10 @@ abstract class BaseKeyboard(
                             onAction(KeyAction.DeleteSelectionAction(event.totalX))
                             false
                         }
+                        GestureType.Cancel -> {
+                            onAction(KeyAction.CancelSelectionAction)
+                            false
+                        }
                         else -> false
                     }
                 }
@@ -277,8 +412,10 @@ abstract class BaseKeyboard(
             def.behaviors.forEach {
                 when (it) {
                     is KeyDef.Behavior.Press -> {
-                        setOnClickListener { _ ->
-                            onAction(it.action)
+                        val press = it.action
+                        setOnClickListener {
+                            if (letterTapOrder != null) onAction(press)
+                            else letterTaps.afterLetters { onAction(press) }
                         }
                     }
                     is KeyDef.Behavior.LongPress -> {
@@ -321,13 +458,16 @@ abstract class BaseKeyboard(
                     }
                 }
             }
+            if (def is BackspaceKey) {
+                deleteGesture = org.fcitx.fcitx5.android.input.deletion.DeleteKeyGesture(this, this@BaseKeyboard) { onAction(it) }
+            }
             if ((theme as? Theme.Custom)?.renderStyle?.skinLabStandard == true) popupLongPressDelayMs = 1000
             def.popup?.forEach {
                 when (it) {
                     // TODO: gesture processing middleware
                     is KeyDef.Popup.Menu -> {
                         setOnLongClickListener { view ->
-                            if (!popupOnKeyPress) return@setOnLongClickListener false
+                            if (!popupOnKeyPress && !forceKeyboardPopups) return@setOnLongClickListener false
                             view as KeyView
                             onPopupAction(PopupAction.ShowMenuAction(view.id, it, view.bounds))
                             // do not consume this LongClick gesture
@@ -336,7 +476,7 @@ abstract class BaseKeyboard(
                         val oldOnGestureListener = onGestureListener ?: OnGestureListener.Empty
                         swipeEnabled = true
                         onGestureListener = OnGestureListener { view, event ->
-                            if (!popupOnKeyPress) {
+                            if (!popupOnKeyPress && !forceKeyboardPopups) {
                                 return@OnGestureListener oldOnGestureListener.onGesture(view, event)
                             }
                             view as KeyView
@@ -346,6 +486,10 @@ abstract class BaseKeyboard(
                                 }
                                 GestureType.Up -> {
                                     onPopupTrigger(view.id)
+                                }
+                                GestureType.Cancel -> {
+                                    onPopupAction(PopupAction.DismissAction(view.id))
+                                    false
                                 }
                                 else -> false
                             } || oldOnGestureListener.onGesture(view, event)
@@ -353,7 +497,7 @@ abstract class BaseKeyboard(
                     }
                     is KeyDef.Popup.Punctuation -> {
                         setOnLongClickListener { view ->
-                            if (!popupOnKeyPress) return@setOnLongClickListener false
+                            if (!popupOnKeyPress && !forceKeyboardPopups) return@setOnLongClickListener false
                             view as KeyView
                             onPopupAction(PopupAction.ShowPunctuationAction(view.id, it, view.bounds))
                             false
@@ -361,7 +505,7 @@ abstract class BaseKeyboard(
                         val oldOnGestureListener = onGestureListener ?: OnGestureListener.Empty
                         swipeEnabled = true
                         onGestureListener = OnGestureListener { view, event ->
-                            if (!popupOnKeyPress) {
+                            if (!popupOnKeyPress && !forceKeyboardPopups) {
                                 return@OnGestureListener oldOnGestureListener.onGesture(view, event)
                             }
                             view as KeyView
@@ -372,15 +516,22 @@ abstract class BaseKeyboard(
                                 GestureType.Up -> {
                                     onPopupTrigger(view.id)
                                 }
+                                GestureType.Cancel -> {
+                                    onPopupAction(PopupAction.DismissAction(view.id))
+                                    false
+                                }
                                 else -> false
                             } || oldOnGestureListener.onGesture(view, event)
                         }
                     }
                     is KeyDef.Popup.Keyboard -> {
                         setOnLongClickListener { view ->
-                            if (!popupOnKeyPress) return@setOnLongClickListener false
+                            if (!popupOnKeyPress && !forceKeyboardPopups) return@setOnLongClickListener false
                             view as KeyView
-                            val popup = if ((theme as? Theme.Custom)?.renderStyle?.skinLabStandard == true && skinLayoutId == "t9" && it.label in "2".."9") {
+                            val popup = if (it is KeyDef.Popup.Keyboard.Preset &&
+                                (theme as? Theme.Custom)?.renderStyle?.skinLabStandard == true &&
+                                skinLayoutId == "t9" && it.label.length == 1 && it.label[0] in '2'..'9'
+                            ) {
                                 val letters = listOf("", "", "abc", "def", "ghi", "jkl", "mno", "pqrs", "tuv", "wxyz")[it.label.toInt()]
                                 KeyDef.Popup.Keyboard.Explicit((letters.map(Char::toString) + it.label + letters.uppercase().map(Char::toString)).toTypedArray())
                             } else it
@@ -391,7 +542,7 @@ abstract class BaseKeyboard(
                         val oldOnGestureListener = onGestureListener ?: OnGestureListener.Empty
                         swipeEnabled = true
                         onGestureListener = OnGestureListener { view, event ->
-                            if (!popupOnKeyPress) {
+                            if (!popupOnKeyPress && !forceKeyboardPopups) {
                                 return@OnGestureListener oldOnGestureListener.onGesture(view, event)
                             }
                             view as KeyView
@@ -402,6 +553,10 @@ abstract class BaseKeyboard(
                                 GestureType.Up -> {
                                     onPopupTrigger(view.id)
                                 }
+                                GestureType.Cancel -> {
+                                    onPopupAction(PopupAction.DismissAction(view.id))
+                                    false
+                                }
                                 else -> false
                             } || oldOnGestureListener.onGesture(view, event)
                         }
@@ -410,7 +565,7 @@ abstract class BaseKeyboard(
                         val oldOnGestureListener = onGestureListener ?: OnGestureListener.Empty
                         onGestureListener = OnGestureListener { view, event ->
                             view as KeyView
-                            if (popupOnKeyPress && !((theme as? Theme.Custom)?.renderStyle?.skinLabStandard == true && skinLayoutId in listOf("t9", "number"))) {
+                            if (popupOnKeyPress && ((theme as? Theme.Custom)?.renderStyle?.localConfiguration != null || !((theme as? Theme.Custom)?.renderStyle?.skinLabStandard == true && skinLayoutId in listOf("t9", "number")))) {
                                 when (event.type) {
                                     GestureType.Down -> onPopupAction(
                                         PopupAction.PreviewAction(view.id, it.content, view.bounds)
@@ -422,7 +577,7 @@ abstract class BaseKeyboard(
                                             PopupAction.PreviewUpdateAction(view.id, text)
                                         )
                                     }
-                                    GestureType.Up -> {
+                                    GestureType.Up, GestureType.Cancel -> {
                                         onPopupAction(PopupAction.DismissAction(view.id))
                                     }
                                 }
@@ -435,12 +590,12 @@ abstract class BaseKeyboard(
                         val oldOnGestureListener = onGestureListener ?: OnGestureListener.Empty
                         onGestureListener = OnGestureListener { view, event ->
                             view as KeyView
-                            if (popupOnKeyPress && !((theme as? Theme.Custom)?.renderStyle?.skinLabStandard == true && skinLayoutId in listOf("t9", "number"))) {
+                            if (popupOnKeyPress && ((theme as? Theme.Custom)?.renderStyle?.localConfiguration != null || !((theme as? Theme.Custom)?.renderStyle?.skinLabStandard == true && skinLayoutId in listOf("t9", "number")))) {
                                 when (event.type) {
                                     GestureType.Down -> onPopupAction(
                                         PopupAction.PreviewAction(view.id, it.content, view.bounds)
                                     )
-                                    GestureType.Up -> {
+                                    GestureType.Up, GestureType.Cancel -> {
                                         onPopupAction(PopupAction.DismissAction(view.id))
                                     }
                                     else -> {}
@@ -456,40 +611,67 @@ abstract class BaseKeyboard(
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
         skinPressRenderer?.clear()
-        val (x, y) = intArrayOf(0, 0).also { getLocationInWindow(it) }
-        bounds.set(x, y, x + width, y + height)
+        letterTaps.clear()
+        releaseAllTouchTargets()
     }
 
-    private fun findTargetChild(x: Float, y: Float): View? {
-        val y0 = y.roundToInt()
-        // assume all rows have equal height
-        val row = keyRows.getOrNull(y0 * keyRows.size / bounds.height()) ?: return null
-        val x1 = x.roundToInt() + bounds.left
-        val y1 = y0 + bounds.top
-        return row.children.find {
-            if (it !is KeyView) false else it.bounds.contains(x1, y1)
+    private class TouchTarget(val view: KeyView, val hitRect: Rect)
+
+    /**
+     * HashMap of [PointerId (Int)][MotionEvent.getPointerId] to [TouchTarget]
+     * for custom touch event dispatching
+     */
+    private val touchTargets = hashMapOf<Int, TouchTarget>()
+
+    private fun releaseAllTouchTargets() {
+        touchTargets.forEach {
+            val keyView = it.value.view
+            keyView.cancelGestures()
+            onPopupAction(PopupAction.DismissAction(keyView.id))
         }
+        touchTargets.clear()
     }
 
-    private fun transformMotionEventToChild(
-        child: View,
+    private fun findTouchTarget(event: MotionEvent, pointerIndex: Int): TouchTarget? {
+        val x0 = event.getX(pointerIndex).roundToInt()
+        val y0 = event.getY(pointerIndex).roundToInt()
+        val rowHitRect = Rect()
+        val row = keyRows.find {
+            it.getHitRect(rowHitRect)
+            rowHitRect.contains(x0, y0)
+        } ?: return null
+        val x1 = x0 - rowHitRect.left
+        val y1 = y0 - rowHitRect.top
+        val keyHitRect = Rect()
+        val key = row.children.filterIsInstance<KeyView>().find {
+            it.getHitRect(keyHitRect)
+            keyHitRect.contains(x1, y1)
+        } ?: return null
+        keyHitRect.offset(rowHitRect.left, rowHitRect.top)
+        return TouchTarget(key, keyHitRect)
+    }
+
+    private fun dispatchMotionEventToTarget(
         event: MotionEvent,
         action: Int,
-        pointerIndex: Int
-    ): MotionEvent {
-        if (child !is KeyView) {
-            Timber.w("child view is not KeyView when transforming MotionEvent $event")
-            return event
-        }
-        val childX = event.getX(pointerIndex) + bounds.left - child.bounds.left
-        val childY = event.getY(pointerIndex) + bounds.top - child.bounds.top
-        return MotionEvent.obtain(
+        pointerIndex: Int,
+        target: TouchTarget
+    ) {
+        val childX = event.getX(pointerIndex) - target.hitRect.left
+        val childY = event.getY(pointerIndex) - target.hitRect.top
+        val e = MotionEvent.obtain(
             event.downTime, event.eventTime, action,
             childX, childY, event.getPressure(pointerIndex), event.getSize(pointerIndex),
             event.metaState, event.xPrecision, event.yPrecision,
             event.deviceId, event.edgeFlags
         )
+        try {
+            target.view.dispatchTouchEvent(e)
+        } finally {
+            e.recycle()
+        }
     }
 
     override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
@@ -502,59 +684,58 @@ abstract class BaseKeyboard(
         if (vivoKeypressWorkaround) {
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
-                    val target = findTargetChild(event.x, event.y) ?: return false
-                    touchTarget[event.getPointerId(0)] = target
-                    target.dispatchTouchEvent(
-                        transformMotionEventToChild(target, event, MotionEvent.ACTION_DOWN, 0)
-                    )
+                    releaseAllTouchTargets()
+                    val pid = event.getPointerId(0)
+                    val target = findTouchTarget(event, 0) ?: return false
+                    touchTargets[pid] = target
+                    dispatchMotionEventToTarget(event, MotionEvent.ACTION_DOWN, 0, target)
                     return true
                 }
                 MotionEvent.ACTION_POINTER_DOWN -> {
                     val i = event.actionIndex
-                    val target = findTargetChild(event.getX(i), event.getY(i)) ?: return false
-                    touchTarget[event.getPointerId(i)] = target
-                    target.dispatchTouchEvent(
-                        transformMotionEventToChild(target, event, MotionEvent.ACTION_DOWN, i)
-                    )
+                    val pid = event.getPointerId(i)
+                    val target = findTouchTarget(event, i) ?: return true
+                    if (target.view.letterTapOrder != null) {
+                        val prior = touchTargets.entries.firstOrNull { it.value.view === target.view }
+                        if (prior != null) {
+                            val index = event.findPointerIndex(prior.key)
+                            if (index >= 0) dispatchMotionEventToTarget(event, MotionEvent.ACTION_UP, index, prior.value)
+                            touchTargets.remove(prior.key)
+                        }
+                    }
+                    touchTargets[pid] = target
+                    dispatchMotionEventToTarget(event, MotionEvent.ACTION_DOWN, i, target)
                     return true
                 }
                 MotionEvent.ACTION_MOVE -> {
                     for (i in 0 until event.pointerCount) {
-                        val target = touchTarget[event.getPointerId(i)] ?: continue
-                        target.dispatchTouchEvent(
-                            transformMotionEventToChild(target, event, MotionEvent.ACTION_MOVE, i)
-                        )
+                        val pid = event.getPointerId(i)
+                        val target = touchTargets[pid] ?: continue
+                        dispatchMotionEventToTarget(event, MotionEvent.ACTION_MOVE, i, target)
                     }
-                    return true
-                }
-                MotionEvent.ACTION_UP -> {
-                    val i = event.actionIndex
-                    val pid = event.getPointerId(i)
-                    val target = touchTarget[event.getPointerId(i)] ?: return false
-                    target.dispatchTouchEvent(
-                        transformMotionEventToChild(target, event, MotionEvent.ACTION_UP, i)
-                    )
-                    touchTarget.remove(pid)
                     return true
                 }
                 MotionEvent.ACTION_POINTER_UP -> {
                     val i = event.actionIndex
                     val pid = event.getPointerId(i)
-                    val target = touchTarget[event.getPointerId(i)] ?: return false
-                    target.dispatchTouchEvent(
-                        transformMotionEventToChild(target, event, MotionEvent.ACTION_UP, i)
-                    )
-                    touchTarget.remove(pid)
+                    val target = touchTargets[pid] ?: return true
+                    dispatchMotionEventToTarget(event, MotionEvent.ACTION_UP, i, target)
+                    touchTargets.remove(pid)
+                    return true
+                }
+                MotionEvent.ACTION_UP -> {
+                    val pid = event.getPointerId(0)
+                    val target = touchTargets[pid]
+                    if (target == null) {
+                        releaseAllTouchTargets()
+                        return true
+                    }
+                    dispatchMotionEventToTarget(event, MotionEvent.ACTION_UP, 0, target)
+                    touchTargets.remove(pid)
                     return true
                 }
                 MotionEvent.ACTION_CANCEL -> {
-                    val i = event.actionIndex
-                    val pid = event.getPointerId(i)
-                    val target = touchTarget[pid] ?: return false
-                    target.dispatchTouchEvent(
-                        transformMotionEventToChild(target, event, MotionEvent.ACTION_CANCEL, i)
-                    )
-                    touchTarget.remove(pid)
+                    releaseAllTouchTargets()
                     return true
                 }
             }
@@ -607,6 +788,10 @@ abstract class BaseKeyboard(
         findViewById<TextKeyView>(org.fcitx.fcitx5.android.R.id.button_space)?.mainText?.text =
             if (this is NumberKeyboard) {
                 "空格"
+            } else if (ime.languageCode.startsWith("ja")) {
+                "日本語"
+            } else if (ime.languageCode.startsWith("es")) {
+                "Español"
             } else if (this !is T9Keyboard && (ime.uniqueName == KeyboardSelectionPreset.ENGLISH ||
                     ime.languageCode.startsWith("en", ignoreCase = true))) {
                 "English"
@@ -616,7 +801,7 @@ abstract class BaseKeyboard(
     }
 
     open fun onDetach() {
-        // do nothing by default
+        releaseAllTouchTargets()
     }
 
 }

@@ -5,6 +5,8 @@
 package org.fcitx.fcitx5.android.input.keyboard
 
 import android.annotation.SuppressLint
+import android.animation.ValueAnimator
+import android.os.Build
 import android.content.Context
 import android.content.res.ColorStateList
 import android.content.res.Configuration
@@ -25,7 +27,10 @@ import android.util.TypedValue
 import android.view.View
 import android.view.MotionEvent
 import android.view.ViewOutlineProvider
+import android.view.animation.DecelerateInterpolator
+import android.view.animation.OvershootInterpolator
 import android.widget.ImageView
+import android.widget.TextView
 import androidx.annotation.ColorInt
 import androidx.annotation.DrawableRes
 import androidx.annotation.FloatRange
@@ -33,6 +38,8 @@ import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.view.updateLayoutParams
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.data.theme.Theme
+import org.fcitx.fcitx5.android.data.theme.SkinInkFitDrawable
+import org.fcitx.fcitx5.android.data.theme.SkinAspectDrawable
 import org.fcitx.fcitx5.android.data.theme.ThemeManager
 import org.fcitx.fcitx5.android.data.theme.ThemePrefs.PunctuationPosition
 import org.fcitx.fcitx5.android.data.theme.Theme.KeyImageRole
@@ -62,6 +69,14 @@ import kotlin.math.roundToInt
 abstract class KeyView(ctx: Context, val theme: Theme, val def: KeyDef.Appearance, val skinAddress: SkinKeyAddress = SkinKeyAddress()) :
     CustomGestureView(ctx) {
 
+    protected fun applySkinTextShadow(text: TextView) {
+        skinStyle?.keyTextShadow?.let { shadow ->
+            val density = resources.displayMetrics.density
+            text.setShadowLayer(shadow.radiusDp * density, shadow.dxDp * density,
+                shadow.dyDp * density, shadow.color)
+        }
+    }
+
     val bordered: Boolean
     val borderStroke: Boolean
     val rippled: Boolean
@@ -69,12 +84,23 @@ abstract class KeyView(ctx: Context, val theme: Theme, val def: KeyDef.Appearanc
     val hMargin: Int
     val vMargin: Int
     protected val skinStyle = (theme as? Theme.Custom)?.renderStyle
-    private val visualHInset get() = if (skinStyle?.skinLabStandard == true && def.margin) dp(org.fcitx.fcitx5.android.data.theme.SkinLabStandard.gapX(context) / 2).roundToInt() else if (def.margin) (skinStyle?.keyVisualHorizontalInsetDpByLayout?.get(skinAddress.layout) ?: skinStyle?.keyVisualHorizontalInsetDp)
+    private val visualHInset get() = if (skinStyle?.skinLabStandard == true && skinStyle?.customKeyFaceInsets != true && def.margin) dp(org.fcitx.fcitx5.android.data.theme.SkinLabStandard.gapX(context) / 2).roundToInt() else if (def.margin) (skinStyle?.keyVisualHorizontalInsetDpByLayout?.get(skinAddress.layout) ?: skinStyle?.keyVisualHorizontalInsetDp)
         ?.let { dp(it.coerceIn(0f, 24f)).roundToInt() } ?: hMargin else 0
-    private val visualVInset get() = if (skinStyle?.skinLabStandard == true && def.margin) dp(org.fcitx.fcitx5.android.data.theme.SkinLabStandard.gapY(context) / 2).roundToInt() else if (def.margin) (skinStyle?.keyVisualVerticalInsetDpByLayout?.get(skinAddress.layout) ?: skinStyle?.keyVisualVerticalInsetDp)
-        ?.let { dp(it.coerceIn(0f, 24f)).roundToInt() } ?: vMargin else 0
-    protected val hidePrintedHint get() = skinStyle?.digitHintsOnly == true &&
-        def is KeyDef.Appearance.AltText && !def.altText.all { it.isDigit() }
+    private val compactRowScale get() = if (skinStyle?.skinLabStandard == true)
+        SkinLayoutFit.compactScale(appearanceView.height.toFloat(),
+            dp(org.fcitx.fcitx5.android.data.theme.SkinLabStandard.grid(context, skinStyle) / 4).toFloat()) else 1f
+    private val visualVInset get(): Int {
+        val authored = if (skinStyle?.skinLabStandard == true && skinStyle?.customKeyFaceInsets != true && def.margin)
+            dp(org.fcitx.fcitx5.android.data.theme.SkinLabStandard.gapY(context) / 2).roundToInt()
+        else if (def.margin) (skinStyle?.keyVisualVerticalInsetDpByLayout?.get(skinAddress.layout) ?: skinStyle?.keyVisualVerticalInsetDp)
+            ?.let { dp(it.coerceIn(0f, 24f)).roundToInt() } ?: vMargin else 0
+        return (authored * compactRowScale).roundToInt()
+    }
+    protected val hidePrintedHint get() = def is KeyDef.Appearance.AltText && (
+        skinKeyIds.any { it in (skinStyle?.hiddenKeyHints ?: emptySet()) } ||
+        skinStyle?.digitHintsOnly == true && !def.altText.all { it.isDigit() } ||
+            org.fcitx.fcitx5.android.data.theme.SkinConfiguration.hidesDigitHint(
+                skinStyle?.localConfiguration, def.displayText, def.altText, !def.isFunctionLabel || "t9/r1c2" in skinKeyIds, skinStyle?.defaultDigitHints ?: true))
 
     /** Stable skin identifiers, independent of current uppercase state and changing candidates. */
     val skinKeyId: String = when (def.viewId) {
@@ -94,7 +120,11 @@ abstract class KeyView(ctx: Context, val theme: Theme, val def: KeyDef.Appearanc
     }
 
     val skinKeyIds: List<String> = skinAddress.candidates(skinKeyId)
+    protected val authoredMainCenterY get() = skinKeyIds.firstNotNullOfOrNull { skinStyle?.keyLabelCenterYByKey?.get(it) }
+    protected val authoredHintCenterY get() = skinKeyIds.firstNotNullOfOrNull { skinStyle?.keyHintCenterYByKey?.get(it) } ?: skinStyle?.keyHintCenterY
     private val skinForegroundSize = skinKeyIds.firstNotNullOfOrNull { skinStyle?.keyForegroundSizes?.get(it) }
+
+    private val hasCharacterAnimation get() = skinKeyIds.any { (theme as? Theme.Custom)?.keyAnimations?.containsKey(it) == true }
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -105,12 +135,12 @@ abstract class KeyView(ctx: Context, val theme: Theme, val def: KeyDef.Appearanc
             (host as? BaseKeyboard)?.onSkinKeyRelease(this)
         }
         val handled = super.onTouchEvent(event)
-        if (skinStyle?.skinLabStandard != true && skinStyle?.keyPressScale?.let { it < 1f } == true) {
+        if (hasCharacterAnimation && event.actionMasked == MotionEvent.ACTION_CANCEL) appearanceView.background?.jumpToCurrentState()
+        val authoredMotion = skinStyle?.keyMotion
+        if (!hasCharacterAnimation && (authoredMotion?.enabled ?: ((skinStyle?.skinLabStandard != true || skinStyle?.customKeyFaceInsets == true) && skinStyle?.keyPressScale?.let { it < 1f } == true))) {
             val down = handled && isEnabled && event.actionMasked == MotionEvent.ACTION_DOWN
             if (down || event.actionMasked == MotionEvent.ACTION_UP || event.actionMasked == MotionEvent.ACTION_CANCEL) {
-                val scale = if (down) skinStyle.keyPressScale else 1f
-                appearanceView.scaleX = scale
-                appearanceView.scaleY = scale
+                animateSkinPress(down, event.actionMasked == MotionEvent.ACTION_CANCEL)
             }
         }
         if (handled && isEnabled && event.actionMasked == MotionEvent.ACTION_DOWN) {
@@ -121,10 +151,49 @@ abstract class KeyView(ctx: Context, val theme: Theme, val def: KeyDef.Appearanc
         return handled
     }
 
+    private fun animateSkinPress(down: Boolean, cancel: Boolean = false) {
+        appearanceView.animate().cancel()
+        if (cancel || (Build.VERSION.SDK_INT >= 26 && !ValueAnimator.areAnimatorsEnabled())) {
+            appearanceView.scaleX = 1f
+            appearanceView.scaleY = 1f
+            appearanceView.translationY = 0f
+            if (cancel) appearanceView.background?.jumpToCurrentState()
+            return
+        }
+        val motion = skinStyle?.keyMotion?.takeIf { it.enabled }
+        val scaleX = if (down) motion?.scaleX ?: skinStyle?.keyPressScale ?: 1f else 1f
+        val scaleY = if (down) motion?.scaleY ?: skinStyle?.keyPressScale ?: 1f else 1f
+        // Only artwork moves. The outer gesture view and popup geometry remain fixed.
+        appearanceView.animate().scaleX(scaleX).scaleY(scaleY)
+            .translationY(if (down) dp(motion?.sinkDp ?: 0f) else 0f)
+            .setDuration(if (down) motion?.pressMs?.toLong() ?: 70L else motion?.releaseMs?.toLong() ?: 180L)
+            .setInterpolator(if (down) DecelerateInterpolator() else OvershootInterpolator(motion?.bounce ?: .55f))
+            .start()
+    }
+
     internal fun skinBoundsIn(host: BaseKeyboard): RectF {
-        val rect = Rect(0, 0, appearanceView.width, appearanceView.height)
-        host.offsetDescendantRectToMyCoords(appearanceView, rect)
+        val rect = Rect(appearanceView.left, appearanceView.top, appearanceView.right, appearanceView.bottom)
+        host.offsetDescendantRectToMyCoords(this, rect)
         return RectF(rect).apply { inset(hMargin.toFloat(), vMargin.toFloat()) }
+    }
+
+    internal val sharedSidebarSlot: Boolean get() =
+        skinStyle?.unifiedSidebar == true && def.border == Border.Off && !def.margin
+
+    internal val paintsSkinCap: Boolean get() = appearanceView.background != null
+
+    private var restFace: SkinFaceScaleDrawable? = null
+    private var restArt: Drawable? = null
+
+    internal fun skinShadowBoundsIn(host: BaseKeyboard): RectF {
+        val rect = Rect(appearanceView.left, appearanceView.top, appearanceView.right, appearanceView.bottom)
+        host.offsetDescendantRectToMyCoords(this, rect)
+        val art = restArt
+        if (art != null) restFace?.faceBounds(art, appearanceView.width, appearanceView.height)?.let {
+            it.offset(rect.left.toFloat(), rect.top.toFloat())
+            return it
+        }
+        return RectF(rect).apply { inset(visualHInset.toFloat(), visualVInset.toFloat()) }
     }
 
     init {
@@ -177,34 +246,95 @@ abstract class KeyView(ctx: Context, val theme: Theme, val def: KeyDef.Appearanc
     }
 
     // Content-only replacement: the original KeyView remains the touch/action/accessibility owner.
+    // Latin keycaps display capitals independently of the case sent to the editor.
+    // A @label stamp replaces only that letter. Numeric hints keep their own view.
+    private val stampedLetter = skinKeyId.startsWith("letter:") &&
+        (theme as? Theme.Custom)?.keyForegrounds?.containsKey("$skinKeyId@label") == true &&
+        skinStyle?.localConfiguration?.let { it.font != "default" || it.italic || !it.bold ||
+            it.keyTextColor != 0 || !it.textShadowEnabled } != true
+    private var skinState = when {
+        stampedLetter -> "label"
+        def.viewId == R.id.button_return -> "return"
+        else -> "off"
+    }
+    private val replacedChildAlpha = java.util.WeakHashMap<View, Float>()
     private val skinForeground = (theme as? Theme.Custom)?.let { custom ->
-        skinKeyIds.firstNotNullOfOrNull { custom.keyForegrounds[it]?.toDrawable(context) }
-    }?.let { drawable ->
-        imageView {
-            setImageDrawable(drawable)
+        if (skinStyle?.skinLabStandard == true && skinAddress.layout == "number" && skinKeyId == "role:enter") null
+        else if (skinKeyIds.any { id -> custom.keyForegrounds.keys.any { it == id || it.startsWith("$id@") } }) imageView {
+            val ids = skinKeyIds.map { "$it@$skinState" } + skinKeyIds
+            setImageDrawable(ids.firstNotNullOfOrNull { custom.keyForegrounds[it]?.toDrawable(context) })
             scaleType = ImageView.ScaleType.FIT_CENTER
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
             isClickable = false
             isFocusable = false
-        }
+        } else null
     }
 
     fun setSkinState(state: String) {
+        skinState = state
         val foreground = skinForeground ?: return
         val custom = theme as? Theme.Custom ?: return
         val ids = skinKeyIds.map { "$it@$state" } + skinKeyIds
-        val drawable = ids.firstNotNullOfOrNull { custom.keyForegrounds[it]?.toDrawable(context) } ?: return
+        val drawable = ids.firstNotNullOfOrNull { custom.keyForegrounds[it]?.toDrawable(context) }
         foreground.setImageDrawable(drawable)
+        updateSkinForegroundVisibility()
     }
 
-    protected fun keyTypeface(original: Typeface?, textStyle: Int): Typeface =
-        skinStyle?.keyFontFamily?.let { Typeface.create(it, Typeface.NORMAL) }
+    private fun updateSkinForegroundVisibility() {
+        val foreground = skinForeground ?: return
+        val replacing = foreground.drawable != null
+        foreground.visibility = if (replacing) View.VISIBLE else View.INVISIBLE
+        for (index in 0 until appearanceView.childCount) {
+            val child = appearanceView.getChildAt(index)
+            if (child === foreground || child is SkinAmbientView) continue
+            if (stampedLetter && child === (this as? AltTextKeyView)?.altText) continue
+            if (replacing) {
+                if (!replacedChildAlpha.containsKey(child)) replacedChildAlpha[child] = child.alpha
+                child.alpha = 0f
+            } else {
+                replacedChildAlpha.remove(child)?.let { child.alpha = it }
+            }
+        }
+    }
+
+    protected fun keyTypeface(original: Typeface?, textStyle: Int): Typeface {
+        skinStyle?.localConfiguration?.let { config ->
+            if (config.font != "default" && (skinKeyId.startsWith("letter:") || skinKeyId.startsWith("t9:"))) {
+                return SkinConfigurationTypeface.get(context, config.font, config.bold, config.italic)
+            }
+            if (config.font == "default" && (skinKeyId.startsWith("letter:") || skinKeyId.startsWith("t9:"))) {
+                val style = (if (config.bold) Typeface.BOLD else Typeface.NORMAL) or (if (config.italic) Typeface.ITALIC else 0)
+                return skinStyle.keyFontFamily?.let { Typeface.create(it, style) } ?: Typeface.create(original, style)
+            }
+        }
+        return skinStyle?.keyFontFamily?.let {
+            if (it == "serif") SkinSerifTypeface.get(context, skinStyle?.keyTextBold == true)
+            else Typeface.create(it, Typeface.NORMAL)
+        }
             ?: Typeface.create(original, textStyle)
+    }
+
+    internal fun cancelSkinFeedback() {
+        // A retained IME window may hide without detaching or losing window focus.
+        // Clear the owner state too, otherwise duplicate-parent state can restore the pose.
+        isPressed = false
+        appearanceView.isPressed = false
+        animateSkinPress(false, cancel = true)
+    }
+
+    override fun onVisibilityAggregated(isVisible: Boolean) {
+        super.onVisibilityAggregated(isVisible)
+        if (!isVisible) cancelSkinFeedback()
+    }
 
     override fun onDetachedFromWindow() {
-        appearanceView.scaleX = 1f
-        appearanceView.scaleY = 1f
+        cancelSkinFeedback()
         super.onDetachedFromWindow()
+    }
+
+    override fun onWindowFocusChanged(hasWindowFocus: Boolean) {
+        super.onWindowFocusChanged(hasWindowFocus)
+        if (!hasWindowFocus) cancelSkinFeedback()
     }
 
     protected fun contentBounds(): RectF {
@@ -213,17 +343,79 @@ abstract class KeyView(ctx: Context, val theme: Theme, val def: KeyDef.Appearanc
         val shared = skinStyle?.unifiedSidebar == true && def.border == Border.Off && !def.margin
         val density = resources.displayMetrics.density
         fun px(value: Float?) = if (shared) 0f else (value ?: 0f).coerceIn(0f, 24f) * density
+        val verticalScale = if (skinStyle?.skinLabStandard == true)
+            min(compactRowScale, (appearanceView.height - 2 * visualVInset).coerceAtLeast(0) /
+                (2f * (px(inset?.topDp) + px(inset?.bottomDp))).coerceAtLeast(1f)) else 1f
         val l = (visualHInset + px(inset?.leftDp)).coerceAtMost(appearanceView.width / 2f)
-        val t = (visualVInset + px(inset?.topDp)).coerceAtMost(appearanceView.height / 2f)
+        val t = (visualVInset + px(inset?.topDp) * verticalScale).coerceAtMost(appearanceView.height / 2f)
         val r = (appearanceView.width - visualHInset - px(inset?.rightDp)).coerceAtLeast(l)
-        val b = (appearanceView.height - visualVInset - px(inset?.bottomDp)).coerceAtLeast(t)
+        val b = (appearanceView.height - visualVInset - px(inset?.bottomDp) * verticalScale).coerceAtLeast(t)
         return RectF(l, t, r, b)
+    }
+
+    protected fun fitTextContent(first: TextView, firstY: Float, second: TextView? = null, secondY: Float = .5f) {
+        if (skinStyle?.skinLabStandard != true) return
+        val face = contentBounds()
+        val centerX = skinKeyIds.firstNotNullOfOrNull { skinStyle?.keyLabelCenterXByKey?.get(it) } ?: .5f
+        fun lineHeight(text: TextView) = text.paint.fontMetrics.let { it.bottom - it.top }
+        fun fit(text: TextView, center: Float) = SkinLayoutFit.textScale(face.width(), face.height(),
+            centerX, center, text.paint.measureText(text.text.toString()), lineHeight(text))
+        var scale = fit(first, firstY)
+        if (second != null && second.visibility == VISIBLE) {
+            scale = min(scale, min(fit(second, secondY),
+                SkinLayoutFit.pairScale(face.height(), firstY, secondY, lineHeight(first), lineHeight(second))))
+            second.scaleX = scale; second.scaleY = scale
+            placeContent(second, secondY)
+        }
+        first.scaleX = scale; first.scaleY = scale
+        placeContent(first, firstY)
     }
 
     protected fun placeContent(view: View, centerY: Float = .5f) {
         val face = contentBounds()
-        view.translationX = face.centerX() - (view.left + view.width / 2f)
+        val centerX = skinKeyIds.firstNotNullOfOrNull { skinStyle?.keyLabelCenterXByKey?.get(it) } ?: .5f
+        view.translationX = face.left + face.width() * centerX - (view.left + view.width / 2f)
         view.translationY = face.top + face.height() * centerY - (view.top + view.height / 2f)
+    }
+
+    protected fun placeNumericHint(view: TextView, main: TextView, desiredCenter: Float) {
+        if (skinStyle?.skinLabStandard != true) return
+        val face = contentBounds()
+        val capHeight = (appearanceView.height - 2 * visualVInset).coerceAtLeast(0)
+        val sizeInset = capHeight * (1f - ((skinStyle?.configuredKeyHeightPercent ?: 100) / 100f).coerceAtMost(1f)) / 2f
+        val ink = Rect(); view.paint.getTextBounds(view.text.toString(), 0, view.text.length, ink)
+        val mainInk = Rect(); main.paint.getTextBounds(main.text.toString(), 0, main.text.length, mainInk)
+        val stamp = skinForeground?.takeIf { stampedLetter && it.drawable != null }
+        val mainInkTop = stamp?.let { it.y + it.height * (1f - it.scaleY) / 2f }
+            ?: (main.y + main.pivotY + (main.baseline + mainInk.top - main.pivotY) * main.scaleY)
+        val top = face.top + sizeInset + dp(2f)
+        val bottom = minOf(face.bottom - sizeInset - dp(2f), mainInkTop - dp(2f)).coerceAtLeast(top + 1f)
+        // Moving a small digit must not resize the main key label. Fit only its own ink.
+        val scale = minOf(1f, face.width() / ink.width().coerceAtLeast(1),
+            (bottom - top) / ink.height().coerceAtLeast(1)).coerceAtLeast(.01f)
+        view.scaleX = scale; view.scaleY = scale
+        val half = ink.height() * scale / 2f
+        val target = (face.top + face.height() * desiredCenter).coerceIn(top + half, maxOf(top + half, bottom - half))
+        placeContent(view, desiredCenter)
+        view.translationY = target - view.top - view.pivotY - (view.baseline + ink.exactCenterY() - view.pivotY) * scale
+    }
+
+    protected fun fitImageContent(image: ImageView, centerY: Float = .5f, text: TextView? = null, textY: Float = .76f) {
+        if (skinStyle?.skinLabStandard != true) return
+        val face = contentBounds()
+        val centerX = skinKeyIds.firstNotNullOfOrNull { skinStyle?.keyLabelCenterXByKey?.get(it) } ?: .5f
+        var scale = SkinLayoutFit.textScale(face.width(), face.height(), centerX, centerY,
+            image.width.toFloat(), image.height.toFloat())
+        if (text != null) {
+            val line = text.paint.fontMetrics.let { it.bottom - it.top }
+            scale = min(scale, min(SkinLayoutFit.textScale(face.width(), face.height(), centerX, textY,
+                text.paint.measureText(text.text.toString()), line),
+                SkinLayoutFit.pairScale(face.height(), centerY, textY, image.height.toFloat(), line)))
+            text.scaleX = scale; text.scaleY = scale
+            placeContent(text, textY)
+        }
+        image.scaleX = scale; image.scaleY = scale
+        placeContent(image, centerY)
     }
 
     private val roundedOutlineProvider = object : ViewOutlineProvider() {
@@ -326,7 +518,7 @@ abstract class KeyView(ctx: Context, val theme: Theme, val def: KeyDef.Appearanc
     private fun highlightMaskDrawable(@ColorInt color: Int): Drawable {
         // Use a separate copy of the actual key artwork: its alpha, nine-slice
         // corners and visual insets must also define the pressed surface.
-        themedBackgroundDrawable(resolveImageRole())?.let { mask ->
+        themedBackgroundDrawable(resolveImageRole(), includeStates = false)?.let { mask ->
             mask.colorFilter = PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN)
             return mask
         }
@@ -336,11 +528,14 @@ abstract class KeyView(ctx: Context, val theme: Theme, val def: KeyDef.Appearanc
 
     override fun setEnabled(enabled: Boolean) {
         super.setEnabled(enabled)
+        if (!enabled) animateSkinPress(false, cancel = true)
         appearanceView.alpha = if (enabled) 1f else styledFloat(android.R.attr.disabledAlpha)
     }
 
     fun updateBounds() {
-        val (x, y) = cachedLocation.also { appearanceView.getLocationInWindow(it) }
+        val location = cachedLocation.also { getLocationInWindow(it) }
+        val x = location[0] + appearanceView.left
+        val y = location[1] + appearanceView.top
         cachedBounds.set(x, y, x + appearanceView.width, y + appearanceView.height)
         boundsValid = true
     }
@@ -363,18 +558,28 @@ abstract class KeyView(ctx: Context, val theme: Theme, val def: KeyDef.Appearanc
             )
         }
         super.onLayout(changed, left, top, right, bottom)
-        skinForeground?.let { foreground ->
-            // Alpha preserves layout and dynamic label updates without displaying text over the artwork.
-            for (index in 0 until appearanceView.childCount) {
-                val child = appearanceView.getChildAt(index)
-                if (child !== foreground && child !is SkinAmbientView) child.alpha = 0f
+        if (changed && skinStyle?.skinLabStandard == true) {
+            // The first drawable was created before measurement. Rebind its authored
+            // insets to the actual row height without changing the outer hit rectangle.
+            themedBackgroundDrawable(resolveImageRole())?.let {
+                appearanceView.background = it
+                appearanceView.padding = 0
+                setupPressHighlight()
             }
+        }
+        updateSkinForegroundVisibility()
+        skinForeground?.let { foreground ->
             foreground.bringToFront()
             val face = contentBounds()
-            val scale = min(1f, min(face.width() / foreground.width.coerceAtLeast(1), face.height() / foreground.height.coerceAtLeast(1)))
+            val requested = if (stampedLetter) (skinStyle?.localConfiguration?.keyTextScale ?: 100) / 100f else 1f
+            val hasHint = stampedLetter && !hidePrintedHint && (this as? AltTextKeyView)?.altText?.visibility == VISIBLE
+            val center = if (!stampedLetter) .5f else authoredMainCenterY ?: (if (hasHint) skinStyle?.keyLabelWithHintCenterY else null)
+                ?: skinStyle?.keyLabelCenterY ?: .5f
+            val height = face.height() * 2f * min(center, 1f - center)
+            val scale = min(requested, min(face.width() / foreground.width.coerceAtLeast(1), height / foreground.height.coerceAtLeast(1)))
             foreground.scaleX = scale
             foreground.scaleY = scale
-            placeContent(foreground)
+            placeContent(foreground, center)
         }
     }
 
@@ -451,7 +656,7 @@ abstract class KeyView(ctx: Context, val theme: Theme, val def: KeyDef.Appearanc
         appearanceView.clipToOutline = enabled && radius > 0f && skinStyle?.clipKeyImagesToOutline != false
     }
 
-    private fun themedBackgroundDrawable(role: KeyImageRole): Drawable? {
+    private fun themedBackgroundDrawable(role: KeyImageRole, includeStates: Boolean = true): Drawable? {
         val customTheme = theme as? Theme.Custom ?: return null
         // Border.Off/margin=false denotes a clickable slot in an already painted sidebar.
         if (skinStyle?.unifiedSidebar == true && def.border == Border.Off && !def.margin) return null
@@ -462,7 +667,52 @@ abstract class KeyView(ctx: Context, val theme: Theme, val def: KeyDef.Appearanc
                 if (borderStroke) setStroke(dp(1), theme.keyShadowColor)
             }
         } ?: return null
-        return insetDrawable(drawable, visualHInset, visualVInset)
+        val outset = dp(skinStyle?.keyImageHorizontalOutsetDp ?: 0f).roundToInt()
+        val aspect = skinStyle?.authoredKeyAspectRatio(skinKeyIds)
+        // Expand only the authored image and its identical press mask. Text and hit bounds stay fixed.
+        val faceInsets = skinKeyIds.firstNotNullOfOrNull { skinStyle?.keyFaceInsetsByKey?.get(it) }
+        fun configured(drawable: Drawable): Drawable = skinStyle?.let {
+            SkinFaceScaleDrawable(drawable, it.configuredKeyWidthPercent / 100f, it.configuredKeyHeightPercent / 100f, visualHInset, visualVInset, dp(1f))
+        } ?: drawable
+        fun fit(image: Drawable): Drawable {
+            val fitted = when {
+                skinAddress.layout == "t9" && skinStyle?.t9AlignVisibleColumns == true ->
+                    SkinInkFitDrawable(image, horizontalOnly = true)
+                aspect != null -> SkinAspectDrawable(image, aspect)
+                else -> image
+            }
+            if (faceInsets != null) return configured(InsetDrawable(fitted,
+                visualHInset - outset + dp(faceInsets.leftDp).roundToInt(),
+                visualVInset + (dp(faceInsets.topDp) * compactRowScale).roundToInt(),
+                visualHInset - outset + dp(faceInsets.rightDp).roundToInt(),
+                visualVInset + (dp(faceInsets.bottomDp) * compactRowScale).roundToInt()))
+            return configured(if (outset > 0) InsetDrawable(fitted, visualHInset - outset, visualVInset,
+                visualHInset - outset, visualVInset) else insetDrawable(fitted, visualHInset, visualVInset))
+        }
+        val rest = fit(drawable)
+        if (includeStates) {
+            restFace = rest as? SkinFaceScaleDrawable
+            restArt = drawable
+            val animation = skinKeyIds.firstNotNullOfOrNull { customTheme.keyAnimations[it] }
+            if (animation != null) {
+                val frames = animation.frames.mapNotNull { it.toDrawable(context)?.let { frame ->
+                    // Full-face storyboards share the cap bounds at every keyboard height.
+                    // Isolated character sprites retain their authored aspect and placement.
+                    if (animation.fillsKeyFace) fit(frame)
+                    else fit(SkinKeyActorFrameDrawable(frame, animation.left, animation.top, animation.right, animation.bottom))
+                } }
+                if (frames.size == animation.frames.size) return SkinKeySequenceDrawable(rest, frames,
+                    animation.frameDurationsMs.toIntArray(),
+                    skinStyle?.keyMotion?.enabled != false)
+            }
+        }
+        if (includeStates && (skinStyle?.keyMotion?.enabled != false || customTheme.minimumSkinEngine >= 9)) {
+            val states = skinKeyIds.firstNotNullOfOrNull { customTheme.keyStateImages[it] }
+            val pressed = states?.pressed?.toDrawable(context)
+            if (pressed != null) return SkinKeyStateDrawable(rest, fit(pressed),
+                states.released?.toDrawable(context)?.let(::fit), skinStyle?.keyMotion?.releaseMs ?: 380)
+        }
+        return rest
     }
 }
 
@@ -470,19 +720,23 @@ abstract class KeyView(ctx: Context, val theme: Theme, val def: KeyDef.Appearanc
 open class TextKeyView(ctx: Context, theme: Theme, def: KeyDef.Appearance.Text, skinAddress: SkinKeyAddress = SkinKeyAddress()) :
     KeyView(ctx, theme, def, skinAddress) {
     val mainText = view(::AutoScaleTextView) {
+        applySkinTextShadow(this)
         isClickable = false
         isFocusable = false
         background = null
         text = def.displayText
         val labelSize = skinStyle?.functionKeyTextSizeDp?.takeIf { def.isFunctionLabel }?.coerceIn(8f, 24f)
             ?: (def.textSize * (skinStyle?.keyTextScaleByLayout?.get(skinAddress.layout) ?: skinStyle?.keyTextScale ?: 1f).coerceIn(0.4f, 1.5f))
-        setTextSize(TypedValue.COMPLEX_UNIT_DIP, labelSize)
+        setTextSize(TypedValue.COMPLEX_UNIT_DIP, labelSize * (skinStyle?.localConfiguration?.keyTextScale ?: 100) / 100f)
         centerGlyphs = skinStyle?.centerKeyGlyphs == true
         textDirection = View.TEXT_DIRECTION_FIRST_STRONG_LTR
         // keep original typeface, apply textStyle only
         typeface = keyTypeface(typeface, skinStyle?.keyTextBold?.let { if (it) Typeface.BOLD else Typeface.NORMAL } ?: def.textStyle)
         setTextColor(
             when {
+                skinStyle?.skinLabStandard == true && skinAddress.layout == "number" && skinAddress.position == "r4c5" -> if (theme.isDark) Color.WHITE else 0xff222735.toInt()
+                skinAddress.layout == "qwerty" && skinAddress.position == "r4c2" && skinStyle?.punctuationKeyTextColor != null -> skinStyle.punctuationKeyTextColor
+                def.viewId == R.id.button_lang && skinStyle?.languageKeyTextColor != null -> skinStyle.languageKeyTextColor
                 def.viewId == R.id.button_space -> skinStyle?.spaceKeyTextColor ?: theme.altKeyTextColor
                 def.border == Border.Off && !def.margin && skinStyle?.sidebarTextColor != null -> skinStyle.sidebarTextColor!!
                 else -> when (def.variant) {
@@ -495,6 +749,8 @@ open class TextKeyView(ctx: Context, theme: Theme, def: KeyDef.Appearance.Text, 
     }
 
     init {
+        skinStyle?.authoredKeyTextColor(skinKeyIds)?.let(mainText::setTextColor)
+        skinStyle?.localConfiguration?.keyTextColor?.takeIf { it != 0 }?.let(mainText::setTextColor)
         appearanceView.apply {
             add(mainText, lParams(wrapContent, wrapContent) {
                 centerInParent()
@@ -504,12 +760,13 @@ open class TextKeyView(ctx: Context, theme: Theme, def: KeyDef.Appearance.Text, 
 
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
         super.onLayout(changed, left, top, right, bottom)
-        val center = if (hidePrintedHint) .5f else if (def is KeyDef.Appearance.AltText) skinStyle?.keyLabelWithHintCenterY
+        val center = authoredMainCenterY ?: if (hidePrintedHint) skinStyle?.keyLabelCenterY ?: .5f else if (def is KeyDef.Appearance.AltText) skinStyle?.keyLabelWithHintCenterY
             ?: skinStyle?.keyLabelCenterY else skinStyle?.keyLabelCenterY ?: if (skinStyle?.keyContentInsets != null) .5f else null
         // ImageText has its own icon/text pair; preserve that semantic arrangement.
         if (center != null && def !is KeyDef.Appearance.ImageText) {
             placeContent(mainText, center.coerceIn(0.15f, 0.85f))
         }
+        if (def !is KeyDef.Appearance.ImageText) fitTextContent(mainText, (center ?: .5f).coerceIn(.15f, .85f))
     }
 }
 
@@ -517,6 +774,7 @@ open class TextKeyView(ctx: Context, theme: Theme, def: KeyDef.Appearance.Text, 
 class AltTextKeyView(ctx: Context, theme: Theme, def: KeyDef.Appearance.AltText, skinAddress: SkinKeyAddress = SkinKeyAddress()) :
     TextKeyView(ctx, theme, def, skinAddress) {
     val altText = view(::AutoScaleTextView) {
+        applySkinTextShadow(this)
         isClickable = false
         isFocusable = false
         // TODO hardcoded alt text size
@@ -527,7 +785,9 @@ class AltTextKeyView(ctx: Context, theme: Theme, def: KeyDef.Appearance.AltText,
         textDirection = View.TEXT_DIRECTION_FIRST_STRONG_LTR
         setTextColor(
             when (def.variant) {
-                Variant.Normal -> theme.candidateCommentColor
+                Variant.Normal -> if (skinStyle?.skinLabStandard == true) {
+                    (mainText.currentTextColor and 0x00ffffff) or (0xb3 shl 24)
+                } else theme.candidateCommentColor
                 Variant.AltForeground, Variant.Alternative -> theme.altKeyTextColor
                 Variant.Accent -> theme.accentKeyTextColor
             }
@@ -623,6 +883,22 @@ class AltTextKeyView(ctx: Context, theme: Theme, def: KeyDef.Appearance.AltText,
             applyNoAltTextPosition()
             return
         }
+        if (skinStyle?.skinLabStandard == true && authoredHintCenterY != null) {
+            // Authored centers position each measured label independently. The old
+            // bottom-hint chain can squeeze the main label to 0x0 before scaling.
+            mainText.updateLayoutParams<ConstraintLayout.LayoutParams> {
+                topMargin = 0; bottomMargin = 0; bottomToTop = unset
+                topToTop = parentId; bottomToBottom = parentId
+                leftToLeft = parentId; rightToRight = parentId
+            }
+            altText.updateLayoutParams<ConstraintLayout.LayoutParams> {
+                topMargin = 0; bottomMargin = 0; rightMargin = 0
+                topToTop = parentId; bottomToBottom = parentId
+                leftToLeft = parentId; rightToRight = parentId
+            }
+            altText.visibility = if (resolvedPunctuationPosition() == PunctuationPosition.None) View.GONE else View.VISIBLE
+            return
+        }
         when (resolvedPunctuationPosition()) {
             PunctuationPosition.Bottom -> when (orientation) {
                 Configuration.ORIENTATION_LANDSCAPE -> applyTopRightAltTextPosition()
@@ -647,8 +923,13 @@ class AltTextKeyView(ctx: Context, theme: Theme, def: KeyDef.Appearance.AltText,
 
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
         super.onLayout(changed, left, top, right, bottom)
-        skinStyle?.keyHintCenterY?.let { center ->
+        val hintCenter = authoredHintCenterY
+        hintCenter?.let { center ->
             placeContent(altText, center.coerceIn(0.1f, 0.9f))
+        }
+        if (!hidePrintedHint && altText.visibility == VISIBLE && hintCenter != null) {
+            fitTextContent(mainText, (authoredMainCenterY ?: skinStyle?.keyLabelWithHintCenterY ?: skinStyle?.keyLabelCenterY ?: .5f).coerceIn(.15f, .85f))
+            placeNumericHint(altText, mainText, hintCenter.coerceIn(.1f, .9f))
         }
     }
 }
@@ -656,7 +937,17 @@ class AltTextKeyView(ctx: Context, theme: Theme, def: KeyDef.Appearance.AltText,
 @SuppressLint("ViewConstructor")
 class ImageKeyView(ctx: Context, theme: Theme, def: KeyDef.Appearance.Image, skinAddress: SkinKeyAddress = SkinKeyAddress()) :
     KeyView(ctx, theme, def, skinAddress) {
-    val img = imageView { configure(theme, def.src, def.variant); scaleType = ImageView.ScaleType.FIT_CENTER }
+    val img = imageView {
+        configure(theme, def.src, def.variant)
+        if (def.viewId == R.id.button_lang) skinStyle?.languageKeyTextColor?.let {
+            imageTintList = ColorStateList.valueOf(it)
+        }
+        if (skinStyle?.skinLabStandard == true && skinAddress.layout == "number" && skinAddress.position == "r4c1") {
+            imageTintList = ColorStateList.valueOf(if (skinStyle?.numberReturnUsesFunctionKey == true) theme.altKeyTextColor else Color.WHITE)
+        }
+        skinStyle?.authoredKeyTextColor(skinKeyIds)?.let { imageTintList = ColorStateList.valueOf(it) }
+        scaleType = ImageView.ScaleType.FIT_CENTER
+    }
 
     fun updateReturnDrawable(@DrawableRes resource: Int) {
         // The shared skin keeps one return glyph; editor actions remain unchanged.
@@ -683,6 +974,7 @@ class ImageKeyView(ctx: Context, theme: Theme, def: KeyDef.Appearance.Image, ski
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
         super.onLayout(changed, left, top, right, bottom)
         if (skinStyle?.keyContentInsets != null) placeContent(img)
+        fitImageContent(img)
     }
 }
 
@@ -704,6 +996,9 @@ class ImageTextKeyView(ctx: Context, theme: Theme, def: KeyDef.Appearance.ImageT
     TextKeyView(ctx, theme, def, skinAddress) {
     val img = imageView {
         configure(theme, def.src, def.variant)
+        if (def.viewId == R.id.button_lang) skinStyle?.languageKeyTextColor?.let {
+            imageTintList = ColorStateList.valueOf(it)
+        }
     }
 
     init {
@@ -729,6 +1024,7 @@ class ImageTextKeyView(ctx: Context, theme: Theme, def: KeyDef.Appearance.ImageT
             placeContent(img, .30f)
             placeContent(mainText, .76f)
         }
+        fitImageContent(img, .30f, mainText, .76f)
     }
 
     private fun updateMargins(orientation: Int) {
@@ -769,7 +1065,7 @@ class StackedTextKeyView(
         isFocusable = false
         includeFontPadding = false
         text = if (skinStyle?.skinLabStandard == true) "◦" else stackedDef.topText
-        setTextSize(TypedValue.COMPLEX_UNIT_DIP, stackedDef.topTextSize * (skinStyle?.keyTextScaleByLayout?.get(skinAddress.layout) ?: skinStyle?.keyTextScale ?: 1f).coerceIn(0.4f, 1.5f))
+        setTextSize(TypedValue.COMPLEX_UNIT_DIP, stackedDef.topTextSize * (skinStyle?.keyTextScaleByLayout?.get(skinAddress.layout) ?: skinStyle?.keyTextScale ?: 1f).coerceIn(0.4f, 1.5f) * (skinStyle?.localConfiguration?.keyTextScale ?: 100) / 100f)
         centerGlyphs = skinStyle?.centerKeyGlyphs == true
         typeface = keyTypeface(typeface, skinStyle?.keyTextBold?.let { if (it) Typeface.BOLD else Typeface.NORMAL } ?: stackedDef.textStyle)
         textDirection = View.TEXT_DIRECTION_FIRST_STRONG_LTR
@@ -787,7 +1083,7 @@ class StackedTextKeyView(
         isFocusable = false
         includeFontPadding = false
         text = if (skinStyle?.skinLabStandard == true) "," else stackedDef.bottomText
-        setTextSize(TypedValue.COMPLEX_UNIT_DIP, stackedDef.bottomTextSize * (skinStyle?.keyTextScaleByLayout?.get(skinAddress.layout) ?: skinStyle?.keyTextScale ?: 1f).coerceIn(0.4f, 1.5f))
+        setTextSize(TypedValue.COMPLEX_UNIT_DIP, stackedDef.bottomTextSize * (skinStyle?.keyTextScaleByLayout?.get(skinAddress.layout) ?: skinStyle?.keyTextScale ?: 1f).coerceIn(0.4f, 1.5f) * (skinStyle?.localConfiguration?.keyTextScale ?: 100) / 100f)
         centerGlyphs = skinStyle?.centerKeyGlyphs == true
         typeface = keyTypeface(typeface, skinStyle?.keyTextBold?.let { if (it) Typeface.BOLD else Typeface.NORMAL } ?: stackedDef.textStyle)
         textDirection = View.TEXT_DIRECTION_FIRST_STRONG_LTR
@@ -805,6 +1101,9 @@ class StackedTextKeyView(
             add(topText, lParams(wrapContent, wrapContent))
             add(bottomText, lParams(wrapContent, wrapContent))
         }
+        skinStyle?.localConfiguration?.keyTextColor?.takeIf { it != 0 }?.let { ink -> topText.setTextColor(ink); bottomText.setTextColor(ink) }
+        applySkinTextShadow(topText)
+        applySkinTextShadow(bottomText)
         topText.updateLayoutParams<ConstraintLayout.LayoutParams> {
             topToTop = parentId
             bottomToTop = bottomText.existingOrNewId
@@ -832,5 +1131,6 @@ class StackedTextKeyView(
             placeContent(topText, if (skinStyle?.skinLabStandard == true) .28f else .30f)
             placeContent(bottomText, if (skinStyle?.skinLabStandard == true) .66f else .72f)
         }
+        fitTextContent(topText, .28f, bottomText, .66f)
     }
 }

@@ -33,7 +33,7 @@ class GridExpandedCandidateWindow :
         object : GridPagingCandidateViewAdapter(theme) {
             override fun onBindViewHolder(holder: CandidateViewHolder, position: Int) {
                 super.onBindViewHolder(holder, position)
-                bindCandidateUiViewHolder(holder)
+                bindCandidateUiViewHolder(holder, position)
             }
 
             override fun onViewRecycled(holder: CandidateViewHolder) {
@@ -45,7 +45,9 @@ class GridExpandedCandidateWindow :
 
     override val layoutManager by lazy {
         GridLayoutManager(context, gridSpanCount).apply {
-            spanSizeLookup = SpanHelper(adapter, this)
+            spanSizeLookup = if (service.usesChineseCandidateGrid()) object : GridLayoutManager.SpanSizeLookup() {
+                override fun getSpanSize(position: Int) = adapter.chineseColumnSpan(position, gridSpanCount)
+            } else SpanHelper(adapter, this)
         }
     }
 

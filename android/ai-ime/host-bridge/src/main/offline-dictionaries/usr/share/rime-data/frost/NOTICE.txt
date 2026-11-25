@@ -1,0 +1,32 @@
+Paopao Android optional Rime Frost dictionaries
+
+Upstream: https://github.com/gaboolic/rime-frost
+Pinned revision: aaf88ecfb65338ed809e3bee176f7b8f98c363ab
+Archive SHA-256: a41e8b9e180c092950084637c66de3237b72ff991ae775a77715ed90b049cc44
+Upstream distribution license: GNU GPL version 3 (see LICENSE).
+Original dictionary source attributions and copyright notices are retained.
+radical_pinyin sources retain their Mirtle / source-project attribution.
+
+Changes: all 30 default Chinese tables are retained under frost/.
+All 30 tables are byte-for-byte upstream data, including the 22 game entries
+whose separators were corrected upstream.
+paopao_frost.dict.yaml changes only the root name and active import paths.
+Paopao schemas inherit the current rime_ice/t9 interaction behavior and page
+size 24, use explicit user_dict=rime_ice, and apply Frost grammar settings.
+Six double-pinyin speller/preedit mappings are copied from the pinned schemas.
+No upstream quick-command, processor or Lua feature is newly enabled.
+Full/double-pinyin use an independent paopao_pinyin_english prism from the existing
+English schema, excluding the legacy T9 numeric custom patch. T9 is unchanged.
+The previously missing radical_pinyin schema/dictionary are added unchanged.
+zh-moqi.gram SHA-256: 7b9a593ce9f58bd538048cef11f825c3cd86307030552726d58785dd87d98ae9
+
+Original root dictionary and schema sources are preserved under source/.
+provenance.json records every shipped file, interaction dependency and version.
+The default schema list remains unchanged; deployment is selected on demand.
+No LevelDB directory is copied or migrated by this tool.
+
+Source snapshot: scripts/dictionaries/source-snapshots/frost-aaf88ec.json
+Snapshot SHA-256: 3fa456ce878b276f918d4f46eece27091d181341af572cd061946a610b30513f
+Base archive revision: 4b190b873c99da55ba06a24b9cf5ad5a9d8a0818
+Target Git tree: 5f3050dbd2530ef191e03f43ea363a0f4769caee
+The archive digest above identifies the base; each target input is independently Git-blob/SHA-256 verified.

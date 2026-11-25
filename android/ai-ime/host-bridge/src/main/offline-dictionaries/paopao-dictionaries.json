@@ -1,0 +1,351 @@
+{
+  "platform": "android",
+  "version": "926c4bb631fe25e08bd553795ac06a3ee3b208bdbe3d8eff8d3ed04fc1bffb23",
+  "profiles": {
+    "frost": [
+      {
+        "path": "usr/share/rime-data/build/paopao_frost.reverse.bin",
+        "size": 571584,
+        "sha256": "605e8cad2f65a1a76070d2bf46bae1d8f5f620ce8417663b6cdd1b3ef1594a8c"
+      },
+      {
+        "path": "usr/share/rime-data/build/paopao_frost.table.bin",
+        "size": 63462928,
+        "sha256": "159b062a2268851f076aa2a6557c015a0a85127afbe27013f7aa15a09fa951fa"
+      },
+      {
+        "path": "usr/share/rime-data/build/paopao_frost_double_pinyin.prism.bin",
+        "size": 17360,
+        "sha256": "296fbb12fcc85a461f6cb3b627f15939e233472344b042a1a81bec433c525813"
+      },
+      {
+        "path": "usr/share/rime-data/build/paopao_frost_double_pinyin.schema.yaml",
+        "size": 49373,
+        "sha256": "4c48415f07d16852ffb77c52b23a4cfe696b00d4a90c12aa68084ef2aa7690f2"
+      },
+      {
+        "path": "usr/share/rime-data/build/paopao_frost_double_pinyin_abc.prism.bin",
+        "size": 17128,
+        "sha256": "dfefe88cf44f6790348f14ade5f558ec3c44e34f229617999f9f178eedca9ef3"
+      },
+      {
+        "path": "usr/share/rime-data/build/paopao_frost_double_pinyin_abc.schema.yaml",
+        "size": 49286,
+        "sha256": "2581c55c3bbf576139cf235f67ca6eeb84ddc25e68fdd4364e91f9f1b1745621"
+      },
+      {
+        "path": "usr/share/rime-data/build/paopao_frost_double_pinyin_flypy.prism.bin",
+        "size": 17368,
+        "sha256": "eae4bde4ae9a796c5f514f09bc76f34c605ef7b24ac2f73c65fc29adc3c0d910"
+      },
+      {
+        "path": "usr/share/rime-data/build/paopao_frost_double_pinyin_flypy.schema.yaml",
+        "size": 49390,
+        "sha256": "f821dd324eae663c418721dfa3aaaf5774905469297b8f4407348e41ea0ba5b7"
+      },
+      {
+        "path": "usr/share/rime-data/build/paopao_frost_double_pinyin_mspy.prism.bin",
+        "size": 17704,
+        "sha256": "aa89940995bce05db5718885b5cf644870d2b3c21eed5fffe6f31af7b93fbe9f"
+      },
+      {
+        "path": "usr/share/rime-data/build/paopao_frost_double_pinyin_mspy.schema.yaml",
+        "size": 49524,
+        "sha256": "6c6ec37d2ef8f59f917ea5aa540ab61362019132f8354dbe6a6b3828719410d1"
+      },
+      {
+        "path": "usr/share/rime-data/build/paopao_frost_double_pinyin_sogou.prism.bin",
+        "size": 17528,
+        "sha256": "8688c29128807a7efc0d0c0f027ee4d25126f0070650f3a103696bfac5051e72"
+      },
+      {
+        "path": "usr/share/rime-data/build/paopao_frost_double_pinyin_sogou.schema.yaml",
+        "size": 49503,
+        "sha256": "b4bd11a9e3b723eb2cdcb130d69c322408011098690cb56d2998f605cf4e6c76"
+      },
+      {
+        "path": "usr/share/rime-data/build/paopao_frost_double_pinyin_ziguang.prism.bin",
+        "size": 17224,
+        "sha256": "b6f636c6131db4248f8152aec3682ba3be9537ee183927e6e44440b65bfc1c43"
+      },
+      {
+        "path": "usr/share/rime-data/build/paopao_frost_double_pinyin_ziguang.schema.yaml",
+        "size": 49339,
+        "sha256": "bb0d6cfb19e6e0f93b3270344ef9d7e7e21ac67429f9f43db3086e5e7c274a1d"
+      },
+      {
+        "path": "usr/share/rime-data/build/paopao_frost_pinyin.prism.bin",
+        "size": 43168,
+        "sha256": "fbc18f7ee3a074744eff4054ec94e2a3f4f1a53024461a2cfc4effaf597c893a"
+      },
+      {
+        "path": "usr/share/rime-data/build/paopao_frost_pinyin.schema.yaml",
+        "size": 49400,
+        "sha256": "90706f6b3820d7f1e0064be44ed056f345b621623192c3d29667617812d74709"
+      },
+      {
+        "path": "usr/share/rime-data/build/paopao_frost_t9.prism.bin",
+        "size": 221856,
+        "sha256": "9de422d985da61a6cbc338377d887c179fd2e6a713b43b9f45a89b232e58e9ae"
+      },
+      {
+        "path": "usr/share/rime-data/build/paopao_frost_t9.schema.yaml",
+        "size": 48169,
+        "sha256": "dbb7e984b201f818b693062889ed11aa2b70d067cc9bbe6e2a992d01ae9d131b"
+      },
+      {
+        "path": "usr/share/rime-data/frost/LICENSE",
+        "size": 35149,
+        "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+      },
+      {
+        "path": "usr/share/rime-data/frost/NOTICE.txt",
+        "size": 2017,
+        "sha256": "46d85f5fd4673aaecd067ba80294670be353ba333d84e161e1da0f15ed4974b4"
+      },
+      {
+        "path": "usr/share/rime-data/paopao_frost.version",
+        "size": 71,
+        "sha256": "18802b51d648b860c832b6aad0518c8c7582cc2f2cd0dfad1ad57c592a19cb9c"
+      },
+      {
+        "path": "usr/share/rime-data/zh-moqi.gram",
+        "size": 7339052,
+        "sha256": "7b9a593ce9f58bd538048cef11f825c3cd86307030552726d58785dd87d98ae9"
+      }
+    ]
+  },
+  "downloads": {
+    "ice": {
+      "version": "2462905a1e0bcb7ce7fd9b27f053ee898511402c52c38d427e0c5218c9087b5c",
+      "size": 26601410,
+      "sha256": "cb4581863a5200990da754872b9d5fea4d83e06bce4e9e7b71e01ea855939101",
+      "url": "https://paopaoime.com/assets/dictionaries/android/v1/ice-2462905a1e0bcb7ce7fd9b27f053ee898511402c52c38d427e0c5218c9087b5c.zip",
+      "files": [
+        {
+          "path": "usr/share/rime-data/build/paopao_ice.reverse.bin",
+          "size": 57524,
+          "sha256": "8f5bf5ec75daeebfde7a2e54b8d290848f1848a621c3cc4f10fe972dd967d723"
+        },
+        {
+          "path": "usr/share/rime-data/build/paopao_ice.table.bin",
+          "size": 60663012,
+          "sha256": "0fd489ebdb78b58a574c25c958a92319ea0964008381effe18fea51c3c68d25b"
+        },
+        {
+          "path": "usr/share/rime-data/build/paopao_ice_double_pinyin.prism.bin",
+          "size": 15208,
+          "sha256": "2730058e0a06002d2677dfb8f1f0b9dd2997dc159ad483b62cf0e5079d21efcd"
+        },
+        {
+          "path": "usr/share/rime-data/build/paopao_ice_double_pinyin.schema.yaml",
+          "size": 49341,
+          "sha256": "0ad3e7b1eb796114cfed61e1a667015d20d3492a9f394ac730ea6d369c33e8cf"
+        },
+        {
+          "path": "usr/share/rime-data/build/paopao_ice_double_pinyin_abc.prism.bin",
+          "size": 14968,
+          "sha256": "66075a2c4fe9816d457e9b5f5e1b8086341c6ef8abf6ae31b8c8833a5cbdd342"
+        },
+        {
+          "path": "usr/share/rime-data/build/paopao_ice_double_pinyin_abc.schema.yaml",
+          "size": 49164,
+          "sha256": "be0ed248286016f58ad77e94769439c17847b940e47b418ffe893627e509b726"
+        },
+        {
+          "path": "usr/share/rime-data/build/paopao_ice_double_pinyin_flypy.prism.bin",
+          "size": 15208,
+          "sha256": "c9c42661bab80604e035d6a2ecc05e29e4d562104acd09079c45b03abcf5ff73"
+        },
+        {
+          "path": "usr/share/rime-data/build/paopao_ice_double_pinyin_flypy.schema.yaml",
+          "size": 49358,
+          "sha256": "e56194df378b65db62ccdd31b7c3fd6f7bcffa97c8bda17d4a0bc331bda7cfb0"
+        },
+        {
+          "path": "usr/share/rime-data/build/paopao_ice_double_pinyin_mspy.prism.bin",
+          "size": 15496,
+          "sha256": "5f6118da9a0be2bf1a50f30c1140d6d697c1d5eb77813766ba2266afd1164d55"
+        },
+        {
+          "path": "usr/share/rime-data/build/paopao_ice_double_pinyin_mspy.schema.yaml",
+          "size": 49402,
+          "sha256": "4d6334dfe38505c55115de6651c23aa94ac442f8393c7d1b4ae3a3e647c1f8f6"
+        },
+        {
+          "path": "usr/share/rime-data/build/paopao_ice_double_pinyin_sogou.prism.bin",
+          "size": 15352,
+          "sha256": "bbf0606d4e8bacaf0bc67e5d32970138075afa3d0e86f1f8ac6b951225b183bc"
+        },
+        {
+          "path": "usr/share/rime-data/build/paopao_ice_double_pinyin_sogou.schema.yaml",
+          "size": 49381,
+          "sha256": "ebbb43be619237c329edccc5a0da0fa5d14a1c1d24ce6c5e7c87e949dfcd8280"
+        },
+        {
+          "path": "usr/share/rime-data/build/paopao_ice_double_pinyin_ziguang.prism.bin",
+          "size": 15064,
+          "sha256": "8e22084be952ec7b3f68cabb3c3285c402cabddb93a28b97604ff48efe55333a"
+        },
+        {
+          "path": "usr/share/rime-data/build/paopao_ice_double_pinyin_ziguang.schema.yaml",
+          "size": 49217,
+          "sha256": "6f4aa674c7f0345461f99d43fba90d8ab156d96235bc46bcd57e488e011ae29a"
+        },
+        {
+          "path": "usr/share/rime-data/build/paopao_ice_pinyin.prism.bin",
+          "size": 40032,
+          "sha256": "e6ee4c804da1b7e6cdc8631a9e45af464b82e85fc4435e85c19f2bbc0703a73e"
+        },
+        {
+          "path": "usr/share/rime-data/build/paopao_ice_pinyin.schema.yaml",
+          "size": 49240,
+          "sha256": "1e8805fc657fd8c85cb0f3d9b0a2c9b55e7fce0249006b7fae4b113887c5bf34"
+        },
+        {
+          "path": "usr/share/rime-data/build/paopao_ice_t9.prism.bin",
+          "size": 206232,
+          "sha256": "e0aa19e0e26dd42ca8f43fc04f3dc0bcd901609d9fbf21d0d71ef6ab94adcf00"
+        },
+        {
+          "path": "usr/share/rime-data/build/paopao_ice_t9.schema.yaml",
+          "size": 48009,
+          "sha256": "3a07438397c7b51b07ef254c90ec5e9fccd5b1d27da87c8f1443835f4ff5d16e"
+        },
+        {
+          "path": "usr/share/rime-data/ice/LICENSE",
+          "size": 35149,
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+        },
+        {
+          "path": "usr/share/rime-data/ice/NOTICE.txt",
+          "size": 1522,
+          "sha256": "98d11817bbcf3b5a9f4c832f303299edb464cf371b13f46c6e9dac125cb61128"
+        },
+        {
+          "path": "usr/share/rime-data/paopao_ice.version",
+          "size": 69,
+          "sha256": "e5a78d480359d29773f35cefa8f30f3e767ae8453ceb633b81431fecd77cd919"
+        }
+      ]
+    },
+    "default": {
+      "version": "ed546812c002783cd4a8629e596cf4c7300e65afcc5012e1aee0d442d84fa4fb",
+      "size": 62033570,
+      "sha256": "a87a9b97241a6c3d0445d313969df5483ffe29b07775bb772597b43769084430",
+      "url": "https://paopaoime.com/assets/dictionaries/android/v1/default-ed546812c002783cd4a8629e596cf4c7300e65afcc5012e1aee0d442d84fa4fb.zip",
+      "files": [
+        {
+          "path": "NOTICE.txt",
+          "size": 187,
+          "sha256": "bc04b2b93843aa38230bf4da8ba009d8ae3a2f3894ef66c46818f736f189d8b7"
+        },
+        {
+          "path": "licenses/fcitx5-chinese-addons/GPL-2.0-or-later.txt",
+          "size": 17622,
+          "sha256": "606aa26338f69ce178f1cbc648b7574aec4b5bbaeb20f4df36ff49010cb8fbbd"
+        },
+        {
+          "path": "licenses/fcitx5-chinese-addons/LGPL-2.1-or-later.txt",
+          "size": 25906,
+          "sha256": "1ccf09bf2f598308df4bed9cd8e9657dc5cd0973d2800318f2e241486e2edf3f"
+        },
+        {
+          "path": "licenses/libime/LGPL-2.1-or-later.txt",
+          "size": 25906,
+          "sha256": "1ccf09bf2f598308df4bed9cd8e9657dc5cd0973d2800318f2e241486e2edf3f"
+        },
+        {
+          "path": "usr/share/fcitx5/inputmethod/db.conf",
+          "size": 605,
+          "sha256": "b0fee52df1c9044adeab2b0035753b2030dea6c9c7958716f7abd051d62da36e"
+        },
+        {
+          "path": "usr/share/fcitx5/inputmethod/wbpy.conf",
+          "size": 726,
+          "sha256": "3065c4bf361bc7b4722836a818aeb32488e02b0afd98d40675e4dc3232ae533a"
+        },
+        {
+          "path": "usr/share/fcitx5/inputmethod/wbx.conf",
+          "size": 667,
+          "sha256": "824a3fb811c522d5f7e79e25ba6ec44dbe394f9efef9c71d4ba79c81641dedc2"
+        },
+        {
+          "path": "usr/share/fcitx5/inputmethod/zrm.conf",
+          "size": 553,
+          "sha256": "ed53722fd8ee0de9c1236973e2139efdb82823bb5f7d4cff6a25c95bcded8206"
+        },
+        {
+          "path": "usr/share/fcitx5/table/db.main.dict",
+          "size": 148417,
+          "sha256": "cf27d7e24bca1a4d45b7dc47405c587951076ff544e2fa0e51e75ef24b9b9b98"
+        },
+        {
+          "path": "usr/share/fcitx5/table/wbpy.main.dict",
+          "size": 5613801,
+          "sha256": "2febd643ab97c203d565d1c7678fc6341d526e4f881c4bc01d945250ca343432"
+        },
+        {
+          "path": "usr/share/fcitx5/table/wbx.main.dict",
+          "size": 1783759,
+          "sha256": "83d35be2008f768b28262f7a4ce29dc81ba4fcf3da19b8c338fca5c86a797754"
+        },
+        {
+          "path": "usr/share/fcitx5/table/zrm.main.dict",
+          "size": 1096903,
+          "sha256": "1a53dfb4422762d17547d179eeffa713c7505f21dd887cd173e26bbe74d9861e"
+        },
+        {
+          "path": "usr/share/libime/extb.dict",
+          "size": 155943,
+          "sha256": "4bb853510d191791128aeda9d2bc8697ec538a7cd6ebf4f487f6f1022bb1ab81"
+        },
+        {
+          "path": "usr/share/libime/sc.dict",
+          "size": 4495410,
+          "sha256": "e82c66be594be96ab19b63dc007e49b625a28f4ddd59adb508cf931decf7a281"
+        },
+        {
+          "path": "usr/share/libime/zh_CN.lm",
+          "size": 25626482,
+          "sha256": "6befd99fc39dc4eb8ba4410d24109fe73b94ee4655fa252ba739cbc308e349a7"
+        },
+        {
+          "path": "usr/share/libime/zh_CN.lm.predict",
+          "size": 2898421,
+          "sha256": "f59cbac68ccba851aebc347169d927ef7ac49d10f708092bc6cbd16232f7197a"
+        },
+        {
+          "path": "usr/share/rime-data/build/rime_ice.prism.bin",
+          "size": 40032,
+          "sha256": "38ab4058e12867b1545a87ba9499631f7c5b01d335c2d3b7836e3f30430fe9bb"
+        },
+        {
+          "path": "usr/share/rime-data/build/rime_ice.reverse.bin",
+          "size": 57228,
+          "sha256": "80d247136333eabf3cfffb22ecbc90a59c10f97eb8f7d24fc5a9ae5ce3642e6d"
+        },
+        {
+          "path": "usr/share/rime-data/build/rime_ice.schema.yaml",
+          "size": 48940,
+          "sha256": "aadca8ec6104233f74392c7e061863c0c44453319df7d06a57ed06174bfc0a8f"
+        },
+        {
+          "path": "usr/share/rime-data/build/rime_ice.table.bin",
+          "size": 60711112,
+          "sha256": "e660f18b4866e237ad711e31e282c9eaa8e6c11498127a53f69fe8da4c838ef8"
+        },
+        {
+          "path": "usr/share/rime-data/build/t9.prism.bin",
+          "size": 206232,
+          "sha256": "5bb65c93cc9e13cd492685c1217fc23eb579e9e4a54d7d518c5ff744822d26d1"
+        },
+        {
+          "path": "usr/share/rime-data/build/t9.schema.yaml",
+          "size": 47768,
+          "sha256": "21632c5302c6987fb47e74425aced1a03bc9eeaddf91091cb925fffd38cb848e"
+        }
+      ]
+    }
+  }
+}

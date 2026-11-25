@@ -5,11 +5,14 @@
  */
 #include <algorithm>
 #include <cstddef>
+#include <fstream>
 #include <iostream>
+#include <map>
 #include <ostream>
 #include <set>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 #include <fcitx-utils/log.h>
 #include "libime/core/segmentgraph.h"
@@ -78,6 +81,94 @@ void checkABC() {
         PinyinSyllable(PinyinInitial::ZH, libime::PinyinFinal::UN)));
     FCITX_ASSERT(!iter->second.count(
         PinyinSyllable(PinyinInitial::Zero, libime::PinyinFinal::AN)));
+}
+
+void checkSogou() {
+    // Existing profile numbers are persisted outside libime. Append new ones.
+    static_assert(static_cast<int>(ShuangpinBuiltinProfile::MS) == 1);
+    static_assert(static_cast<int>(ShuangpinBuiltinProfile::GB) == 7);
+    static_assert(static_cast<int>(ShuangpinBuiltinProfile::Sogou) == 8);
+    ShuangpinProfile sogou(ShuangpinBuiltinProfile::Sogou);
+    ShuangpinProfile ms(ShuangpinBuiltinProfile::MS);
+    // One word for every final plus special/zero initials and official aliases.
+    // Reference: fixed rime-frost / rime-ice double_pinyin_sogou speller rules.
+    const std::pair<const char *, const char *> syllables[] = {
+        {"bai", "bl"},   {"ban", "bj"},   {"bang", "bh"},
+        {"bao", "bk"},   {"bei", "bz"},   {"ben", "bf"},
+        {"beng", "bg"},  {"er", "or"},    {"jia", "jw"},
+        {"jian", "jm"},  {"jiang", "jd"}, {"jiao", "jc"},
+        {"jie", "jx"},   {"jin", "jn"},   {"jing", "j;"},
+        {"jiong", "js"}, {"jiu", "jq"},   {"dong", "ds"},
+        {"dou", "db"},   {"gua", "gw"},   {"guai", "gy"},
+        {"guan", "gr"},  {"guang", "gd"}, {"jue", "jt"},
+        {"gui", "gv"},   {"gun", "gp"},   {"guo", "go"},
+        {"lve", "lt"},   {"nve", "nt"},   {"lv", "ly"},
+        {"nv", "ny"},    {"sha", "ua"},   {"chi", "ii"},
+        {"zhi", "vi"},   {"ba", "ba"},    {"he", "he"},
+        {"ni", "ni"},    {"bo", "bo"},    {"bu", "bu"},
+        {"a", "aa"},     {"ai", "al"},    {"an", "aj"},
+        {"ang", "ah"},   {"ao", "ak"},    {"e", "ee"},
+        {"ei", "ez"},    {"en", "ef"},    {"eng", "eg"},
+        {"er", "er"},    {"o", "oo"},     {"ou", "ob"},
+        {"a", "oa"},     {"ai", "ol"},    {"an", "oj"},
+        {"ang", "oh"},   {"ao", "ok"},    {"e", "oe"},
+        {"ei", "oz"},    {"en", "of"},    {"eng", "og"},
+        {"ju", "ju"},    {"qu", "qu"},    {"xu", "xu"},
+        {"yu", "yu"},    {"ju", "jy"},    {"qu", "qy"},
+        {"xu", "xy"},    {"yu", "yy"},
+    };
+    for (auto [qp, sp] : syllables) {
+        const auto expected =
+            PinyinEncoder::stringToSyllables(qp, PinyinFuzzyFlag::None);
+        const auto actual =
+            PinyinEncoder::shuangpinToSyllables(sp, sogou, PinyinFuzzyFlag::None);
+        FCITX_ASSERT(actual == expected) << qp << " " << sp << " " << actual;
+    }
+    // Do not make Sogou depend on VE_UE or alter the old MS profile.
+    FCITX_ASSERT(PinyinEncoder::shuangpinToSyllables(
+                     "lv", ms, PinyinFuzzyFlag::None) ==
+                 PinyinEncoder::stringToSyllables("lve", PinyinFuzzyFlag::None));
+    FCITX_ASSERT(PinyinEncoder::shuangpinToSyllables(
+                     "lt", ms, PinyinFuzzyFlag::None) !=
+                 PinyinEncoder::stringToSyllables("lve", PinyinFuzzyFlag::None));
+    FCITX_ASSERT(PinyinEncoder::shuangpinToSyllables(
+                     "lv", sogou, PinyinFuzzyFlag::None) !=
+                 PinyinEncoder::stringToSyllables("lve", PinyinFuzzyFlag::None));
+}
+
+void checkSogouOracle(const char *path) {
+    std::ifstream input(path);
+    FCITX_ASSERT(input.good()) << path;
+    ShuangpinProfile profile(ShuangpinBuiltinProfile::Sogou);
+    std::string pinyin, code;
+    size_t checked = 0;
+    std::map<std::string, std::set<PinyinSyllable>> expectedByCode;
+    auto syllables = [](const MatchedPinyinSyllables &matched) {
+        std::set<PinyinSyllable> result;
+        for (const auto &[initial, finals] : matched) {
+            for (const auto &[final, fuzzy] : finals) {
+                FCITX_ASSERT(!fuzzy);
+                result.emplace(initial, final);
+            }
+        }
+        return result;
+    };
+    while (input >> pinyin >> code) {
+        const auto expected = syllables(
+            PinyinEncoder::stringToSyllables(pinyin, PinyinFuzzyFlag::None));
+        expectedByCode[code].insert(expected.begin(), expected.end());
+        ++checked;
+    }
+    // The reference must include every syllable sharing a code (e.g. lo/luo).
+    // Compare whole sets, so missing mappings and unintended extra mappings fail.
+    for (const auto &[code, expected] : expectedByCode) {
+        const auto actual = syllables(PinyinEncoder::shuangpinToSyllables(
+            code, profile, PinyinFuzzyFlag::None));
+        FCITX_ASSERT(actual == expected)
+            << code << " " << actual << " " << expected;
+    }
+    FCITX_ASSERT(checked > 400) << checked;
+    std::cout << "Sogou official mappings checked: " << checked << std::endl;
 }
 
 void checkXiaoHe() {
@@ -540,9 +631,10 @@ uo=Y
 
 } // namespace
 
-int main() {
+int main(int argc, char **argv) {
     checkProfile(ShuangpinProfile(ShuangpinBuiltinProfile::Ziranma), false);
     checkProfile(ShuangpinProfile(ShuangpinBuiltinProfile::MS), false);
+    checkProfile(ShuangpinProfile(ShuangpinBuiltinProfile::Sogou), false);
     checkProfile(ShuangpinProfile(ShuangpinBuiltinProfile::ABC), false);
     checkProfile(ShuangpinProfile(ShuangpinBuiltinProfile::Ziguang), false);
     checkProfile(ShuangpinProfile(ShuangpinBuiltinProfile::Zhongwenzhixing),
@@ -551,6 +643,7 @@ int main() {
                  false);
     checkProfile(ShuangpinProfile(ShuangpinBuiltinProfile::Xiaohe), false);
     checkABC();
+    checkSogou();
     checkXiaoHe();
     checkZiranma();
 
@@ -570,6 +663,9 @@ int main() {
     checkSimpleParsing();
     checkAdvanceParsing();
     checkAdvanceParsing2();
+    if (argc > 1) {
+        checkSogouOracle(argv[1]);
+    }
 
     return 0;
 }

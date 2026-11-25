@@ -10,6 +10,7 @@
 #include "customphrase.h"
 #include "symboldictionary.h"
 #include "workerthread.h"
+#include "../../../../../../../common/src/main/cpp/personal-vocabulary.h"
 #include <cstddef>
 #include <cstdint>
 #include <fcitx-config/configuration.h>
@@ -37,7 +38,6 @@
 #include <fcitx/inputmethodengine.h>
 #include <fcitx/instance.h>
 #include <fcitx/text.h>
-#include <filesystem>
 #include <future>
 #include <libime/core/historybigram.h>
 #include <libime/pinyin/pinyincontext.h>
@@ -95,13 +95,15 @@ enum class ShuangpinProfileEnum {
     PinyinJiajia,
     Xiaohe,
     GB,
-    Custom
+    Custom,
+    Sogou
 };
 
 FCITX_CONFIG_ENUM_NAME_WITH_I18N(ShuangpinProfileEnum, N_("Ziranma"), N_("MS"),
                                  N_("Ziguang"), N_("ABC"),
                                  N_("Zhongwenzhixing"), N_("PinyinJiajia"),
-                                 N_("Xiaohe"), N_("GB Standard"), N_("Custom"))
+                                 N_("Xiaohe"), N_("GB Standard"), N_("Custom"),
+                                 N_("Sogou"))
 
 enum class PreeditMode { No, ComposingPinyin, CommitPreview };
 
@@ -156,8 +158,8 @@ FCITX_CONFIGURATION(
     Option<bool> z{this, "Z_ZH", _("z <-> zh"), false};
     OptionWithAnnotation<CorrectionLayout, CorrectionLayoutI18NAnnotation>
         correction{this, "Correction", _("Correction Layout"),
-                   isAndroid() ? CorrectionLayout::Qwerty
-                               : CorrectionLayout::None};)
+                   (isAndroid() || isIOS()) ? CorrectionLayout::Qwerty
+                                            : CorrectionLayout::None};)
 
 FCITX_CONFIGURATION(
     PinyinEngineConfig,
@@ -168,7 +170,7 @@ FCITX_CONFIGURATION(
                          ShuangpinProfileEnum::Ziranma};
     OptionWithAnnotation<bool, OptionalHideInDescription> showShuangpinMode{
         this, "ShowShuangpinMode", _("Show current shuangpin mode"), true};
-    Option<int, IntConstrain> pageSize{
+    ConditionalHidden<isIOS(), Option<int, IntConstrain>> pageSize{
         this, "PageSize", _("Candidates Per Page"), 7, IntConstrain(3, 10)};
     Option<bool> spellEnabled{this, "SpellEnabled",
                               _("Show English Candidates"), true};
@@ -179,7 +181,7 @@ FCITX_CONFIGURATION(
     Option<bool> extBEnabled{
         this, "ExtBEnabled",
         _("Enable more Characters after Unicode CJK Extension B"),
-        !isAndroid()};
+        !(isAndroid() || isIOS())};
     Option<bool> strokeCandidateEnabled{
         this, "StrokeCandidateEnabled",
         _("Show stroke candidates when typing with h(一), s(丨), p(丿), n(㇏), "
@@ -211,7 +213,7 @@ FCITX_CONFIGURATION(
     Option<bool> showActualPinyinInPreedit{
         this, "PinyinInPreedit", _("Show complete pinyin in preedit"), false};
     Option<bool> predictionEnabled{this, "Prediction", _("Enable Prediction"),
-                                   isAndroid()};
+                                   isAndroid() || isIOS()};
     OptionWithAnnotation<bool, ToolTipAnnotation> keepCurrentContext{
         this,
         "KeepCurrentContext",
@@ -235,6 +237,7 @@ FCITX_CONFIGURATION(
         switchInputMethodBehavior{this, "SwitchInputMethodBehavior",
                                   _("Action when switching input method"),
                                   SwitchInputMethodBehavior::CommitPreedit};
+    Option<bool> learning{this, "Learning", _("Learning"), true};
     KeyListOption forgetWord{this,
                              "ForgetWord",
                              _("Forget word"),
@@ -354,17 +357,17 @@ FCITX_CONFIGURATION(
                                    _("Use V to trigger quickphrase"), true};
     ExternalOption quickphrase{this, "QuickPhrase", _("Quick Phrase"),
                                "fcitx://config/addon/quickphrase/editor"};
-    OptionWithAnnotation<std::vector<std::string>, ToolTipAnnotation>
+    Option<std::vector<std::string>, ListConstrain<RegexConstrain>,
+           DefaultMarshaller<std::vector<std::string>>, ToolTipAnnotation>
         quickphraseTriggerRegex{
-            this,
-            "QuickPhraseTriggerRegex",
-            _("Regular expression to trigger quick phrase"),
-            {".(/|@)$", "^(www|bbs|forum|mail|bbs)\\.",
-             "^(http|https|ftp|telnet|mailto):"},
-            {},
-            {},
-            {_("Enter quickphrase mode when current input matches any regular "
-               "expression from the list.")}};
+            {.parent = this,
+             .path = "QuickPhraseTriggerRegex",
+             .description = _("Regular expression to trigger quick phrase"),
+             .defaultValue = {".(/|@)$", "^(www|bbs|forum|mail)\\.",
+                              "^(http|https|ftp|telnet|mailto):"},
+             .annotation = {_("Enter quickphrase mode when current input "
+                              "matches any regular "
+                              "expression from the list.")}}};
     Option<FuzzyConfig> fuzzyConfig{this, "Fuzzy", _("Fuzzy Pinyin")};
     HiddenOption<bool> firstRun{this, "FirstRun", "FirstRun", true};)
 
@@ -372,7 +375,7 @@ struct EventSourceTime;
 class CandidateList;
 class PinyinEngine;
 
-enum class PinyinMode { Normal, StrokeFilter, ForgetCandidate, Punctuation };
+enum class PinyinMode { Normal, ForgetCandidate, Punctuation };
 
 class PinyinState : public InputContextProperty {
 public:
@@ -382,10 +385,6 @@ public:
     bool lastIsPunc_ = false;
 
     PinyinMode mode_ = PinyinMode::Normal;
-
-    // Stroke filter
-    std::shared_ptr<CandidateList> strokeCandidateList_;
-    InputBuffer strokeBuffer_;
 
     // Forget candidate
     std::shared_ptr<CandidateList> forgetCandidateList_;
@@ -434,6 +433,10 @@ public:
 
     void setSubConfig(const std::string &path,
                       const fcitx::RawConfig &config) override;
+    const Configuration *getSubConfig(const std::string &path) const override;
+    void personalVocabulary(const RawConfig &request);
+    paopao::vocabulary::Records vocabularyRecords();
+    mutable paopao::vocabulary::Response vocabularyResponse_;
 
     libime::PinyinIME *ime() { return ime_.get(); }
     const auto &config() const { return config_; }
@@ -442,8 +445,8 @@ public:
     void updatePredict(InputContext *inputContext);
 
     void updateUI(InputContext *inputContext);
+    void updateFilter(InputContext *inputContext);
 
-    void resetStroke(InputContext *inputContext) const;
     void resetForgetCandidate(InputContext *inputContext) const;
     void forgetCandidate(InputContext *inputContext, size_t index);
     void pinCustomPhrase(InputContext *inputContext,
@@ -452,10 +455,13 @@ public:
                             const std::string &customPhrase);
 
     FCITX_ADDON_DEPENDENCY_LOADER(cloudpinyin, instance_->addonManager());
+    FCITX_ADDON_DEPENDENCY_LOADER(pinyinhelper, instance_->addonManager());
 
     const auto &selectionKeys() const { return selectionKeys_; }
 
 private:
+    bool shouldLearn(const InputContext *inputContext) const;
+
     void cloudPinyinSelected(InputContext *inputContext,
                              const std::string &selected,
                              const std::string &word);
@@ -479,7 +485,6 @@ private:
 
     void populateConfig();
 
-    void updateStroke(InputContext *inputContext);
     void updateForgetCandidate(InputContext *inputContext);
 
     void updatePreedit(InputContext *inputContext) const;
@@ -527,7 +532,6 @@ private:
     FCITX_ADDON_DEPENDENCY_LOADER(chttrans, instance_->addonManager());
     FCITX_ADDON_DEPENDENCY_LOADER(punctuation, instance_->addonManager());
     FCITX_ADDON_DEPENDENCY_LOADER(notifications, instance_->addonManager());
-    FCITX_ADDON_DEPENDENCY_LOADER(pinyinhelper, instance_->addonManager());
     FCITX_ADDON_DEPENDENCY_LOADER(spell, instance_->addonManager());
     FCITX_ADDON_DEPENDENCY_LOADER(imeapi, instance_->addonManager());
 

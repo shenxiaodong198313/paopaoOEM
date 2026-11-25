@@ -9,7 +9,8 @@ plugins {
 }
 
 group = "org.fcitx.fcitx5.android"
-version = "1.13"
+version = oemRuntimeProperty("oemFcitxRuntimeVersion")
+val buildTime = providers.gradleProperty("buildTimestamp").orNull?.toLong() ?: System.currentTimeMillis()
 
 android {
     namespace = "org.fcitx.fcitx5.android"
@@ -18,11 +19,11 @@ android {
         .getOrElse("28.0.13004108")
     defaultConfig {
         buildConfigField("String", "APPLICATION_ID", "\"org.fcitx.fcitx5.android\"")
-        buildConfigField("String", "VERSION_NAME", "\"1.13\"")
+        buildConfigField("String", "VERSION_NAME", "\"${project.version}\"")
         buildConfigField("String", "BUILD_GIT_HASH", "\"local\"")
-        buildConfigField("long", "BUILD_TIME", "${System.currentTimeMillis()}L")
+        buildConfigField("long", "BUILD_TIME", "${buildTime}L")
         buildConfigField("String", "DATA_DESCRIPTOR_NAME", "\"descriptor.json\"")
-        consumerProguardFiles("proguard-rules.pro")
+        consumerProguardFiles("proguard-rules.pro", "../app/onnx-jni-rules.pro")
     }
 
     buildFeatures {
@@ -36,6 +37,10 @@ android {
         singleVariant("release") {
             withSourcesJar()
         }
+    }
+
+    androidResources {
+        noCompress += listOf("onnx", "wav")
     }
 
     packaging {
@@ -95,13 +100,15 @@ android {
             kotlin.setSrcDirs(listOf("../app/src/main/java"))
             res.setSrcDirs(listOf("../app/src/main/res", "../app/src/main/res-icons", "src/main/res"))
             // Avoid duplicate asset packaging when host-bridge and app are consumed together.
-            assets.setSrcDirs(listOf("src/main/assets"))
+            assets.setSrcDirs(listOf(layout.buildDirectory.dir("runtime-assets")))
             jniLibs.setSrcDirs(listOf("../app/src/main/jniLibs"))
         }
     }
 }
 
 generateDataDescriptor {
+    // Inference reads the model directly from AssetManager.
+    excludes.add("handwriting/ppocrv6-small.onnx")
     symlinks.put("usr/share/rime-data/opencc", "usr/share/opencc")
 }
 
@@ -123,6 +130,7 @@ ksp {
 }
 
 dependencies {
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.32.0")
     ksp(project(":codegen"))
     implementation(project(":lib:fcitx5"))
     implementation(project(":lib:fcitx5-lua"))
@@ -219,4 +227,27 @@ publishing {
             }
         }
     }
+}
+
+// Stage precompiled dictionaries with the native configs and translations.
+// The original Rime and libime data are installed by the optional packages.
+val stageRuntimeAssets by tasks.registering(Sync::class) {
+    dependsOn("deleteFcitxComponentExcludeFiles")
+    from("src/main/assets") {
+        exclude("descriptor.json", "usr/share/rime-data/**", "usr/share/libime/**", "usr/share/fcitx5/table/**")
+    }
+    from(layout.buildDirectory.dir("fcitx-component-assets")) {
+        exclude("descriptor.json", "usr/share/rime-data/**", "usr/share/libime/**", "usr/share/fcitx5/table/**")
+    }
+    from("src/main/offline-dictionaries")
+    from("src/main/precompiled-rime") { into("usr/share/rime-data/build") }
+    from("../app/src/main/assets/handwriting") { into("handwriting") }
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    into(layout.buildDirectory.dir("runtime-assets"))
+}
+
+tasks.named<DataDescriptorPlugin.DataDescriptorTask>("generateDataDescriptor") {
+    dependsOn(stageRuntimeAssets)
+    inputDir.set(layout.buildDirectory.dir("runtime-assets"))
+    outputFile.set(layout.buildDirectory.file("runtime-assets/descriptor.json"))
 }

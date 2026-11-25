@@ -15,8 +15,8 @@
 #include "fcitx-utils/rect.h"
 #include "fcitx/inputcontext.h"
 #include "common.h"
+#include "ext_background_effect_manager_v1.h"
 #include "inputwindow.h"
-#include "org_kde_kwin_blur_manager.h"
 #include "theme.h"
 #include "waylandim_public.h"
 #include "waylandui.h"
@@ -99,7 +99,7 @@ void WaylandInputWindow::initPanel() {
 }
 
 void WaylandInputWindow::setBlurManager(
-    std::shared_ptr<wayland::OrgKdeKwinBlurManager> blur) {
+    std::shared_ptr<wayland::ExtBackgroundEffectManagerV1> blur) {
     blurManager_ = std::move(blur);
     updateBlur();
 }
@@ -135,9 +135,8 @@ void WaylandInputWindow::updateBlur() {
             region->add(rect.left(), rect.top(), rect.width(), rect.height());
         }
     }
-    blur_.reset(blurManager_->create(window_->surface()));
-    blur_->setRegion(region.get());
-    blur_->commit();
+    blur_.reset(blurManager_->getBackgroundEffect(window_->surface()));
+    blur_->setBlurRegion(region.get());
 }
 
 void WaylandInputWindow::updateScale() { window_->updateScale(); }
@@ -215,13 +214,7 @@ void WaylandInputWindow::update(fcitx::InputContext *ic) {
         updateBlur();
     }
 
-    if (auto *surface = window_->prerender()) {
-        cairo_t *c = cairo_create(surface);
-        paint(c, width, height,
-              window_->bufferScale() / WaylandWindow::ScaleDominatorF);
-        cairo_destroy(c);
-        window_->render();
-    }
+    repaint();
     repaintIC_ = ic->watch();
 }
 
@@ -232,8 +225,17 @@ void WaylandInputWindow::repaint() {
 
     if (auto *surface = window_->prerender()) {
         cairo_t *c = cairo_create(surface);
-        paint(c, window_->width(), window_->height(),
-              window_->bufferScale() / WaylandWindow::ScaleDominatorF);
+        auto surfaceWidth = cairo_image_surface_get_width(surface);
+        auto surfaceHeight = cairo_image_surface_get_height(surface);
+        cairo_surface_set_device_scale(
+            cairo_get_target(c),
+            window_->bufferScale() / WaylandWindow::ScaleDominatorF,
+            window_->bufferScale() / WaylandWindow::ScaleDominatorF);
+        paint(c,
+              surfaceWidth * WaylandWindow::ScaleDominatorF /
+                  window_->bufferScale(),
+              surfaceHeight * WaylandWindow::ScaleDominatorF /
+                  window_->bufferScale());
         cairo_destroy(c);
         window_->render();
     }

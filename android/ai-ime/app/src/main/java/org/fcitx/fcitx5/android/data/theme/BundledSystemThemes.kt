@@ -13,7 +13,13 @@ object BundledSystemThemes {
     fun contains(name: String) = name == LIGHT || name == DARK
     val light by lazy { load(LIGHT) }
     val dark by lazy { load(DARK) }
+    fun get(name: String): Theme.Custom? = when (name) {
+        LIGHT -> light
+        DARK -> dark
+        else -> null
+    }
     val all get() = listOf(light, dark)
+
 
     private fun load(name: String): Theme.Custom {
         val context = appContext.createDeviceProtectedStorageContext()

@@ -23,8 +23,13 @@ class RecentlyUsed(val type: String, val limit: Int) {
     private val sharedPreferences = FcitxApplication.getInstance().directBootAwareContext
         .getSharedPreferences(PREFERENCE_NAME, Context.MODE_PRIVATE)
 
-    private val map = LinkedHashMap<String, Boolean>(limit).apply {
-        (migrate() ?: load()).forEach { put(it, true) }
+    private val map = LinkedHashMap<String, Boolean>(limit)
+
+    init {
+        val stored = migrate() ?: load()
+        val available = stored.filter(::isAvailablePickerSymbol)
+        available.forEach { map[it] = true }
+        if (available.size != stored.size) save()
     }
 
     val items: List<String> get() = map.keys.reversed()
@@ -51,6 +56,7 @@ class RecentlyUsed(val type: String, val limit: Int) {
     }
 
     fun insert(item: String) {
+        if (!isAvailablePickerSymbol(item)) return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
             map.putLast(item, true)
         } else {

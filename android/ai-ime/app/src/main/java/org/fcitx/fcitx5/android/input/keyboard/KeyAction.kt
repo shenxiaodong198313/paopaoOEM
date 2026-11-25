@@ -10,6 +10,10 @@ import org.fcitx.fcitx5.android.core.ScancodeMapping
 import org.fcitx.fcitx5.android.input.picker.PickerWindow
 
 sealed class KeyAction {
+    data class DeleteGestureAvailabilityAction(val reply: (Boolean, Boolean) -> Unit) : KeyAction()
+    data object DeleteClearAction : KeyAction()
+    data object DeleteUndoAction : KeyAction()
+
 
     data class FcitxKeyAction(
         val act: String,
@@ -42,6 +46,8 @@ sealed class KeyAction {
     data class MoveSelectionAction(val start: Int = 0, val end: Int = 0) : KeyAction()
 
     data class DeleteSelectionAction(val totalCnt: Int = 0) : KeyAction()
+
+    data object CancelSelectionAction : KeyAction()
 
     data class PickerSwitchAction(val key: PickerWindow.Key? = null) : KeyAction()
 

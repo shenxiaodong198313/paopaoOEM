@@ -9,6 +9,7 @@ import android.annotation.SuppressLint
 import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import android.graphics.Point
 import android.os.Build
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
@@ -26,6 +27,7 @@ import android.widget.TextView
 import androidx.annotation.Keep
 import androidx.annotation.RequiresApi
 import androidx.core.view.updateLayoutParams
+import androidx.core.view.allViews
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.core.CapabilityFlags
 import org.fcitx.fcitx5.android.core.FcitxEvent
@@ -35,6 +37,7 @@ import org.fcitx.fcitx5.android.data.prefs.AppPrefs
 import org.fcitx.fcitx5.android.data.prefs.ManagedPreferenceProvider
 import org.fcitx.fcitx5.android.data.theme.Theme
 import org.fcitx.fcitx5.android.data.theme.ThemeManager
+import org.fcitx.fcitx5.android.input.candidates.expanded.window.BaseExpandedCandidateWindow
 import org.fcitx.fcitx5.android.input.bar.KawaiiBarComponent
 import org.fcitx.fcitx5.android.input.bar.ui.ToolButton
 import org.fcitx.fcitx5.android.input.broadcast.InputBroadcaster
@@ -43,6 +46,8 @@ import org.fcitx.fcitx5.android.input.broadcast.PunctuationComponent
 import org.fcitx.fcitx5.android.input.broadcast.ReturnKeyDrawableComponent
 import org.fcitx.fcitx5.android.input.candidates.horizontal.HorizontalCandidateComponent
 import org.fcitx.fcitx5.android.input.keyboard.CommonKeyActionListener
+import org.fcitx.fcitx5.android.input.keyboard.KeyboardHeightPercentBase.DisplayMetrics
+import org.fcitx.fcitx5.android.input.keyboard.KeyboardHeightPercentBase.RealSize
 import org.fcitx.fcitx5.android.input.keyboard.KeyboardWindow
 import org.fcitx.fcitx5.android.input.keyboard.T9Keyboard
 import org.fcitx.fcitx5.android.input.picker.emojiPicker
@@ -53,6 +58,7 @@ import org.fcitx.fcitx5.android.input.preedit.PreeditComponent
 import org.fcitx.fcitx5.android.input.wm.InputWindowManager
 import org.fcitx.fcitx5.android.utils.alpha
 import org.fcitx.fcitx5.android.utils.unset
+import org.fcitx.fcitx5.android.utils.windowManager
 import org.mechdancer.dependency.DynamicScope
 import org.mechdancer.dependency.manager.wrapToUniqueComponent
 import org.mechdancer.dependency.plusAssign
@@ -73,7 +79,6 @@ import splitties.views.dsl.core.add
 import splitties.views.dsl.core.imageView
 import splitties.views.dsl.core.matchParent
 import splitties.views.dsl.core.view
-import splitties.views.dsl.core.withTheme
 import splitties.views.dsl.core.wrapContent
 import splitties.views.imageDrawable
 import kotlin.math.roundToInt
@@ -120,7 +125,6 @@ class InputView(
     }
 
     private val scope = DynamicScope()
-    private val themedContext = context.withTheme(R.style.Theme_InputViewTheme)
     private val broadcaster = InputBroadcaster()
     private val popup = PopupComponent()
     private val punctuation = PunctuationComponent()
@@ -135,6 +139,11 @@ class InputView(
     private val symbolPicker = symbolPicker()
     private val emojiPicker = emojiPicker()
     private val emoticonPicker = emoticonPicker()
+
+    fun cancelSkinKeyFeedback() {
+        allViews.filterIsInstance<org.fcitx.fcitx5.android.input.keyboard.KeyView>()
+            .forEach { it.cancelSkinFeedback() }
+    }
 
     private fun setupScope() {
         scope += this@InputView.wrapToUniqueComponent()
@@ -172,6 +181,9 @@ class InputView(
     private val keyboardBottomPadding = keyboardPrefs.keyboardBottomPadding
     private val keyboardBottomPaddingLandscape = keyboardPrefs.keyboardBottomPaddingLandscape
 
+    private val advancedPrefs = AppPrefs.getInstance().advanced
+    private val keyboardHeightPercentBase = advancedPrefs.keyboardHeightPercentBase
+
     private val keyboardSizePrefs = listOf(
         keyboardHeightPercent,
         keyboardHeightPercentLandscape,
@@ -183,6 +195,7 @@ class InputView(
         keyboardHorizontalOffsetLandscape,
         keyboardBottomPadding,
         keyboardBottomPaddingLandscape,
+        keyboardHeightPercentBase,
     )
 
     private data class KeyboardAdjustDraft(
@@ -202,6 +215,29 @@ class InputView(
     private var keyboardAdjustDraft: KeyboardAdjustDraft? = null
     private var keyboardAdjustInitialDraft: KeyboardAdjustDraft? = null
     private var keyboardAdjustReset = false
+    private var adjustmentDragHostHeight: Int? = null
+    private var availableHostHeight: Int? = null
+
+    private var expandedCandidatesVisible = false
+
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        val frozen = adjustmentDragHostHeight
+        availableHostHeight = if (MeasureSpec.getMode(heightMeasureSpec) == MeasureSpec.UNSPECIFIED) null
+            else MeasureSpec.getSize(heightMeasureSpec)
+        if (frozen == null && this::keyboardView.isInitialized) {
+            val barHeight = dp(kawaiiBar.heightDp)
+            val header = if (expandedCandidatesVisible) kawaiiBar.expandedHeaderHeightPx.coerceAtMost(barHeight) else barHeight
+            if (kawaiiBar.view.layoutParams.height != header) {
+                kawaiiBar.view.updateLayoutParams { height = header }
+            }
+            val targetHeight = currentKeyboardLayoutMetrics().heightPx + barHeight - header
+            if (windowManager.view.layoutParams.height != targetHeight) {
+                windowManager.view.updateLayoutParams { height = targetHeight }
+            }
+        }
+        val hostSpec = frozen?.let { MeasureSpec.makeMeasureSpec(it, MeasureSpec.EXACTLY) } ?: heightMeasureSpec
+        super.onMeasure(widthMeasureSpec, hostSpec)
+    }
 
     private val keyboardAdjustOverlay = KeyboardAdjustOverlay(themedContext).apply {
         visibility = GONE
@@ -278,13 +314,24 @@ class InputView(
     private val keyboardHeightPx: Int
         get() {
             InputWindowSizeOverride.getKeyboardHeightPxOverride()?.let { return it }
+            val base = when (keyboardHeightPercentBase.getValue()) {
+                DisplayMetrics -> resources.displayMetrics.heightPixels
+                RealSize -> Point().also {
+                    @Suppress("DEPRECATION")
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        context.display
+                    } else {
+                        context.windowManager.defaultDisplay
+                    }.getRealSize(it)
+                }.y
+            }
             val percent = InputWindowSizeOverride.getKeyboardHeightPercentOverride() ?: when (resources.configuration.orientation) {
                 Configuration.ORIENTATION_LANDSCAPE ->
                     if (isT9KeyboardActive) t9KeyboardHeightPercentLandscape else keyboardHeightPercentLandscape
                 else ->
                     if (isT9KeyboardActive) t9KeyboardHeightPercent else keyboardHeightPercent
             }.getValue()
-            return resources.displayMetrics.heightPixels * percent / 100
+            return base * percent / 100
         }
 
     private val keyboardSidePaddingPx: Int
@@ -329,7 +376,7 @@ class InputView(
     fun showVoiceSurface(surface: View?) {
         voiceSurface?.let { removeView(it) }; voiceSurface = null
         voiceHiddenChildren.forEach { (child, visibility) -> child.visibility = visibility }; voiceHiddenChildren.clear()
-        background = theme.backgroundDrawable(keyBorder)
+        background = keyboardPanelBackground()
         if (surface != null) {
             for (index in 0 until childCount) { val child = getChildAt(index); voiceHiddenChildren[child] = child.visibility; child.visibility = INVISIBLE }
             setBackgroundColor(android.graphics.Color.rgb(8, 14, 29))
@@ -366,8 +413,10 @@ class InputView(
                 updateKeyboardSize()
             }
         }
-        windowManager.onActiveWindowChanged = { oldWindow, newWindow ->
-            if (oldWindow === keyboardWindow && isT9KeyboardActive) {
+        windowManager.onActiveWindowChanged = { _, newWindow ->
+            expandedCandidatesVisible = newWindow is BaseExpandedCandidateWindow<*>
+            requestLayout()
+            if (!expandedCandidatesVisible && newWindow !== keyboardWindow && isT9KeyboardActive) {
                 isT9KeyboardActive = false
                 updateKeyboardSize()
             } else if (newWindow === keyboardWindow && useT9KeyboardLayout && keyboardWindow.isCurrentLayoutT9()) {
@@ -381,7 +430,7 @@ class InputView(
         // show KeyboardWindow by default
         windowManager.attachWindow(KeyboardWindow)
 
-        broadcaster.onImeUpdate(fcitx.runImmediately { inputMethodEntryCached })
+        broadcaster.onImeUpdate(service.displayImeForInteraction(fcitx.runImmediately { inputMethodEntryCached }))
         keyboardWindow.updateT9SidebarState(service.getT9SidebarState())
 
         customBackground.imageDrawable = theme.backgroundDrawable(keyBorder)
@@ -436,7 +485,7 @@ class InputView(
                 endOfParent()
             })
         }
-        background = theme.backgroundDrawable(keyBorder)
+        background = keyboardPanelBackground()
 
         updateKeyboardSize()
         add(preedit.ui.root, lParams(matchParent, wrapContent) {
@@ -459,6 +508,7 @@ class InputView(
 
         keyboardPrefs.registerOnChangeListener(onKeyboardSizeChangeListener)
         InputWindowSizeOverride.registerListener(onKeyboardHeightOverrideChanged)
+        advancedPrefs.registerOnChangeListener(onKeyboardSizeChangeListener)
     }
 
     private fun updateKeyboardSize() {
@@ -502,10 +552,22 @@ class InputView(
         syncRuntimeBlockState()
     }
 
+    // Hiding the skin also removes our panel underlay; do not resolve or paint a replacement color.
+    private fun keyboardPanelBackground(): android.graphics.drawable.Drawable? {
+        if ((theme as? Theme.Custom)?.renderStyle?.localConfiguration?.background == "transparent") return null
+        val configured = (theme as? Theme.Custom)?.renderStyle?.localConfiguration != null
+        if (!configured) return theme.backgroundDrawable(keyBorder)
+        val dark = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
+        val fallback = if (dark) 0xff202124.toInt() else 0xfff2f3f5.toInt()
+        val attributes = context.obtainStyledAttributes(intArrayOf(android.R.attr.colorBackground))
+        val nativeColor = try { attributes.getColor(0, fallback) } finally { attributes.recycle() }
+        return android.graphics.drawable.ColorDrawable(if (Color.alpha(nativeColor) == 255) nativeColor else fallback)
+    }
+
     private fun applyWindowChrome(activeWindow: org.fcitx.fcitx5.android.input.wm.InputWindow) {
         if (!this::keyboardView.isInitialized) return
         val backgroundColor = Color.TRANSPARENT
-        background = theme.backgroundDrawable(keyBorder)
+        background = keyboardPanelBackground()
         kawaiiBar.view.visibility = VISIBLE
         keyboardView.setBackgroundColor(backgroundColor)
         windowManager.view.setBackgroundColor(backgroundColor)
@@ -516,34 +578,41 @@ class InputView(
         customBackground.visibility = VISIBLE
     }
 
+    private var measuredToolbarInsets: Pair<Int, Int>? = null
+
+    override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+        super.onLayout(changed, left, top, right, bottom)
+        if (theme !is Theme.Custom) return
+        val insets = keyboardWindow.toolbarInsets(kawaiiBar.view) ?: return
+        if (measuredToolbarInsets != insets) {
+            measuredToolbarInsets = insets
+            updateToolbarSurface()
+        }
+    }
+
     private var standardCandidateBar = false
     fun updateToolbarSurface(candidatesVisible: Boolean? = null) {
         if (candidatesVisible != null) standardCandidateBar = candidatesVisible
         val customTheme = theme as? Theme.Custom
+        // The per-skin switch controls only barDrawable; shortcuts and candidates stay interactive.
+        kawaiiBar.view.visibility = VISIBLE
         if (kawaiiBar.isClipboardPanelVisible) { kawaiiBar.view.background = null; return }
-        if (customTheme?.renderStyle?.skinLabStandard == true && org.fcitx.fcitx5.android.data.theme.SkinLabStandard.circleToolbar(context) && !standardCandidateBar) { kawaiiBar.view.background = null; return }
-        if (customTheme?.toolbarImage != null || customTheme?.renderStyle?.preeditOutsideBar == true) {
-            val bar = kawaiiBar.view
+        val configured = customTheme?.renderStyle?.localConfiguration != null
+        if (!configured && customTheme?.renderStyle?.skinLabStandard == true &&
+            org.fcitx.fcitx5.android.data.theme.SkinLabStandard.circleToolbar(context) && !standardCandidateBar) {
+            kawaiiBar.view.background = null
+            return
+        }
+        val bar = kawaiiBar.view
+        if (customTheme != null && (configured || customTheme.toolbarImage != null || customTheme.renderStyle?.preeditOutsideBar == true)) {
             val left = bar.paddingLeft
             val top = bar.paddingTop
             val right = bar.paddingRight
             val bottom = bar.paddingBottom
-            val surface = customTheme.barDrawable(keyBorder, context)
-            bar.background = if (customTheme.renderStyle?.alignToolbarToKeyFaces == true && customTheme.renderStyle.skinLabStandard != true) {
-                val metrics = currentKeyboardLayoutMetrics()
-                val keyInset = dp(customTheme.renderStyle.keyVisualHorizontalInsetDp ?: 0f).roundToInt()
-                android.graphics.drawable.InsetDrawable(surface,
-                    metrics.leftPaddingPx + keyInset, 0, metrics.rightPaddingPx + keyInset, 0)
-            } else if (customTheme.renderStyle?.skinLabStandard == true) {
-                val metrics = currentKeyboardLayoutMetrics()
-                val defaultSide = dp(if (org.fcitx.fcitx5.android.data.theme.SkinLabStandard.landscape(context)) 6 else 3)
-                android.graphics.drawable.InsetDrawable(surface,
-                    metrics.leftPaddingPx - defaultSide, 0, metrics.rightPaddingPx - defaultSide, 0)
-            } else surface
-            // InsetDrawable padding belongs to its artwork, not toolbar child layout.
+            bar.background = customTheme.barDrawable(keyBorder, context, measuredToolbarInsets)
             bar.setPadding(left, top, right, bottom)
         } else {
-            kawaiiBar.view.setBackgroundColor(Color.TRANSPARENT)
+            bar.setBackgroundColor(Color.TRANSPARENT)
         }
     }
 
@@ -622,7 +691,7 @@ class InputView(
                 broadcaster.onInputPanelUpdate(it.data)
             }
             is FcitxEvent.IMChangeEvent -> {
-                broadcaster.onImeUpdate(it.data)
+                broadcaster.onImeUpdate(service.displayImeForInteraction(it.data))
             }
             is FcitxEvent.StatusAreaEvent -> {
                 punctuation.updatePunctuationMapping(it.data.actions)
@@ -677,7 +746,7 @@ class InputView(
     }
 
     private fun KeyboardLayoutMetrics.toAdjustDraft() = KeyboardAdjustDraft(
-        heightPercent = heightPx * 100f / resources.displayMetrics.heightPixels,
+        heightPercent = heightPx * 100f / keyboardHeightBasePx(),
         leftPaddingDp = pxToDp(leftPaddingPx.toFloat()),
         rightPaddingDp = pxToDp(rightPaddingPx.toFloat()),
         bottomPaddingDp = pxToDp(bottomPaddingPx.toFloat()),
@@ -689,6 +758,33 @@ class InputView(
         updateKeyboardSize()
     }
 
+    // Configuration refresh can change Resources.heightPixels between usable and full
+    // display height. This opt-in skin must use one stable percentage base in both layouts.
+    private fun keyboardHeightBasePx(): Int {
+        if ((theme as? Theme.Custom)?.renderStyle?.qwertyMinHeightMatchesT9 != true)
+            return resources.displayMetrics.heightPixels
+        val manager = context.getSystemService(android.content.Context.WINDOW_SERVICE) as android.view.WindowManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val metrics = manager.maximumWindowMetrics
+            val insets = metrics.windowInsets.getInsetsIgnoringVisibility(
+                android.view.WindowInsets.Type.systemBars() or android.view.WindowInsets.Type.displayCutout())
+            return (metrics.bounds.height() - insets.top - insets.bottom).coerceAtLeast(1)
+        }
+        @Suppress("DEPRECATION")
+        return android.util.DisplayMetrics().also { manager.defaultDisplay.getMetrics(it) }.heightPixels.coerceAtLeast(1)
+    }
+
+    // Skin-specific QWERTY floor follows the user's actual T9 preference without rewriting it.
+    private fun matchingT9HeightPx(): Int {
+        val style = (theme as? Theme.Custom)?.renderStyle ?: return 0
+        if (isT9KeyboardActive || !style.qwertyMinHeightMatchesT9) return 0
+        val landscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        val pref = if (landscape) t9KeyboardHeightPercentLandscape else t9KeyboardHeightPercent
+        return if (pref.sharedPreferences.contains(pref.key))
+            (keyboardHeightBasePx() * pref.getValue() / 100f).roundToInt()
+        else dp(org.fcitx.fcitx5.android.data.theme.SkinLabStandard.grid(context, style))
+    }
+
     private fun currentKeyboardLayoutMetrics(useDefaults: Boolean = false): KeyboardLayoutMetrics {
         val standard = org.fcitx.fcitx5.android.data.theme.SkinLabStandard
         val style = (theme as? Theme.Custom)?.renderStyle
@@ -697,9 +793,9 @@ class InputView(
         val draft = keyboardAdjustDraft.takeUnless { useDefaults }
         fun hasValue(pref: org.fcitx.fcitx5.android.data.prefs.ManagedPreference.PInt) =
             !useDefaults && pref.sharedPreferences.contains(pref.key)
-        val defaultHeight = if (standard.enabled(theme)) dp(standard.grid(context))
+        val defaultHeight = matchingT9HeightPx().takeIf { it > 0 } ?: if (standard.enabled(theme)) dp(standard.grid(context, style))
             else style?.layout?.keyboardHeight(landscape)?.let { dp(it) }
-                ?: resources.displayMetrics.heightPixels * defaultKeyboardHeightPercent() / 100
+                ?: keyboardHeightBasePx() * defaultKeyboardHeightPercent() / 100
         val defaultSide = if (standard.enabled(theme)) (if (landscape) 6 else 3)
             else style?.layout?.sidePadding(landscape) ?: currentKeyboardSidePaddingPreference().defaultValue
         val defaultBottom = if (standard.enabled(theme)) 6
@@ -707,15 +803,27 @@ class InputView(
         val height = draft?.heightPercent ?: saved.heightPercent.takeIf { hasValue(currentKeyboardHeightPreference()) }
         val customWidth = hasValue(currentKeyboardSidePaddingPreference()) || hasValue(currentKeyboardHorizontalOffsetPreference())
         val geometry = normalizeKeyboardAdjustDraft(KeyboardAdjustDraft(
-            heightPercent = height ?: defaultHeight * 100f / resources.displayMetrics.heightPixels,
+            heightPercent = height ?: defaultHeight * 100f / keyboardHeightBasePx(),
             leftPaddingDp = draft?.leftPaddingDp ?: if (customWidth) saved.leftPaddingDp else defaultSide,
             rightPaddingDp = draft?.rightPaddingDp ?: if (customWidth) saved.rightPaddingDp else defaultSide,
             bottomPaddingDp = draft?.bottomPaddingDp ?: if (hasValue(currentKeyboardBottomPaddingPreference())) saved.bottomPaddingDp else defaultBottom,
         ))
         val overrideHeight = InputWindowSizeOverride.getKeyboardHeightPxOverride()
-            ?: InputWindowSizeOverride.getKeyboardHeightPercentOverride()?.let { resources.displayMetrics.heightPixels * it / 100 }
+            ?: InputWindowSizeOverride.getKeyboardHeightPercentOverride()?.let { keyboardHeightBasePx() * it / 100 }
+        val requestedHeight = maxOf(matchingT9HeightPx(), overrideHeight ?: (keyboardHeightBasePx() * geometry.heightPercent / 100f).roundToInt())
+        // A fixed grid constrained above and below otherwise centers its overflow into the
+        // toolbar and navigation footer. During a drag retain the existing frozen viewport.
+        // A reset draft describes the desired default, independent of the current
+        // compact viewport. Fitting it here would save the old height as the draft,
+        // then removing the preference on confirm would jump to a different default.
+        val fittedHeight = availableHostHeight?.takeIf { !useDefaults && standard.enabled(theme) && adjustmentDragHostHeight == null }?.let { host ->
+            val footer = (bottomPaddingSpace.layoutParams as? LayoutParams)?.bottomMargin ?: 0
+            val preeditHeight = if (preedit.ui.root.visibility == VISIBLE) preedit.ui.root.measuredHeight else 0
+            org.fcitx.fcitx5.android.input.keyboard.SkinLayoutFit.gridHeight(requestedHeight, host,
+                dp(kawaiiBar.heightDp) + dp(geometry.bottomPaddingDp) + footer + preeditHeight)
+        } ?: requestedHeight
         return KeyboardLayoutMetrics(
-            heightPx = overrideHeight ?: (resources.displayMetrics.heightPixels * geometry.heightPercent / 100f).roundToInt(),
+            heightPx = fittedHeight,
             leftPaddingPx = dp(geometry.leftPaddingDp),
             rightPaddingPx = dp(geometry.rightPaddingDp),
             bottomPaddingPx = dp(geometry.bottomPaddingDp),
@@ -757,7 +865,7 @@ class InputView(
             rightPaddingDp = (rightPaddingDp * scale).roundToInt()
         }
         return draft.copy(
-            heightPercent = draft.heightPercent.coerceIn(keyboardHeightPercentRange().first.toFloat(), keyboardHeightPercentRange().last.toFloat()),
+            heightPercent = draft.heightPercent.coerceIn(maxOf(keyboardHeightPercentRange().first.toFloat(), matchingT9HeightPx() * 100f / keyboardHeightBasePx()), keyboardHeightPercentRange().last.toFloat()),
             leftPaddingDp = leftPaddingDp,
             rightPaddingDp = rightPaddingDp,
             bottomPaddingDp = draft.bottomPaddingDp.coerceIn(0, 100),
@@ -881,9 +989,9 @@ class InputView(
             addView(rightHandle)
             addView(actionRow)
             installDragGesture(topHandle) { start, _, dy ->
-                val startHeightPx = resources.displayMetrics.heightPixels * start.heightPercent / 100f
+                val startHeightPx = keyboardHeightBasePx() * start.heightPercent / 100f
                 val nextHeightPercent =
-                    ((startHeightPx - dy) * 100f / resources.displayMetrics.heightPixels)
+                    ((startHeightPx - dy) * 100f / keyboardHeightBasePx())
                 start.copy(heightPercent = nextHeightPercent)
             }
             installDragGesture(bottomHandle) { start, _, dy ->
@@ -1090,15 +1198,21 @@ class InputView(
             val keyboardBottom = windowManager.view.bottom.toFloat()
             val centerX = (keyboardLeft + keyboardRight) / 2f
             val centerY = (keyboardTop + keyboardBottom) / 2f
+            // At compact landscape heights the two full hit targets would overlap.
+            // Keep their size and move them outside opposite grid edges instead.
+            val compactHandles = keyboardBottom - keyboardTop <
+                topHandle.measuredHeight + bottomHandle.measuredHeight + 2 * handleInset
             placeCentered(
                 topHandle,
                 centerX,
-                (keyboardTop + handleInset).coerceAtLeast(topHandle.measuredHeight / 2f),
+                if (compactHandles) keyboardTop - topHandle.measuredHeight / 2f
+                else (keyboardTop + handleInset).coerceAtLeast(topHandle.measuredHeight / 2f),
             )
             placeCentered(
                 bottomHandle,
                 centerX,
-                (keyboardBottom - handleInset).coerceAtMost(height - bottomHandle.measuredHeight / 2f),
+                if (compactHandles) keyboardBottom + bottomHandle.measuredHeight / 2f
+                else (keyboardBottom - handleInset).coerceAtMost(height - bottomHandle.measuredHeight / 2f),
             )
             placeCentered(
                 leftHandle,
@@ -1110,7 +1224,41 @@ class InputView(
                 (keyboardRight - handleInset).coerceAtMost(width - rightHandle.measuredWidth / 2f),
                 centerY,
             )
-            placeCentered(actionRow, centerX, centerY)
+            val rowWidth = (keyboardRight - keyboardLeft - context.dp(32)).roundToInt()
+                .coerceIn(context.dp(132), context.dp(264))
+            if (actionRow.layoutParams.width != rowWidth) {
+                actionRow.updateLayoutParams<LayoutParams> { width = rowWidth }
+            }
+            val actionTop = centerY - actionRow.measuredHeight / 2f
+            val actionBottom = actionTop + actionRow.measuredHeight
+            val overlapsHandles = actionTop < topHandle.y + topHandle.measuredHeight ||
+                actionBottom > bottomHandle.y
+            val aboveHandle = (topHandle.y - context.dp(4)).coerceAtLeast(0f)
+            val leftActionStart = keyboardLeft + leftHandle.measuredWidth + context.dp(8)
+            val leftActionEnd = minOf(topHandle.x, bottomHandle.x) - context.dp(8)
+            if (overlapsHandles && leftActionEnd - leftActionStart >= actionRow.measuredWidth) {
+                // Wide compact layouts have room beside the central handles. Keep
+                // readable actions there instead of shrinking into the toolbar strip.
+                actionRow.scaleX = 1f
+                actionRow.scaleY = 1f
+                placeCentered(actionRow, (leftActionStart + leftActionEnd) / 2f, centerY)
+            } else if (overlapsHandles && aboveHandle > 0f && actionRow.measuredHeight > 0) {
+                // Compact keyboards cannot fit the normal action row between both
+                // handles. Use the scrim above the top handle, keeping its hit area clear.
+                val scale = (aboveHandle / actionRow.measuredHeight).coerceAtMost(1f)
+                actionRow.scaleX = scale
+                actionRow.scaleY = scale
+                actionRow.x = centerX - actionRow.measuredWidth / 2f
+                actionRow.y = aboveHandle / 2f - actionRow.measuredHeight / 2f
+            } else {
+                actionRow.scaleX = 1f
+                actionRow.scaleY = 1f
+                placeCentered(actionRow, centerX, centerY)
+            }
+            // An in-progress drag may place the top handle at the viewport edge.
+            // Its gesture owner must remain above the action row during that transition.
+            topHandle.bringToFront()
+            bottomHandle.bringToFront()
         }
 
         private fun placeCentered(target: View, centerX: Float, centerY: Float) {
@@ -1138,6 +1286,8 @@ class InputView(
         keyboardWindow.onLayoutChanged = null
         windowManager.onActiveWindowChanged = null
         keyboardAdjustDraft = null
+        adjustmentDragHostHeight = null
+        advancedPrefs.unregisterOnChangeListener(onKeyboardSizeChangeListener)
         keyboardPrefs.unregisterOnChangeListener(onKeyboardSizeChangeListener)
         InputWindowSizeOverride.unregisterListener(onKeyboardHeightOverrideChanged)
         // clear DynamicScope, implies that InputView should not be attached again after detached.

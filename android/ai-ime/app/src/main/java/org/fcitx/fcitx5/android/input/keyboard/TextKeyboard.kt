@@ -1,12 +1,19 @@
 /*
  * SPDX-License-Identifier: LGPL-2.1-or-later
- * SPDX-FileCopyrightText: Copyright 2021-2023 Fcitx5 for Android Contributors
+ * SPDX-FileCopyrightText: Copyright 2021-2026 Fcitx5 for Android Contributors
  */
 package org.fcitx.fcitx5.android.input.keyboard
 
 import android.annotation.SuppressLint
 import android.content.Context
 import android.view.View
+import android.view.MotionEvent
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Path
+import org.fcitx.fcitx5.android.input.glide.GlidePoint
+import org.fcitx.fcitx5.android.input.glide.GlideRequest
+import org.fcitx.fcitx5.android.input.glide.EnglishGlideDecoder
 import androidx.annotation.Keep
 import androidx.core.view.allViews
 import org.fcitx.fcitx5.android.R
@@ -23,13 +30,15 @@ import splitties.views.imageResource
 @SuppressLint("ViewConstructor")
 class TextKeyboard(
     context: Context,
-    theme: Theme
-) : BaseKeyboard(context, theme, Layout, "qwerty") {
+    theme: Theme,
+    private val spanish: Boolean = false
+) : BaseKeyboard(context, theme, if (spanish) SpanishLayout else if ((theme as? Theme.Custom)?.renderStyle?.qwertyFiveKeyBottomRow == true) AuthoredFiveKeyLayout else Layout, "qwerty", forceKeyboardPopups = spanish) {
 
     enum class CapsState { None, Once, Lock }
 
     companion object {
         const val Name = "Text"
+        const val SpanishName = "Spanish"
 
         val Layout: List<List<KeyDef>> = listOf(
             listOf(
@@ -75,6 +84,97 @@ class TextKeyboard(
                 ReturnKey()
             )
         )
+        // Opt-in authored arrangement. All actions remain native; symbols and
+        // numbers have separate entry points, emoji remains in the toolbar.
+        val AuthoredFiveKeyLayout: List<List<KeyDef>> = Layout.take(3) + listOf(listOf(
+            LayoutSwitchKey("符", org.fcitx.fcitx5.android.input.picker.PickerWindow.Key.Symbol.name,
+                percentWidth = .14f, variant = KeyDef.Appearance.Variant.Alternative, viewId = R.id.button_punctuation),
+            LanguageKey(), SpaceKey(),
+            LayoutSwitchKey("123", NumberKeyboard.Name, percentWidth = .14f,
+                variant = KeyDef.Appearance.Variant.Alternative, viewId = R.id.button_number_mode),
+            ReturnKey()
+        ))
+        val SpanishLayout: List<List<KeyDef>> = Layout.mapIndexed { index, row ->
+            val accents = mapOf("A" to "aá", "E" to "eé", "I" to "ií", "O" to "oó", "U" to "uúü", "N" to "nñ", "Ñ" to "ñ")
+            val items = if (index == 1) row + AlphabetKey("Ñ", "¡") else row
+            items.map { key ->
+                if (key is AlphabetKey && key.character in accents) AlphabetKey(key.character, key.punctuation,
+                    popup = arrayOf(KeyDef.Popup.Preview(key.character),
+                        KeyDef.Popup.Keyboard.Explicit(accents.getValue(key.character).map(Char::toString).toTypedArray())))
+                else key
+            }
+        }
+    }
+
+    var glideAllowed = true
+    var onGlide: ((GlideRequest) -> Unit)? = null
+    private var glideTracking = false
+    private var glideActive = false
+    private var glideWidth = 1f
+    private var glideStartTime = 0L
+    private var glideStartKey = -1
+    private var glideCenters = emptyMap<Char, GlidePoint>()
+    private val glidePoints = mutableListOf<GlidePoint>()
+    private val glidePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = theme.keyTextColor; alpha = 150; strokeWidth = resources.displayMetrics.density * 3
+        style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND
+    }
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+            glideTracking = false; glideActive = false; glidePoints.clear()
+            val english = lastDisplayIme?.uniqueName == KeyboardSelectionPreset.ENGLISH
+            if (english && glideAllowed && AppPrefs.getInstance().internal.englishGlideEnabled.getValue()) {
+                val letters = textKeys.filter { it.mainText.text.toString().lowercase().singleOrNull() in 'a'..'z' }
+                val keys = letters.map { key ->
+                    val rect = android.graphics.Rect(); key.getDrawingRect(rect); offsetDescendantRectToMyCoords(key, rect)
+                    Triple(key, rect, key.mainText.text.toString().lowercase().single())
+                }
+                val start = keys.firstOrNull { it.second.contains(event.x.toInt(), event.y.toInt()) }
+                if (start != null && keys.size == 26) {
+                    glideCenters = keys.associate { it.third to GlidePoint(it.second.exactCenterX(), it.second.exactCenterY()) }
+                    glideWidth = keys.map { it.second.width() }.average().toFloat()
+                    glideStartKey = start.first.id; glideStartTime = event.eventTime; glideTracking = true
+                }
+            }
+        }
+        if (event.pointerCount > 1 || event.actionMasked == MotionEvent.ACTION_CANCEL) {
+            val consumed = glideActive
+            glideTracking = false; glideActive = false; glidePoints.clear(); invalidate()
+            if (consumed) return true
+        }
+        if (glideTracking) {
+            val point = GlidePoint(event.x, event.y)
+            if (glidePoints.isEmpty() || EnglishGlideDecoder.distance(glidePoints.last(), point) > 2f) glidePoints.add(point)
+            if (glidePoints.size > 1024) {
+                val reduced = EnglishGlideDecoder.sample(glidePoints, 512); glidePoints.clear(); glidePoints.addAll(reduced)
+            }
+            if (!glideActive && event.actionMasked == MotionEvent.ACTION_MOVE) {
+                if (event.eventTime - glideStartTime > 500) glideTracking = false
+                else if (kotlin.math.abs(event.x - glidePoints.first().x) > .7f * glideWidth &&
+                    EnglishGlideDecoder.length(glidePoints) > glideWidth) {
+                    val cancel = MotionEvent.obtain(event).apply { action = MotionEvent.ACTION_CANCEL }
+                    super.dispatchTouchEvent(cancel); cancel.recycle()
+                    onPopupAction(PopupAction.DismissAction(glideStartKey)); glideActive = true
+                }
+            }
+            if (glideActive) {
+                if (event.actionMasked == MotionEvent.ACTION_UP) {
+                    onGlide?.invoke(GlideRequest(glidePoints.toList(), glideCenters, glideWidth,
+                        capsState != CapsState.None, capsState == CapsState.Lock))
+                    if (capsState == CapsState.Once) switchCapsState()
+                    glideTracking = false; glideActive = false; glidePoints.clear()
+                }
+                invalidate(); return true
+            }
+        }
+        return super.dispatchTouchEvent(event)
+    }
+    override fun dispatchDraw(canvas: Canvas) {
+        super.dispatchDraw(canvas)
+        if (glideActive && glidePoints.isNotEmpty()) canvas.drawPath(Path().apply {
+            moveTo(glidePoints.first().x, glidePoints.first().y)
+            glidePoints.drop(1).forEach { lineTo(it.x, it.y) }
+        }, glidePaint)
     }
 
     val caps: ImageKeyView by lazy { findViewById(R.id.button_caps) }
@@ -225,7 +325,13 @@ class TextKeyboard(
         super.onAction(transformed, source)
     }
 
+    override fun onDetach() {
+        glideTracking = false; glideActive = false; glidePoints.clear(); invalidate()
+        super.onDetach()
+    }
+
     override fun onAttach() {
+        glideTracking = false; glideActive = false; glidePoints.clear()
         capsState = CapsState.None
         updateCapsButtonIcon()
         updateAlphabetKeys()
@@ -284,10 +390,19 @@ class TextKeyboard(
             is PopupAction.PreviewAction -> action.copy(content = transformPopupPreview(action.content))
             is PopupAction.PreviewUpdateAction -> action.copy(content = transformPopupPreview(action.content))
             is PopupAction.ShowKeyboardAction -> {
-                val label = action.keyboard.label
-                if (label.length == 1 && label[0].isLetter())
-                    action.copy(keyboard = KeyDef.Popup.Keyboard(transformAlphabet(label)))
-                else action
+                when (action.keyboard) {
+                    is KeyDef.Popup.Keyboard.Preset -> {
+                        val label = action.keyboard.label
+                        if (label.length == 1 && label[0].isLetter())
+                            action.copy(
+                                keyboard = action.keyboard.copy(label = transformAlphabet(label))
+                            )
+                        else action
+                    }
+                    is KeyDef.Popup.Keyboard.Explicit -> if (spanish) action.copy(
+                        keyboard = KeyDef.Popup.Keyboard.Explicit(action.keyboard.items.map(::transformAlphabet).toTypedArray())
+                    ) else action
+                }
             }
             else -> action
         }

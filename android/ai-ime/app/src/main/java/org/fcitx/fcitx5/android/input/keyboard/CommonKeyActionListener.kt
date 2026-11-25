@@ -22,6 +22,7 @@ import org.fcitx.fcitx5.android.input.keyboard.CommonKeyActionListener.Backspace
 import org.fcitx.fcitx5.android.input.keyboard.CommonKeyActionListener.BackspaceSwipeState.Selection
 import org.fcitx.fcitx5.android.input.keyboard.CommonKeyActionListener.BackspaceSwipeState.Stopped
 import org.fcitx.fcitx5.android.input.keyboard.KeyAction.CommitAction
+import org.fcitx.fcitx5.android.input.keyboard.KeyAction.CancelSelectionAction
 import org.fcitx.fcitx5.android.input.keyboard.KeyAction.DeleteSelectionAction
 import org.fcitx.fcitx5.android.input.keyboard.KeyAction.FcitxKeyAction
 import org.fcitx.fcitx5.android.input.keyboard.KeyAction.LangSwitchAction
@@ -95,6 +96,9 @@ class CommonKeyActionListener :
                 service.hostClipboard.dismiss()
             }
             when (action) {
+                is KeyAction.DeleteGestureAvailabilityAction -> action.reply(service.deleteClearAvailable(), service.deleteUndoAvailable())
+                KeyAction.DeleteClearAction -> { backspaceSwipeState = Stopped; service.clearFromDeleteGesture() }
+                KeyAction.DeleteUndoAction -> { backspaceSwipeState = Stopped; service.undoDeleteGesture() }
                 is FcitxKeyAction -> {
                     if (!service.handleT9FcitxKeyAction(action.act)) {
                         service.postFcitxJob {
@@ -111,7 +115,7 @@ class CommonKeyActionListener :
                 }
                 is CommitAction -> service.postFcitxJob {
                     commitAndReset()
-                    service.lifecycleScope.launch { service.commitText(action.text) }
+                    service.lifecycleScope.launch { service.commitKeyboardText(action.text) }
                 }
                 is QuickPhraseAction -> service.postFcitxJob {
                     commitAndReset()
@@ -178,6 +182,10 @@ class CommonKeyActionListener :
                             service.postFcitxJob { reset() }
                         }
                     }
+                    backspaceSwipeState = Stopped
+                }
+                is CancelSelectionAction -> {
+                    // The host selection is left intact; cancel must never delete or commit text.
                     backspaceSwipeState = Stopped
                 }
                 is PickerSwitchAction -> {

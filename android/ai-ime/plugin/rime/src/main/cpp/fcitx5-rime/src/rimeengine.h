@@ -7,6 +7,7 @@
 #define _FCITX_RIMEENGINE_H_
 
 #include "rimesession.h"
+#include "../../../../../../../lib/common/src/main/cpp/personal-vocabulary.h"
 #include "rimestate.h"
 #include <cstdint>
 #include <fcitx-config/configuration.h>
@@ -19,9 +20,11 @@
 #include <fcitx-utils/handlertable_details.h>
 #include <fcitx-utils/i18n.h>
 #include <fcitx-utils/key.h>
+#include <fcitx-utils/keysym.h>
 #include <fcitx-utils/library.h>
 #include <fcitx-utils/log.h>
 #include <fcitx-utils/misc.h>
+#include <fcitx-utils/signals.h>
 #include <fcitx-utils/standardpaths.h>
 #include <fcitx-utils/stringutils.h>
 #include <fcitx/action.h>
@@ -48,11 +51,25 @@
 #endif
 
 namespace fcitx::rime {
+void recoverPersonalVocabulary(const std::filesystem::path &root);
 
 class RimeState;
 class RimeOptionAction;
 
+FCITX_CONFIGURATION(
+    PaopaoSchemaResponse,
+    Option<std::string> schema{this, "Schema", "Schema", ""};
+    Option<std::string> preparedSchema{this, "PreparedSchema", "PreparedSchema", ""};
+    Option<std::string> requestId{this, "RequestId", "RequestId", ""};
+    Option<std::string> errorCode{this, "ErrorCode", "ErrorCode", ""};
+    Option<std::string> error{this, "Error", "Error", ""};);
+
 enum class SharedStatePolicy { FollowGlobalConfig, All, Program, No };
+
+FCITX_CONFIGURATION(
+    PaopaoPredictionResponse,
+    Option<bool> enabled{this, "Enabled", "Enabled", false};
+    Option<std::string> errorCode{this, "ErrorCode", "ErrorCode", ""};);
 
 FCITX_CONFIG_ENUM_NAME_WITH_I18N(SharedStatePolicy,
                                  N_("Follow Global Configuration"), N_("All"),
@@ -111,7 +128,10 @@ FCITX_CONFIGURATION(
         isApple() ? fcitx::KeyList{fcitx::Key("Control+Alt+grave")}
                   : fcitx::KeyList{}};
     fcitx::Option<fcitx::KeyList> synchronize{
-        this, "Synchronize", _("Synchronize"), {}};);
+        this, "Synchronize", _("Synchronize"), {}};
+    Option<bool> latinModeNameFromSchema{
+        this, "LatinModeNameFromSchema",
+        _("Use latin mode name defined in schema"), false};);
 
 class RimeEngine final : public InputMethodEngineV2 {
 public:
@@ -137,6 +157,16 @@ public:
     }
     void setSubConfig(const std::string &path,
                       const RawConfig & /*unused*/) override;
+    const Configuration *getSubConfig(const std::string &path) const override;
+    void personalVocabulary(const RawConfig &request);
+    mutable paopao::vocabulary::Response vocabularyResponse_;
+    void paopaoSchema(const RawConfig &request);
+    void paopaoPrediction(const RawConfig &request);
+    void syncPrediction(RimeSessionId session, InputContext &ic);
+    mutable PaopaoPredictionResponse predictionResponse_;
+    bool predictionEnabled_ = false;
+    void updatePaopaoSchemas();
+    mutable PaopaoSchemaResponse schemaResponse_;
     void updateConfig();
 
     std::string subMode(const InputMethodEntry & /*entry*/,
@@ -150,7 +180,7 @@ public:
     rime_api_t *api() { return api_; }
     const auto &appOptions() const { return appOptions_; }
 
-    void rimeStart(bool fullcheck);
+    void rimeStart(bool fullcheck, bool maintenance = true);
 
     RimeState *state(InputContext *ic);
     RimeSessionPool &sessionPool() { return sessionPool_; }
@@ -162,6 +192,8 @@ public:
     void allowNotification(std::string type = "");
     const auto &schemas() const { return schemas_; }
     const auto &optionActions() const { return optionActions_; };
+
+    bool isCapsLockOn(InputContext *ic) const;
 
 private:
     static void rimeNotificationHandler(void *context, RimeSessionId session,
@@ -222,6 +254,7 @@ private:
     RimeSessionPool sessionPool_;
     std::thread::id mainThreadId_ = std::this_thread::get_id();
     RimeState *currentKeyEventState_ = nullptr;
+    ScopedConnection xkbStateChangedConnection_;
 };
 } // namespace fcitx::rime
 

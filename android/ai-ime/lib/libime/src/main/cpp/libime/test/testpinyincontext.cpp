@@ -12,6 +12,7 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <unordered_set>
 #include <vector>
 #include <fcitx-utils/log.h>
 #include "libime/core/historybigram.h"
@@ -25,6 +26,28 @@
 #include "testdir.h"
 
 using namespace libime;
+
+namespace {
+
+void checkCandidateSet(const PinyinContext &context) {
+    std::unordered_set<std::string> candidates;
+    for (const auto &candidate : context.candidates()) {
+        candidates.insert(candidate.toString());
+    }
+
+    FCITX_ASSERT(candidates == context.candidateSet());
+}
+
+void checkCandidatesToCursorSet(const PinyinContext &context) {
+    std::unordered_set<std::string> candidates;
+    for (const auto &candidate : context.candidatesToCursor()) {
+        candidates.insert(candidate.toString());
+    }
+
+    FCITX_ASSERT(candidates == context.candidatesToCursorSet());
+}
+
+} // namespace
 
 int main() {
     PinyinIME ime(
@@ -41,6 +64,20 @@ int main() {
     ime.dict()->addWord(1, "zi'ji'ge'zi", "自机各自");
     ime.setFuzzyFlags(PinyinFuzzyFlag::Inner);
     PinyinContext c(&ime);
+
+    {
+        c.type("xian");
+        std::unordered_set<size_t> xiEndIndexes;
+        for (const auto &candidate : c.candidates()) {
+            if (candidate.toString() == "洗") {
+                xiEndIndexes.insert(candidate.sentence().back()->to()->index());
+            }
+        }
+        FCITX_ASSERT(xiEndIndexes.size() == 2) << xiEndIndexes.size();
+        FCITX_ASSERT(c.candidateSet().count("洗") == 1);
+        c.clear();
+    }
+
     c.type("xianshi");
 
     std::cout << c.sentence() << std::endl;
@@ -176,6 +213,7 @@ int main() {
     {
         c.clear();
         c.type("nianglanghang");
+        checkCandidatesToCursorSet(c);
         size_t i = 0;
         for (const auto &candidate : c.candidatesToCursor()) {
             if (candidate.toString() == "娘") {
@@ -189,7 +227,7 @@ int main() {
         while (i > 0) {
             --i;
             c.setCursor(i);
-            c.candidatesToCursor();
+            checkCandidatesToCursorSet(c);
         }
     }
 
@@ -288,8 +326,23 @@ int main() {
     {
         c.clear();
         c.clearContextWords();
+        auto wordCandidateLimit = ime.wordCandidateLimit();
+        ime.setWordCandidateLimit(1);
+        c.type("ziran");
+        checkCandidateSet(c);
+        ime.setWordCandidateLimit(wordCandidateLimit);
+    }
+
+    {
+        c.clear();
+        c.clearContextWords();
+        c.type("ziran");
+        checkCandidateSet(c);
+        c.clear();
         FCITX_ASSERT(!ime.model()->history().containsBigram("他", "爱"));
         c.type("taai");
+        checkCandidateSet(c);
+        checkCandidatesToCursorSet(c);
         size_t i = 0;
         for (const auto &candidate : c.candidatesToCursor()) {
             if (candidate.toString() == "他爱") {

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(fcitx5-lua VERSION 5.0.16)
+project(fcitx5-lua VERSION 5.0.18)
 
 set(REQUIRED_FCITX_VERSION 5.1.13)
 find_package(ECM REQUIRED 1.0.0)
@@ -90,7 +90,7 @@ endif()
 
 configure_file(config.h.in config.h)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
-add_definitions(-DFCITX_GETTEXT_DOMAIN=\"fcitx5-lua\")
+add_definitions("-DFCITX_GETTEXT_DOMAIN=\"fcitx5-lua\"")
 fcitx5_add_i18n_definition()
 
 add_subdirectory(src)

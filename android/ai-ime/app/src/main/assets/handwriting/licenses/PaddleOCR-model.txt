@@ -1,0 +1,4 @@
+PP-OCRv6_small_rec_onnx by PaddlePaddle, Apache License 2.0.
+https://huggingface.co/PaddlePaddle/PP-OCRv6_small_rec_onnx/tree/b8f84f0b80c529de40b4fbb3544b84fa7233a513
+Model SHA-256: 5435fd747c9e0efe15a96d0b378d5bd157e9492ed8fd80edf08f30d02fa24634
+ppocrv6_dict.txt (PaddleOCR), SHA-256: b5f2bfe2bdd9448429e3e82b51c789775d9b42f2403d082b00662eb77e401c5d. Final space appended for the CTC space class.

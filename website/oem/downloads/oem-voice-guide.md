@@ -11,7 +11,7 @@
 
 ```groovy
 // 在基础输入法 core + host-bridge 的依赖之外按需添加：
-implementation "com.paopaoime.oem:oem-ime-sdk-voice:1.0.0.20261008"
+implementation "com.paopaoime.oem:oem-ime-sdk-voice:1.0.0.20261125"
 // sherpa-onnx:1.13.8 由语音 SDK 传递引入，无需手工添加。
 ```
 

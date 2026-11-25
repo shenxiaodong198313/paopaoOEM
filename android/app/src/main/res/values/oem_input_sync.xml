@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="oem_dictionary_back">返回</string>
+    <string name="oem_dictionary_title">词库管理</string>
+    <string name="oem_dictionary_desc">管理白霜、雾凇和 Rime 词库</string>
+    <string name="oem_dictionary_download">下载</string>
+    <string name="oem_dictionary_download_named">下载%1$s</string>
+    <string name="oem_dictionary_downloading">正在下载词库…</string>
+    <string name="oem_dictionary_progress">下载进度 %1$d%%</string>
+    <string name="oem_dictionary_preparing">正在校验和准备词库…</string>
+    <string name="oem_dictionary_ready">词库已就绪，点按词库名称即可启用。</string>
+    <string name="oem_dictionary_selected">已启用所选词库。</string>
+    <string name="oem_dictionary_cancelled">操作已取消。</string>
+    <string name="oem_dictionary_failed">词库准备失败，请重试。</string>
+    <string name="oem_key_effect_motion">按键动效</string>
+    <string name="oem_key_effect_skin_default">皮肤默认</string>
+    <string name="oem_key_effect_none">无动效</string>
+    <string name="oem_key_effect_motion_selected">按键动效 · %1$s</string>
+</resources>

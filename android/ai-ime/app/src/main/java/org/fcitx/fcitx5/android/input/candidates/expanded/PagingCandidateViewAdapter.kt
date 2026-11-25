@@ -14,33 +14,25 @@ import org.fcitx.fcitx5.android.input.candidates.CandidateItemUi
 import org.fcitx.fcitx5.android.input.candidates.CandidateViewHolder
 
 open class PagingCandidateViewAdapter(val theme: Theme) :
-    PagingDataAdapter<CandidateWord, CandidateViewHolder>(diffCallback) {
+    PagingDataAdapter<ExpandedWord, CandidateViewHolder>(diffCallback) {
 
     companion object {
         /**
          * Always re-bind all [CandidateViewHolder]s every time to make sure `idx` is up-to-date.
          * [CandidateViewHolder.update] would skip unnecessary UI updates.
          */
-        private val diffCallback = object : DiffUtil.ItemCallback<CandidateWord>() {
-            override fun areItemsTheSame(oldItem: CandidateWord, newItem: CandidateWord) = false
-            override fun areContentsTheSame(oldItem: CandidateWord, newItem: CandidateWord) = false
+        private val diffCallback = object : DiffUtil.ItemCallback<ExpandedWord>() {
+            override fun areItemsTheSame(oldItem: ExpandedWord, newItem: ExpandedWord) = false
+            override fun areContentsTheSame(oldItem: ExpandedWord, newItem: ExpandedWord) = false
         }
     }
 
-    var offset = 0
-        private set
-
-    fun refreshWithOffset(offset: Int) {
-        this.offset = offset
-        refresh()
-    }
-
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CandidateViewHolder {
-        return CandidateViewHolder(CandidateItemUi(parent.context, theme))
+        return CandidateViewHolder(CandidateItemUi(parent.context, theme, expanded = true))
     }
 
     override fun onBindViewHolder(holder: CandidateViewHolder, position: Int) {
-        val candidate = getItem(position) ?: CandidateWord.Empty
-        holder.update(position + offset, candidate)
+        val entry = getItem(position)
+        holder.update(entry?.index ?: -1, entry?.word ?: CandidateWord.Empty)
     }
 }

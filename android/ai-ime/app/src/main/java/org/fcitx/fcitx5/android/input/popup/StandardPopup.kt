@@ -5,6 +5,7 @@ import android.graphics.*
 import android.view.View
 import androidx.core.graphics.PathParser
 import org.json.JSONObject
+import org.fcitx.fcitx5.android.data.theme.SkinPopupStyle
 import org.fcitx.fcitx5.android.data.theme.Theme
 import org.fcitx.fcitx5.android.data.theme.SkinLabStandard
 import org.fcitx.fcitx5.android.input.keyboard.KeyAction
@@ -13,6 +14,7 @@ import kotlin.math.roundToInt
 
 /** Draw the exact generated Skin Lab path; all coordinates use the scoped design density. */
 class StandardPopupPreview(context: Context, private val theme: Theme) : View(context) {
+    private val palette = SkinPopupStyle.resolve(theme)
     private val density = resources.displayMetrics.density
     private val entries = JSONObject(context.assets.open("system_themes/daylight_porcelain/popup-geometry.json").bufferedReader().use { it.readText() })
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -27,15 +29,20 @@ class StandardPopupPreview(context: Context, private val theme: Theme) : View(co
         canvas.save(); canvas.scale(density, density); canvas.translate(origin.x, origin.y)
         paint.color = Color.WHITE; paint.style = Paint.Style.FILL
         val layer = canvas.saveLayer(-200f, -200f, 1000f, 500f, null)
-        paint.setShadowLayer(6f, 0f, 3f, 0x4d2d3039); canvas.drawPath(path, paint); paint.clearShadowLayer()
+        paint.setShadowLayer(6f, 0f, 3f, palette.shadowColor); canvas.drawPath(path, paint); paint.clearShadowLayer()
         paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_OUT); canvas.drawPath(path, paint)
         paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
         paint.shader = LinearGradient(0f, body.getDouble(1).toFloat(), 0f, (body.getDouble(1) + body.getDouble(3) * .7).toFloat(), Color.BLACK, Color.TRANSPARENT, Shader.TileMode.CLAMP)
         canvas.drawRect(-200f, -200f, 1000f, 500f, paint)
         paint.shader = null; paint.xfermode = null; canvas.restoreToCount(layer)
-        paint.color = if (theme.isDark) theme.popupBackgroundColor else Color.WHITE
-        canvas.drawPath(path, paint)
-        paint.color = if (theme.isDark) theme.popupTextColor else Color.BLACK; paint.textSize = 28f; paint.typeface = Typeface.create("sans-serif", Typeface.NORMAL)
+        paint.shader = LinearGradient(0f, body.getDouble(1).toFloat(), 0f,
+            (body.getDouble(1) + body.getDouble(3)).toFloat(), palette.topColor, palette.bottomColor, Shader.TileMode.CLAMP)
+        canvas.drawPath(path, paint); paint.shader = null
+        if (palette.borderWidthDp > 0f) {
+            paint.style = Paint.Style.STROKE; paint.strokeWidth = palette.borderWidthDp
+            paint.color = palette.borderColor; canvas.drawPath(path, paint); paint.style = Paint.Style.FILL
+        }
+        paint.color = palette.textColor; paint.textSize = 28f; paint.typeface = Typeface.create("sans-serif", Typeface.NORMAL)
         val bounds = Rect(); paint.getTextBounds(label, 0, label.length, bounds)
         val x = (box.getDouble(0) + box.getDouble(2) / 2).toFloat()
         val y = (box.getDouble(1) + box.getDouble(3) / 2).toFloat()
@@ -50,12 +57,13 @@ class StandardPopupMenu(
     dismiss: PopupContainerUi.() -> Unit,
     private val keys: Array<String>, private val labels: Array<String>, initial: Int
 ) : PopupContainerUi(ctx, theme, outer, trigger, dismiss) {
+    private val palette = SkinPopupStyle.resolve(theme)
     private val density = ctx.resources.displayMetrics.density
     private val designWidth = minOf(outer.width() / density - 4, keys.size * 34f + 8)
     private val cell = (designWidth - 8) / keys.size
     private val shadowPad = 10f
     private var selected = initial.coerceIn(0, keys.lastIndex)
-    override val offsetX = ((trigger.centerX() - designWidth * density / 2).coerceIn(outer.left + 2 * density, outer.right - (designWidth + 2) * density) - trigger.left - shadowPad * density).roundToInt()
+    override val offsetX = ((trigger.centerX() - designWidth * density / 2).coerceIn(outer.left + 2 * density, maxOf(outer.left + 2 * density, outer.right - (designWidth + 2) * density)) - trigger.left - shadowPad * density).roundToInt()
     override val offsetY = ((SkinLabStandard.gapY(ctx) / 2 + .875f - 6 - 50 - shadowPad) * density).roundToInt()
     override val root = object : View(ctx) {
         private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -63,12 +71,17 @@ class StandardPopupMenu(
         override fun onMeasure(w: Int, h: Int) { setMeasuredDimension(((designWidth + shadowPad * 2) * density).roundToInt(), ((50 + shadowPad * 2) * density).roundToInt()) }
         override fun onDraw(canvas: Canvas) {
             canvas.save(); canvas.scale(density, density); canvas.translate(shadowPad, shadowPad)
-            paint.color = if (theme.isDark) theme.popupBackgroundColor else Color.WHITE; paint.setShadowLayer(6f, 0f, 3f, 0x4d2d3039)
-            canvas.drawRoundRect(0f, 0f, designWidth, 50f, 10f, 10f, paint); paint.clearShadowLayer()
+            paint.shader = LinearGradient(0f, 0f, 0f, 50f, palette.topColor, palette.bottomColor, Shader.TileMode.CLAMP)
+            paint.setShadowLayer(6f, 0f, 3f, palette.shadowColor)
+            canvas.drawRoundRect(0f, 0f, designWidth, 50f, 10f, 10f, paint); paint.clearShadowLayer(); paint.shader = null
+            if (palette.borderWidthDp > 0f) {
+                paint.style = Paint.Style.STROKE; paint.strokeWidth = palette.borderWidthDp; paint.color = palette.borderColor
+                canvas.drawRoundRect(0f, 0f, designWidth, 50f, 10f, 10f, paint); paint.style = Paint.Style.FILL
+            }
             labels.forEachIndexed { i, text ->
                 val x = 4 + cell * i
-                if (i == selected) { paint.color = 0xff007aff.toInt(); canvas.drawRoundRect(x, 4f, x + cell, 46f, 7f, 7f, paint) }
-                paint.color = if (i == selected) Color.WHITE else if (theme.isDark) theme.popupTextColor else Color.BLACK; paint.textSize = minOf(25f, cell * .82f)
+                if (i == selected) { paint.color = palette.selectedColor; canvas.drawRoundRect(x, 4f, x + cell, 46f, 7f, 7f, paint) }
+                paint.color = if (i == selected) palette.selectedTextColor else palette.textColor; paint.textSize = minOf(25f, cell * .82f)
                 val bounds = Rect(); paint.getTextBounds(text, 0, text.length, bounds)
                 canvas.drawText(text, x + cell / 2 - bounds.exactCenterX(), 25 - bounds.exactCenterY(), paint)
             }; canvas.restore()

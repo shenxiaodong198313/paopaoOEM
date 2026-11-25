@@ -17,7 +17,6 @@
 #include <string>
 #include <string_view>
 #include <tuple>
-#include <unordered_set>
 #include <utility>
 #include <vector>
 #include <fcitx-utils/handlertable.h>
@@ -123,7 +122,7 @@ WaylandConnection::WaylandConnection(WaylandModule *wayland, std::string name)
 }
 
 WaylandConnection::WaylandConnection(WaylandModule *wayland, std::string name,
-                                     int fd, std::string realName)
+                                     UnixFD fd, std::string realName)
     : parent_(wayland), name_(std::move(name)), realName_(std::move(realName)),
       isWaylandSocket_(true) {
     wl_display *display = nullptr;
@@ -132,7 +131,7 @@ WaylandConnection::WaylandConnection(WaylandModule *wayland, std::string name,
         if (wayland_log().checkLogLevel(Debug)) {
             env = std::make_unique<ScopedEnvvar>("WAYLAND_DEBUG", "1");
         }
-        display = wl_display_connect_to_fd(fd);
+        display = wl_display_connect_to_fd(fd.release());
     }
     if (!display) {
         throw std::runtime_error("Failed to open wayland connection");
@@ -140,7 +139,16 @@ WaylandConnection::WaylandConnection(WaylandModule *wayland, std::string name,
     init(display);
 }
 
-WaylandConnection::~WaylandConnection() {}
+WaylandConnection::~WaylandConnection() {
+    // Stop all event handling.
+    eventReader_.reset();
+
+    // Try to flush the last event, this should help to apply virtual keyboard
+    // do the final destroy.
+    if (!wl_display_get_error(*display_)) {
+        display_->flush();
+    }
+}
 
 void WaylandConnection::init(wl_display *display) {
     display_ = std::make_unique<wayland::Display>(display);
@@ -222,16 +230,26 @@ WaylandModule::WaylandModule(fcitx::Instance *instance)
             });
     });
 #endif
+
+    exitConnection_ = instance_->connect<Instance::AboutToExit>([this]() {
+        // Handle about to exit signal
+        while (!conns_.empty()) {
+            removeConnection(conns_.begin()->first);
+        }
+    });
 }
 
 void WaylandModule::reloadConfig() { readAsIni(config_, "conf/wayland.conf"); }
 
 bool WaylandModule::openConnection(const std::string &name) {
-    if (conns_.count(name)) {
+    if (instance_->exiting()) {
+        return false;
+    }
+    if (conns_.contains(name)) {
         return false;
     }
 
-    if (auto defaultConnection = findValue(conns_, "")) {
+    if (auto *defaultConnection = findValue(conns_, "")) {
         if (name == defaultConnection->get()->realName()) {
             return false;
         }
@@ -257,35 +275,45 @@ bool WaylandModule::openConnection(const std::string &name) {
 }
 
 bool WaylandModule::openConnectionSocket(int fd) {
-    auto name = stringutils::concat("socket:", fd);
-    return openConnectionSocketWithName(fd, name, "");
+    return openConnectionSocketV2(UnixFD::own(fd));
 }
 
-bool WaylandModule::openConnectionSocketWithName(int fd,
+bool WaylandModule::openConnectionSocketV2(UnixFD fd) {
+    if (!fd.isValid()) {
+        return false;
+    }
+    auto name = stringutils::concat("socket:", fd.fd());
+    return openConnectionSocketWithName(std::move(fd), name, "");
+}
+
+bool WaylandModule::openConnectionSocketWithName(UnixFD fd,
                                                  const std::string &name,
                                                  const std::string &realName) {
-    UnixFD guard = UnixFD::own(fd);
+    if (instance_->exiting()) {
+        return false;
+    }
 
-    if (conns_.count(name)) {
+    if (conns_.contains(name)) {
         return false;
     }
 
     for (const auto &[name, connection] : conns_) {
-        if (connection->display()->fd() == fd) {
+        if (connection->display()->fd() == fd.fd()) {
             return false;
         }
     }
 
     WaylandConnection *newConnection = nullptr;
     try {
-        auto connection =
-            std::make_unique<WaylandConnection>(this, name, fd, realName);
+        auto connection = std::make_unique<WaylandConnection>(
+            this, name, std::move(fd), realName);
         auto iter = conns_.emplace(
             std::piecewise_construct, std::forward_as_tuple(name),
             std::forward_as_tuple(std::move(connection)));
-        guard.release();
         newConnection = iter.first->second.get();
     } catch (const std::exception &e) {
+        FCITX_ERROR() << "Open wayland connection with socket failed: "
+                      << e.what();
     }
     if (newConnection) {
         refreshCanRestart();
@@ -297,7 +325,14 @@ bool WaylandModule::openConnectionSocketWithName(int fd,
 
 bool WaylandModule::reopenConnectionSocket(const std::string &displayName,
                                            int fd) {
-    UnixFD guard = UnixFD::own(fd);
+    return reopenConnectionSocketV2(displayName, UnixFD::own(fd));
+}
+
+bool WaylandModule::reopenConnectionSocketV2(const std::string &displayName,
+                                             UnixFD fd) {
+    if (instance_->exiting()) {
+        return false;
+    }
     std::string name = displayName;
 
     auto iter = conns_.find(name);
@@ -318,14 +353,14 @@ bool WaylandModule::reopenConnectionSocket(const std::string &displayName,
                     }
                 }
             }
-            return openConnectionSocketWithName(guard.release(), name,
+            return openConnectionSocketWithName(std::move(fd), name,
                                                 displayName);
 
         } while (0);
     }
 
     for (const auto &[name, connection] : conns_) {
-        if (connection->display()->fd() == fd) {
+        if (connection->display()->fd() == fd.fd()) {
             return false;
         }
     }
@@ -339,10 +374,11 @@ bool WaylandModule::reopenConnectionSocket(const std::string &displayName,
 
     std::unique_ptr<WaylandConnection> newConnection;
     try {
-        newConnection =
-            std::make_unique<WaylandConnection>(this, name, fd, displayName);
-        guard.release();
+        newConnection = std::make_unique<WaylandConnection>(
+            this, name, std::move(fd), displayName);
     } catch (const std::exception &e) {
+        FCITX_ERROR() << "Open wayland connection: " << name
+                      << " failed: " << e.what();
     }
     if (newConnection) {
         // At this point connection is already constructed, now we try to
@@ -409,10 +445,10 @@ void WaylandModule::onConnectionClosed(WaylandConnection &conn) {
 }
 
 void WaylandModule::refreshCanRestart() {
-    setCanRestart(std::all_of(conns_.begin(), conns_.end(),
-                              [](const decltype(conns_)::value_type &conn) {
-                                  return !conn.second->isWaylandSocket();
-                              }));
+    setCanRestart(std::ranges::all_of(
+        conns_, [](const decltype(conns_)::value_type &conn) {
+            return !conn.second->isWaylandSocket();
+        }));
 }
 
 void WaylandModule::reloadXkbOption() {
@@ -425,7 +461,7 @@ void WaylandModule::reloadXkbOptionReal() {
     if (!isWaylandSession_) {
         return;
     }
-    auto connection = findValue(conns_, "");
+    auto *connection = findValue(conns_, "");
     if (!connection) {
         return;
     }
@@ -434,15 +470,15 @@ void WaylandModule::reloadXkbOptionReal() {
     std::optional<std::string> xkbOption = std::nullopt;
     if (isKDE5Plus()) {
 
-        auto dbusAddon = dbus();
+        auto *dbusAddon = dbus();
         if (!dbusAddon) {
             return;
         }
 
         fcitx::RawConfig config;
         readAsIni(config, StandardPathsType::Config, "kxkbrc");
-        auto model = config.valueByPath("Layout/Model");
-        auto options = config.valueByPath("Layout/Options");
+        const auto *model = config.valueByPath("Layout/Model");
+        const auto *options = config.valueByPath("Layout/Options");
         xkbOption = (options ? *options : "");
         instance_->setXkbParameters((*connection)->focusGroup()->display(),
                                     DEFAULT_XKB_RULES, model ? *model : "",
@@ -457,7 +493,7 @@ void WaylandModule::reloadXkbOptionReal() {
 
             gchar **value = g_settings_get_strv(settings.get(), "xkb-options");
             if (value) {
-                auto options = g_strjoinv(",", value);
+                auto *options = g_strjoinv(",", value);
                 xkbOption = (options ? options : "");
                 instance_->setXkbParameters(
                     (*connection)->focusGroup()->display(), DEFAULT_XKB_RULES,
@@ -469,7 +505,7 @@ void WaylandModule::reloadXkbOptionReal() {
         }
     }
 #ifdef ENABLE_X11
-    if (auto xcbAddon = xcb(); xcbAddon && xkbOption) {
+    if (auto *xcbAddon = xcb(); xcbAddon && xkbOption) {
         xcbAddon->call<IXCBModule::setXkbOption>(
             xcbAddon->call<IXCBModule::mainDisplay>(), *xkbOption);
     }
@@ -728,6 +764,8 @@ void WaylandModule::selfDiagnose() {
                   "see "
                   "https://fcitx-im.org/wiki/Using_Fcitx_5_on_Wayland#GNOME"));
         }
+    } else if (desktop == DesktopType::DEEPIN) {
+        // Per Deepin upstream request, do not show this message for them.
     } else if (desktop == DesktopType::UKUI) {
         // Per UkUI upstream request, do not show this message for them.
     } else {

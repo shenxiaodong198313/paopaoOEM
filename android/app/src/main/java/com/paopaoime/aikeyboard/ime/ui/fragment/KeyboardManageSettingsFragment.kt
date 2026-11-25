@@ -6,16 +6,24 @@ import android.os.Bundle
 import android.view.View
 import android.widget.ImageView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.widget.SwitchCompat
+import androidx.lifecycle.lifecycleScope
 import com.paopaoime.aikeyboard.ime.R
 import com.paopaoime.aikeyboard.ime.prefs.behavior.DoublePinyinSchemaMode
 import com.paopaoime.aikeyboard.ime.ui.settings.InputMethodSettingsBridge
 import com.paopaoime.aikeyboard.ime.ui.settings.InputMethodSettingsBridge.MainKeyboardType
 import com.paopaoime.aikeyboard.ime.ui.settings.InputMethodSettingsBridge.OneHandMode
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 
 class KeyboardManageSettingsFragment : BaseInputMethodSettingsFragment(
     R.layout.fragment_keyboard_manage_settings
 ) {
+    private var loadedDoubleSchema: DoublePinyinSchemaMode? = null
+    private var keyboardSelectionJob: Job? = null
+
     private data class KeyboardOptionView(
         val containerId: Int,
         val labelId: Int,
@@ -84,12 +92,22 @@ class KeyboardManageSettingsFragment : BaseInputMethodSettingsFragment(
         doubleHintSwitch.isChecked = InputMethodSettingsBridge.isDoublePinyinHintEnabled()
         cursorSwitch.isChecked = InputMethodSettingsBridge.isSpaceSwipeMoveCursorEnabled()
         renderKeyboardOptions(view, keyboardOptions)
-        renderValues(doubleSchemaValue, oneHandValue)
+        renderValues(null, oneHandValue)
+        loadDoubleSchema(view, doubleSchemaValue)
 
         keyboardOptions.forEach { option ->
             view.findViewById<View>(option.containerId).setOnClickListener {
-                InputMethodSettingsBridge.setPrimaryKeyboardType(option.type)
-                renderKeyboardOptions(view, keyboardOptions)
+                keyboardSelectionJob?.cancel()
+                keyboardSelectionJob = viewLifecycleOwner.lifecycleScope.launch {
+                    try {
+                        InputMethodSettingsBridge.setPrimaryKeyboardType(option.type)
+                        renderKeyboardOptions(view, keyboardOptions)
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (failure: Exception) {
+                        Toast.makeText(context, failure.message ?: "键盘设置保存失败，请重试", Toast.LENGTH_LONG).show()
+                    }
+                }
             }
         }
         doubleHintSwitch.setOnCheckedChangeListener { _, isChecked ->
@@ -117,15 +135,47 @@ class KeyboardManageSettingsFragment : BaseInputMethodSettingsFragment(
             DoublePinyinSchemaMode.ziguang,
         )
         val titles = arrayOf("小鹤双拼", "自然码", "智能ABC", "微软双拼", "搜狗双拼", "紫光双拼")
-        val current = InputMethodSettingsBridge.getDoublePinyinSchema()
-        val checkedIndex = values.indexOf(current).let { if (it >= 0) it else 0 }
+        val checkedIndex = values.indexOf(loadedDoubleSchema)
         showSingleChoiceDialog(
             title = getString(R.string.keyboard_manage_double_schema_dialog_title),
             options = titles,
             checkedIndex = checkedIndex,
         ) { index ->
-            InputMethodSettingsBridge.setDoublePinyinSchema(values[index])
-            renderValues(doubleSchemaValue, null)
+            val row = requireView().findViewById<View>(R.id.item_keyboard_manage_double_schema)
+            viewLifecycleOwner.lifecycleScope.launch {
+                row.isEnabled = false
+                doubleSchemaValue.text = "正在保存…"
+                try {
+                    InputMethodSettingsBridge.setDoublePinyinSchema(values[index])
+                    loadedDoubleSchema = values[index]
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (failure: Exception) {
+                    Toast.makeText(context, failure.message ?: "双拼方案保存失败，请重试", Toast.LENGTH_LONG).show()
+                } finally {
+                    renderValues(doubleSchemaValue, null)
+                    row.isEnabled = true
+                }
+            }
+        }
+    }
+
+    private fun loadDoubleSchema(root: View, value: TextView) {
+        loadedDoubleSchema = null
+        val row = root.findViewById<View>(R.id.item_keyboard_manage_double_schema)
+        row.isEnabled = false
+        value.text = "正在读取…"
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                loadedDoubleSchema = InputMethodSettingsBridge.getDoublePinyinSchema()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                Toast.makeText(context, failure.message ?: "双拼方案读取失败，请重试", Toast.LENGTH_LONG).show()
+            } finally {
+                renderValues(value, null)
+                row.isEnabled = true
+            }
         }
     }
 
@@ -158,13 +208,14 @@ class KeyboardManageSettingsFragment : BaseInputMethodSettingsFragment(
         doubleSchemaValue: TextView?,
         oneHandValue: TextView?,
     ) {
-        doubleSchemaValue?.text = when (InputMethodSettingsBridge.getDoublePinyinSchema()) {
+        doubleSchemaValue?.text = when (loadedDoubleSchema) {
             DoublePinyinSchemaMode.flypy -> "小鹤双拼"
             DoublePinyinSchemaMode.natural -> "自然码"
             DoublePinyinSchemaMode.abc -> "智能ABC"
             DoublePinyinSchemaMode.mspy -> "微软双拼"
             DoublePinyinSchemaMode.sogou -> "搜狗双拼"
             DoublePinyinSchemaMode.ziguang -> "紫光双拼"
+            null -> "未读取到当前方案"
         }
         oneHandValue?.text = when (InputMethodSettingsBridge.getOneHandMode()) {
             OneHandMode.Off -> getString(R.string.keyboard_manage_one_hand_off)
@@ -180,6 +231,7 @@ class KeyboardManageSettingsFragment : BaseInputMethodSettingsFragment(
         val selectedTint = ColorStateList.valueOf(Color.WHITE)
         val transparentTint = ColorStateList.valueOf(Color.TRANSPARENT)
         options.forEach { option ->
+            root.findViewById<View>(option.containerId).visibility = if (option.type in setOf(MainKeyboardType.Wubi, MainKeyboardType.WubiPinyin) && !org.fcitx.fcitx5.android.input.status.PinyinDictionaryPackages.wubiEnabled()) View.GONE else View.VISIBLE
             val selected = current == option.type
             root.findViewById<View>(option.containerId).setBackgroundResource(
                 if (selected) R.drawable.bg_keyboard_manage_option_selected

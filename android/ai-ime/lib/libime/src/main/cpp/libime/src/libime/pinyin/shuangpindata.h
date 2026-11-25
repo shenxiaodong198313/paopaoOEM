@@ -29,6 +29,18 @@ static const SP_C SPMap_C_MS[] = {
 static const SP_S SPMap_S_MS[] = {
     {"ch", 'i'}, {"sh", 'u'}, {"zh", 'v'}, {"\0", '\0'}};
 
+// Sogou's ue/ve key is t. Keep MS's independent ve=v mapping unchanged.
+static const SP_C SPMap_C_Sogou[] = {
+    {"ai", 'l'},   {"an", 'j'},  {"ang", 'h'},  {"ao", 'k'}, {"ei", 'z'},
+    {"en", 'f'},   {"eng", 'g'}, {"er", 'r'},   {"ia", 'w'}, {"ian", 'm'},
+    {"iang", 'd'}, {"iao", 'c'}, {"ie", 'x'},   {"in", 'n'}, {"ing", ';'},
+    {"iong", 's'}, {"iu", 'q'},  {"ong", 's'},  {"ou", 'b'}, {"ua", 'w'},
+    {"uai", 'y'},  {"uan", 'r'}, {"uang", 'd'}, {"ue", 't'}, {"ui", 'v'},
+    {"un", 'p'},   {"uo", 'o'},  {"ve", 't'},   {"v", 'y'},  {"\0", '\0'}};
+
+static const SP_S SPMap_S_Sogou[] = {
+    {"ch", 'i'}, {"sh", 'u'}, {"zh", 'v'}, {"\0", '\0'}};
+
 static const SP_C SPMap_C_Ziguang[] = {
     {"ai", 'p'},   {"an", 'r'},  {"ang", 's'},  {"ao", 'q'}, {"ei", 'k'},
     {"en", 'w'},   {"eng", 't'}, {"er", 'j'},   {"ia", 'x'}, {"ian", 'f'},

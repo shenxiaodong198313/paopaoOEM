@@ -11,7 +11,6 @@ import androidx.core.content.ContextCompat
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.fcitx.fcitx5.android.FcitxApplication
@@ -19,6 +18,7 @@ import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.core.data.DataManager
 import org.fcitx.fcitx5.android.data.clipboard.ClipboardManager
 import org.fcitx.fcitx5.android.data.prefs.AppPrefs
+import org.fcitx.fcitx5.android.input.status.PinyinDictionaryPackages
 import org.fcitx.fcitx5.android.input.status.KeyboardSelectionPreset
 import org.fcitx.fcitx5.android.utils.ImmutableGraph
 import org.fcitx.fcitx5.android.utils.Locales
@@ -140,21 +140,43 @@ class Fcitx(private val context: Context) : FcitxAPI, FcitxLifecycleOwner {
     ) =
         withFcitxContext { sendKeySymToFcitx(sym.sym, states.toInt(), code, up, timestamp) }
 
-    override suspend fun select(idx: Int): Boolean = withFcitxContext { selectCandidate(idx) }
+    override suspend fun select(idx: Int): Boolean = withFcitxContext {
+        if (inputMethodEntryCached.uniqueName == "keyboard-us") {
+            val enabled = org.fcitx.fcitx5.android.data.prefs.AppPrefs.getInstance().internal.assistEnglishAutoSpace.getValue()
+            val expected = if (enabled) "True" else "False"
+            val config = getFcitxAddonConfig("androidkeyboard")
+            if (config?.findByName("cfg")?.findByName("AppendCandidateSpace")?.value != expected) {
+                setFcitxAddonConfig("androidkeyboard", RawConfig(arrayOf(RawConfig("AppendCandidateSpace", expected))))
+                check(getFcitxAddonConfig("androidkeyboard")?.findByName("cfg")?.findByName("AppendCandidateSpace")?.value == expected) {
+                    "英文自动空格设置未能生效，请重新打开键盘"
+                }
+            }
+        }
+        selectCandidate(idx)
+    }
     override suspend fun isEmpty(): Boolean = withFcitxContext { isInputPanelEmpty() }
     override suspend fun reset() = withFcitxContext { resetInputContext() }
     override suspend fun moveCursor(position: Int) = withFcitxContext { repositionCursor(position) }
     override suspend fun availableIme() =
-        withFcitxContext { availableInputMethods() ?: emptyArray() }
+        withFcitxContext { (availableInputMethods() ?: emptyArray()).filter { it.uniqueName !in setOf("wbx", "wbpy") || PinyinDictionaryPackages.wubiEnabled() }.toTypedArray() }
 
     override suspend fun enabledIme() =
         withFcitxContext { listInputMethods() ?: emptyArray() }
 
     override suspend fun setEnabledIme(array: Array<String>) =
-        withFcitxContext { setEnabledInputMethods(array) }
+        withFcitxContext {
+            val allowed = array.filter { PinyinDictionaryPackages.nativeImeAllowed(it) }.toTypedArray()
+            if (listInputMethods()?.map { it.uniqueName } != allowed.toList()) setEnabledInputMethods(allowed)
+        }
 
     override suspend fun toggleIme() = withFcitxContext { toggleInputMethod() }
-    override suspend fun activateIme(ime: String) = withFcitxContext { setInputMethod(ime) }
+    override suspend fun activateIme(ime: String) = withFcitxContext {
+        val old = listInputMethods()?.toList().orEmpty()
+        val available = availableInputMethods()?.toList().orEmpty()
+        val next = KeyboardSelectionPreset.reorderEnabledIme(available, old).filter { PinyinDictionaryPackages.nativeImeAllowed(it.uniqueName) }
+        if (next.map { it.uniqueName } != old.map { it.uniqueName }) setEnabledInputMethods(next.map { it.uniqueName }.toTypedArray())
+        setInputMethod(if (PinyinDictionaryPackages.nativeImeAllowed(ime)) ime else "rime")
+    }
     override suspend fun enumerateIme(forward: Boolean) =
         withFcitxContext { nextInputMethod(forward) }
 
@@ -454,7 +476,7 @@ class Fcitx(private val context: Context) : FcitxAPI, FcitxLifecycleOwner {
             Timber.i("onFirstRun")
             val available = availableInputMethods()?.toList().orEmpty()
             val enabled = listInputMethods()?.toMutableList() ?: mutableListOf()
-            val defaultIme = available.firstOrNull { it.uniqueName == KeyboardSelectionPreset.PINYIN }
+            val defaultIme = available.firstOrNull { it.uniqueName == if (PinyinDictionaryPackages.selected() == "default") KeyboardSelectionPreset.PINYIN else KeyboardSelectionPreset.T9 }
                 ?: available.firstOrNull { it.uniqueName == KeyboardSelectionPreset.T9 }
             // #region debug-point C:first-run
             debugReport(
@@ -473,7 +495,7 @@ class Fcitx(private val context: Context) : FcitxAPI, FcitxLifecycleOwner {
                 AppPrefs.getInstance().internal.lastFullKeyboardChineseIme.setValue(
                     KeyboardSelectionPreset.PINYIN
                 )
-                val reordered = KeyboardSelectionPreset.reorderEnabledIme(available, enabled)
+                val reordered = KeyboardSelectionPreset.reorderEnabledIme(available, enabled).filter { PinyinDictionaryPackages.nativeImeAllowed(it.uniqueName) }
                 val enabledImeChanged =
                     reordered.map { it.uniqueName } != enabled.map { it.uniqueName }
                 if (enabledImeChanged) {
@@ -521,6 +543,7 @@ class Fcitx(private val context: Context) : FcitxAPI, FcitxLifecycleOwner {
     private val dispatcher = FcitxDispatcher(object : FcitxDispatcher.FcitxController {
         override fun nativeStartup() {
             DataManager.sync()
+            PinyinDictionaryPackages.prepareForStartup()
             val locale = Locales.fcitxLocale
             val dataDir = DataManager.dataDir.absolutePath
             val plugins = DataManager.getLoadedPlugins()
@@ -602,7 +625,7 @@ class Fcitx(private val context: Context) : FcitxAPI, FcitxLifecycleOwner {
 
     @Keep
     private val onClipboardUpdate = ClipboardManager.OnClipboardUpdateListener {
-        lifecycle.lifecycleScope.launch { setClipboard(it.text, it.sensitive) }
+        lifecycle.launchWhenReady { setClipboard(it.text, it.sensitive) }
     }
 
     private fun computeAddonGraph() = runBlocking {
@@ -618,13 +641,15 @@ class Fcitx(private val context: Context) : FcitxAPI, FcitxLifecycleOwner {
     private var firstRun by AppPrefs.getInstance().internal.firstRun
 
     private fun handleFirstRunReadyEvent(event: FcitxEvent<*>) {
-        if (event is FcitxEvent.ReadyEvent && firstRun) {
-            firstRun = false
-            // this method runs in same thread with `startupFcitx`
-            // block it will also block fcitx
-            onFirstRun()
-            unregisterFcitxEventHandler(::handleFcitxEvent)
-        }
+        if (event !is FcitxEvent.ReadyEvent) return
+        // Apply resource availability before any restored editor requests its old IME.
+        val old = listInputMethods()?.toList().orEmpty()
+        val available = availableInputMethods()?.toList().orEmpty()
+        val allowed = KeyboardSelectionPreset.reorderEnabledIme(available, old)
+            .filter { PinyinDictionaryPackages.nativeImeAllowed(it.uniqueName) }
+        if (allowed.map { it.uniqueName } != old.map { it.uniqueName })
+            setEnabledInputMethods(allowed.map { it.uniqueName }.toTypedArray())
+        if (firstRun) { firstRun = false; onFirstRun() }
     }
 
     private fun handleFcitxEvent(event: FcitxEvent<*>) {
@@ -652,9 +677,7 @@ class Fcitx(private val context: Context) : FcitxAPI, FcitxLifecycleOwner {
             Timber.w("Skip starting fcitx: not at stopped state!")
             return
         }
-        if (firstRun) {
-            registerFcitxEventHandler(::handleFirstRunReadyEvent)
-        }
+        registerFcitxEventHandler(::handleFirstRunReadyEvent)
         registerFcitxEventHandler(::handleFcitxEvent)
         lifecycleRegistry.postEvent(FcitxLifecycle.Event.ON_START)
         ClipboardManager.addOnUpdateListener(onClipboardUpdate)
@@ -680,9 +703,15 @@ class Fcitx(private val context: Context) : FcitxAPI, FcitxLifecycleOwner {
         }
         lifecycleRegistry.postEvent(FcitxLifecycle.Event.ON_STOPPED)
         unregisterFcitxEventHandler(::handleFcitxEvent)
+        unregisterFcitxEventHandler(::handleFirstRunReadyEvent)
         // clear addon graph
         addonGraph = null
         addonReverseDependencies.clear()
     }
 
+}
+
+/** Called only on the ready engine queue, without touching the active input context. */
+object OfflinePinyinProbe {
+    @JvmStatic external fun validate(directory: String): Boolean
 }

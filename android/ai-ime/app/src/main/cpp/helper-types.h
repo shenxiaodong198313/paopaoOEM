@@ -34,6 +34,9 @@ public:
     InputMethodStatus(const fcitx::InputMethodEntry *entry,
                       fcitx::InputMethodEngine *engine,
                       fcitx::InputContext *ic) {
+        // A removed optional dictionary can leave a historical entry without a
+        // loadable engine during upgrade. Status inspection must remain safe.
+        if (!entry) return;
         uniqueName = entry->uniqueName();
         name = entry->name();
         nativeName = entry->nativeName();
@@ -42,11 +45,10 @@ public:
         languageCode = entry->languageCode();
         addon = entry->addon();
         configurable = entry->isConfigurable();
-        if (engine != nullptr) {
-            subMode = engine->subMode(*entry, *ic);
-            subModeLabel = engine->subModeLabel(*entry, *ic);
-            subModeIcon = engine->subModeIcon(*entry, *ic);
-        }
+        if (!engine || !ic) return;
+        subMode = engine->subMode(*entry, *ic);
+        subModeLabel = engine->subModeLabel(*entry, *ic);
+        subModeIcon = engine->subModeIcon(*entry, *ic);
     }
 };
 

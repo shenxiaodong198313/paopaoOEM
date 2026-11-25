@@ -150,6 +150,15 @@ const struct org_kde_plasma_window_listener OrgKdePlasmaWindow::listener = {
                 obj->resourceNameChanged()(resourceName);
             }
         },
+    .client_geometry =
+        [](void *data, org_kde_plasma_window *wldata, int32_t x, int32_t y,
+           uint32_t width, uint32_t height) {
+            auto *obj = static_cast<OrgKdePlasmaWindow *>(data);
+            assert(*obj == wldata);
+            {
+                obj->clientGeometry()(x, y, width, height);
+            }
+        },
 };
 
 OrgKdePlasmaWindow::OrgKdePlasmaWindow(org_kde_plasma_window *data)
@@ -160,11 +169,7 @@ OrgKdePlasmaWindow::OrgKdePlasmaWindow(org_kde_plasma_window *data)
 }
 
 void OrgKdePlasmaWindow::destructor(org_kde_plasma_window *data) {
-    const auto version = org_kde_plasma_window_get_version(data);
-    if (version >= 4) {
-        org_kde_plasma_window_destroy(data);
-        return;
-    }
+    org_kde_plasma_window_destroy(data);
 }
 void OrgKdePlasmaWindow::setState(uint32_t flags, uint32_t state) {
     org_kde_plasma_window_set_state(*this, flags, state);
@@ -209,4 +214,5 @@ void OrgKdePlasmaWindow::requestLeaveActivity(const char *id) {
 void OrgKdePlasmaWindow::sendToOutput(WlOutput *output) {
     org_kde_plasma_window_send_to_output(*this, rawPointer(output));
 }
+
 } // namespace fcitx::wayland

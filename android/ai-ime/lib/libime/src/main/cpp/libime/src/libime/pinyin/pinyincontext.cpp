@@ -17,9 +17,11 @@
 #include <string>
 #include <string_view>
 #include <tuple>
+#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
+#include <boost/container_hash/hash.hpp>
 #include <fcitx-utils/charutils.h>
 #include <fcitx-utils/inputbuffer.h>
 #include <fcitx-utils/keysym.h>
@@ -42,6 +44,7 @@
 
 namespace libime {
 
+namespace {
 enum class LearnWordResult {
     Normal,  /// word is consisted all from regular word from dict.
     Custom,  /// word is consisted with custom word (e.g. symbol replacement).
@@ -54,6 +57,30 @@ enum class SelectedPinyinType {
     Separator,
 };
 
+// Get encoded full pinyin.
+std::string sentenceEncodedFullPinyin(const SentenceResult &candidate) {
+    std::string pinyin;
+    size_t length = 0;
+    for (const auto &node : candidate.sentence()) {
+        if (!node->as<PinyinLatticeNode>().encodedPinyin().empty()) {
+            length += node->as<PinyinLatticeNode>().encodedPinyin().size();
+        }
+    }
+    pinyin.reserve(length);
+    for (const auto &node : candidate.sentence()) {
+        if (!node->as<PinyinLatticeNode>().encodedPinyin().empty()) {
+            pinyin += node->as<PinyinLatticeNode>().encodedPinyin();
+        }
+    }
+    return pinyin;
+}
+
+size_t candidateSelectTo(const SentenceResult &candidate) {
+    return candidate.sentence().empty()
+               ? 0
+               : candidate.sentence().back()->to()->index();
+}
+
 struct SelectedPinyin {
     SelectedPinyin(size_t s, PinyinWordNode word, SelectedPinyinType type)
         : offset_(s), word_(std::move(word)), type_(type) {}
@@ -64,6 +91,60 @@ struct SelectedPinyin {
     PinyinWordNode word_;
     SelectedPinyinType type_;
 };
+
+struct CandidateDedupByPinyin {
+    std::string text_;
+    std::string fullPinyin_;
+
+    bool operator==(const CandidateDedupByPinyin &other) const {
+        return text_ == other.text_ && fullPinyin_ == other.fullPinyin_;
+    }
+};
+
+struct CandidateDedupByPinyinHash {
+    size_t operator()(const CandidateDedupByPinyin &key) const {
+        size_t seed = std::hash<std::string>()(key.text_);
+        boost::hash_combine(seed, std::hash<std::string>()(key.fullPinyin_));
+        return seed;
+    }
+};
+
+CandidateDedupByPinyin candidateDedupByPinyin(const SentenceResult &candidate) {
+    return {.text_ = candidate.toString(),
+            .fullPinyin_ = sentenceEncodedFullPinyin(candidate)};
+}
+
+struct CandidateDedupBySelectRange {
+    std::string text_;
+    std::string end_;
+
+    bool operator==(const CandidateDedupBySelectRange &other) const {
+        return text_ == other.text_ && end_ == other.end_;
+    }
+};
+
+struct CandidateDedupBySelectRangeHash {
+    size_t operator()(const CandidateDedupBySelectRange &key) const {
+        size_t seed = std::hash<std::string>()(key.text_);
+        boost::hash_combine(seed, std::hash<std::string>()(key.end_));
+        return seed;
+    }
+};
+
+CandidateDedupBySelectRange
+candidateDedupBySelectRange(const SentenceResult &candidate) {
+    return {.text_ = candidate.toString(),
+            .end_ = std::to_string(candidateSelectTo(candidate))};
+}
+
+bool hasCorrection(const SentenceResult &candidate) {
+    return std::ranges::any_of(
+        candidate.sentence(), [](const LatticeNode *node) {
+            return node->as<PinyinLatticeNode>().isCorrection();
+        });
+}
+
+} // namespace
 
 class PinyinContextPrivate : public fcitx::QPtrHolder<PinyinContext> {
 public:
@@ -126,46 +207,70 @@ public:
         candidatesToCursor_.clear();
         candidatesToCursorSet_.clear();
 
+        std::unordered_map<CandidateDedupByPinyin, size_t,
+                           CandidateDedupByPinyinHash>
+            duplicateByPinyin;
+        auto insertCandidate = [this,
+                                &duplicateByPinyin](SentenceResult candidate) {
+            auto byPinyin = candidateDedupByPinyin(candidate);
+            auto byPinyinIter = duplicateByPinyin.find(byPinyin);
+            if (byPinyinIter != duplicateByPinyin.end()) {
+                auto &oldCandidate = candidatesToCursor_[byPinyinIter->second];
+                if (std::make_tuple(candidateSelectTo(candidate),
+                                    candidate.score()) >
+                    std::make_tuple(candidateSelectTo(oldCandidate),
+                                    oldCandidate.score())) {
+                    oldCandidate = std::move(candidate);
+                }
+                return;
+            }
+
+            candidatesToCursor_.push_back(std::move(candidate));
+            duplicateByPinyin.emplace(byPinyin, candidatesToCursor_.size() - 1);
+            candidatesToCursorSet_.insert(std::move(byPinyin.text_));
+        };
+
         auto start = q->selectedLength();
         auto currentCursor = alignCursorToNextSegment();
         // Poke best sentence from lattice, ignore nbest option for now.
         auto nodeRange = lattice_.nodes(&segs_.node(currentCursor - start));
         if (!nodeRange.empty()) {
-            candidatesToCursor_.push_back(nodeRange.front().toSentenceResult());
-            candidatesToCursorSet_.insert(
-                candidatesToCursor_.back().toString());
+            insertCandidate(nodeRange.front().toSentenceResult());
         }
         for (const auto &candidate : candidates_) {
             const auto &sentence = candidate.sentence();
             if (sentence.size() == 1) {
-                if (sentence.back()->to()->index() + start > currentCursor) {
+                if (candidateSelectTo(candidate) + start > currentCursor) {
                     continue;
                 }
-                auto text = candidate.toString();
-                if (candidatesToCursorSet_.contains(text)) {
-                    continue;
-                }
-                candidatesToCursor_.push_back(candidate);
-                candidatesToCursorSet_.insert(std::move(text));
+                insertCandidate(candidate);
             } else if (sentence.size() > 1) {
                 auto newSentence = sentence;
                 while (!newSentence.empty() &&
-                       newSentence.back()->to()->index() + start >
-                           currentCursor) {
+                       candidateSelectTo(candidate) + start > currentCursor) {
                     newSentence.pop_back();
                 }
                 if (!newSentence.empty()) {
                     SentenceResult partial(newSentence,
                                            newSentence.back()->score());
-                    auto text = partial.toString();
-                    if (candidatesToCursorSet_.contains(text)) {
-                        continue;
-                    }
-                    candidatesToCursor_.push_back(partial);
-                    candidatesToCursorSet_.insert(std::move(text));
+                    insertCandidate(std::move(partial));
                 }
             }
         }
+
+        std::unordered_set<CandidateDedupBySelectRange,
+                           CandidateDedupBySelectRangeHash>
+            duplicateByRange;
+        std::erase_if(
+            candidatesToCursor_,
+            [&duplicateByRange](const SentenceResult &candidate) {
+                if (duplicateByRange
+                        .insert(candidateDedupBySelectRange(candidate))
+                        .second) {
+                    return false;
+                }
+                return hasCorrection(candidate);
+            });
     }
 
     template <typename FillSentence>
@@ -606,7 +711,6 @@ void PinyinContext::update() {
         // Add n-best result.
         for (size_t i = 0, e = d->lattice_.sentenceSize(); i < e; i++) {
             d->candidates_.push_back(d->lattice_.sentence(i));
-            d->candidatesSet_.insert(d->candidates_.back().toString());
         }
 
         const auto *bos = &graph.start();
@@ -632,13 +736,8 @@ void PinyinContext::update() {
                             min = std::min(latticeNode.score(), min);
                             max = std::max(latticeNode.score(), max);
                         }
-                        // Deduplcate.
-                        if (d->candidatesSet_.contains(latticeNode.word())) {
-                            continue;
-                        }
                         d->candidates_.push_back(
                             latticeNode.toSentenceResult(adjust));
-                        d->candidatesSet_.insert(latticeNode.word());
                     }
                 }
             }
@@ -651,9 +750,6 @@ void PinyinContext::update() {
                     if (latticeNode.from() == bos &&
                         static_cast<const PinyinLatticeNode &>(latticeNode)
                             .isCorrection()) {
-                        if (d->candidatesSet_.contains(latticeNode.word())) {
-                            continue;
-                        }
                         if ((latticeNode.score() > min &&
                              latticeNode.score() + d->ime_->maxDistance() >
                                  max) ||
@@ -662,7 +758,6 @@ void PinyinContext::update() {
                                     .size() <= 2) {
                             d->candidates_.push_back(
                                 latticeNode.toSentenceResult(adjust));
-                            d->candidatesSet_.insert(latticeNode.word());
                         }
                     }
                 }
@@ -678,27 +773,42 @@ void PinyinContext::update() {
                         latticeNode.score() + d->ime_->maxDistance() > max &&
                         !static_cast<const PinyinLatticeNode &>(latticeNode)
                              .anyCorrectionOnPath()) {
-                        auto fullWord = latticeNode.fullWord();
-                        if (d->candidatesSet_.contains(fullWord)) {
-                            continue;
-                        }
                         d->candidates_.push_back(
                             latticeNode.toSentenceResult(adjust));
-                        d->candidatesSet_.insert(fullWord);
                     }
                 }
             }
         }
         std::sort(d->candidates_.begin() + beginSize, d->candidates_.end(),
                   std::greater<>());
-        if (const auto limit = d->ime_->wordCandidateLimit()) {
+        {
+            size_t index = 0;
             size_t count = 0;
+            const auto limit = d->ime_->wordCandidateLimit();
+            std::unordered_set<CandidateDedupByPinyin,
+                               CandidateDedupByPinyinHash>
+                duplicateByPinyin;
+            std::unordered_set<CandidateDedupBySelectRange,
+                               CandidateDedupBySelectRangeHash>
+                duplicateByRange;
             auto &candidatesSet = d->candidatesSet_;
-            d->candidates_.erase(
-                std::remove_if(
-                    d->candidates_.begin() + beginSize, d->candidates_.end(),
-                    [&count, limit,
-                     &candidatesSet](const SentenceResult &candidate) {
+            candidatesSet.clear();
+            std::erase_if(
+                d->candidates_,
+                [&candidatesSet, &duplicateByPinyin, &duplicateByRange, &index,
+                 &count, beginSize, limit](const SentenceResult &candidate) {
+                    bool beforeBeginSize = index++ < beginSize;
+                    auto byPinyin = candidateDedupByPinyin(candidate);
+                    if (duplicateByPinyin.contains(byPinyin)) {
+                        return true;
+                    }
+                    auto byRange = candidateDedupBySelectRange(candidate);
+                    if (duplicateByRange.contains(byRange) &&
+                        hasCorrection(candidate)) {
+                        return true;
+                    }
+
+                    if (!beforeBeginSize && limit) {
                         const bool isSinglePinyinWord =
                             candidate.sentence().size() == 1 &&
                             candidate.sentence()
@@ -708,14 +818,17 @@ void PinyinContext::update() {
                                     .size() == 2;
                         if (!isSinglePinyinWord) {
                             if (count >= limit) {
-                                candidatesSet.erase(candidate.toString());
                                 return true;
                             }
                             count++;
                         }
-                        return false;
-                    }),
-                d->candidates_.end());
+                    }
+
+                    candidatesSet.insert(byPinyin.text_);
+                    duplicateByPinyin.insert(std::move(byPinyin));
+                    duplicateByRange.insert(std::move(byRange));
+                    return false;
+                });
         }
 
         d->candidatesToCursorNeedUpdate_ = true;

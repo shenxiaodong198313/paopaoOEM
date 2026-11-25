@@ -13,11 +13,9 @@ import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import kotlinx.coroutines.channels.BufferOverflow
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import org.fcitx.fcitx5.android.R
+import org.fcitx.fcitx5.android.core.CandidateWord
 import org.fcitx.fcitx5.android.core.FcitxEvent
 import org.fcitx.fcitx5.android.daemon.launchOnReady
 import org.fcitx.fcitx5.android.data.prefs.AppPrefs
@@ -36,6 +34,7 @@ import org.fcitx.fcitx5.android.input.dependency.fcitx
 import org.fcitx.fcitx5.android.input.dependency.inputMethodService
 import org.fcitx.fcitx5.android.input.dependency.inputView
 import org.fcitx.fcitx5.android.input.dependency.theme
+import org.fcitx.fcitx5.android.input.t9.T9CandidateText
 import org.mechdancer.dependency.manager.must
 import splitties.dimensions.dp
 import kotlin.math.max
@@ -63,20 +62,24 @@ class HorizontalCandidateComponent :
     private var layoutMinWidth = 0
     private var layoutItemWidth = ViewGroup.LayoutParams.WRAP_CONTENT
     private var isLoadingMore = false
+    private var generation = 0L
+    private var nextNativeIndex = 0
+    private var hasMore = false
 
-    private val _expandedCandidateOffset = MutableSharedFlow<Int>(
-        replay = 1,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST
-    )
+    private fun displayWords(raw: Array<CandidateWord>, start: Int): Array<IndexedValue<CandidateWord>> {
+        val chineseOnly = service.usesChineseCandidateGrid()
+        return raw.mapIndexedNotNull { i, item ->
+            val word = if (chineseOnly) T9CandidateText.chineseDisplay(item) else item
+            word?.let { IndexedValue(start + i, it) }
+        }.toTypedArray()
+    }
 
-    val expandedCandidateOffset = _expandedCandidateOffset.asSharedFlow()
+    val allCandidatesFit: Boolean
+        get() = !hasMore && (adapter.itemCount == 0 ||
+            !view.canScrollHorizontally(-1) && !view.canScrollHorizontally(1))
 
-    private fun refreshExpanded(childCount: Int) {
-        _expandedCandidateOffset.tryEmit(childCount)
-        bar.expandButtonStateMachine.push(
-            ExpandedCandidatesUpdated,
-            ExpandedCandidatesEmpty to (adapter.total == childCount)
-        )
+    private fun updateExpandButton() {
+        bar.expandButtonStateMachine.push(ExpandedCandidatesUpdated, ExpandedCandidatesEmpty to allCandidatesFit)
     }
 
     val adapter: HorizontalCandidateViewAdapter by lazy {
@@ -99,7 +102,11 @@ class HorizontalCandidateComponent :
                     }
                 }
                 holder.itemView.setOnClickListener {
-                    fcitx.launchOnReady { it.select(holder.idx) }
+                    val index = holder.idx
+                    if (index >= 0) {
+                        val accepted = holder.ui.captureSelectionFeedback()
+                        fcitx.launchOnReady { if (it.select(index)) accepted() }
+                    }
                 }
                 holder.itemView.setOnLongClickListener {
                     inputView.showCandidateActionMenu(
@@ -123,7 +130,10 @@ class HorizontalCandidateComponent :
         object : LinearLayoutManager(context, RecyclerView.HORIZONTAL, false) {
             override fun onLayoutCompleted(state: RecyclerView.State) {
                 super.onLayoutCompleted(state)
-                refreshExpanded(childCount)
+                updateExpandButton()
+                if (!isLoadingMore && hasMore && !view.canScrollHorizontally(1)) {
+                    view.post { if (view.isShown && !view.canScrollHorizontally(1)) loadMoreCandidates() }
+                }
             }
         }
     }
@@ -160,9 +170,7 @@ class HorizontalCandidateComponent :
                         val pastVisibleItems = lm.findFirstVisibleItemPosition()
 
                         if ((visibleItemCount + pastVisibleItems) >= totalItemCount - 5) {
-                            if (this@HorizontalCandidateComponent.adapter.total == -1 || totalItemCount < this@HorizontalCandidateComponent.adapter.total) {
-                                loadMoreCandidates(totalItemCount)
-                            }
+                            loadMoreCandidates()
                         }
                     }
                 }
@@ -170,27 +178,25 @@ class HorizontalCandidateComponent :
         }
     }
 
-    private fun loadMoreCandidates(startIndex: Int) {
+    private fun loadMoreCandidates() {
+        if (!hasMore || isLoadingMore) return
         isLoadingMore = true
+        val request = generation
+        val start = nextNativeIndex
         service.lifecycleScope.launch {
-            val pageSize = 20
-            val newCandidates = fcitx.runOnReady {
-                getCandidates(startIndex, pageSize)
+            try {
+                val pageSize = 20
+                val raw = fcitx.runOnReady { getCandidates(start, pageSize) }
+                if (request != generation) return@launch
+                nextNativeIndex += raw.size
+                hasMore = raw.size == pageSize && (adapter.total < 0 || nextNativeIndex < adapter.total)
+                val words = displayWords(raw, start)
+                if (words.isNotEmpty()) adapter.appendCandidates(words)
+                updateExpandButton()
+                if (words.isEmpty() && hasMore && view.isShown) view.post { if (request == generation) loadMoreCandidates() }
+            } finally {
+                if (request == generation) isLoadingMore = false
             }
-            if (newCandidates.isNotEmpty()) {
-                val cleanCandidates = if (service.isT9KeyboardChineseMode()) {
-                    newCandidates.map { candidate ->
-                        candidate.copy(
-                            text = candidate.text.replace(Regex(" [a-zA-Z ']+$"), ""),
-                            comment = ""
-                        )
-                    }.toTypedArray()
-                } else {
-                    newCandidates
-                }
-                this@HorizontalCandidateComponent.adapter.appendCandidates(cleanCandidates)
-            }
-            isLoadingMore = false
         }
     }
 
@@ -219,31 +225,18 @@ class HorizontalCandidateComponent :
     }
 
     override fun onCandidateUpdate(data: FcitxEvent.CandidateListEvent.Data) {
-        val rawCandidates = data.candidates
-        val candidates = if (service.isT9KeyboardChineseMode()) {
-            rawCandidates.map { candidate ->
-                timber.log.Timber.d("RAW CANDIDATE: '%s'", candidate.textWithComment())
-                candidate.copy(
-                    text = candidate.text.replace(Regex(" [a-zA-Z ']+$"), ""),
-                    comment = ""
-                )
-            }.toTypedArray()
-        } else {
-            rawCandidates
-        }
-        val total = data.total
-
-        // Temporarily set adapter's candidates to calculate dimensions accurately
-        val oldCandidates = adapter.candidates
-        val oldTotal = adapter.total
-        adapter.updateCandidates(candidates, total)
+        generation++
+        nextNativeIndex = data.candidates.size
+        hasMore = nextNativeIndex > 0 && (data.total < 0 || nextNativeIndex < data.total)
+        val candidates = displayWords(data.candidates, 0)
+        adapter.updateCandidates(candidates, data.total)
         updateLayoutParamsForSize(view.width)
         
         isLoadingMore = false
         view.scrollToPosition(0)
 
         if (candidates.isEmpty()) {
-            refreshExpanded(0)
+            updateExpandButton()
         }
     }
 }

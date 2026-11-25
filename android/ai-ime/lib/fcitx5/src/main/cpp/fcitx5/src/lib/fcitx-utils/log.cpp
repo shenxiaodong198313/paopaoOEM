@@ -21,7 +21,13 @@
 #include <utility>
 #include <vector>
 #include <format>
+#include <version>
+#if defined(__cpp_lib_syncbuf) && __cpp_lib_syncbuf >= 201803L
+#define FCITX_HAS_SYNCSTREAM 1
 #include <syncstream>
+#else
+#define FCITX_HAS_SYNCSTREAM 0
+#endif
 #include "macros.h"
 #include "stringutils.h"
 
@@ -35,14 +41,14 @@ using LogRule = std::pair<std::string, LogLevel>;
 
 struct LogConfig {
     static std::ostream *defaultLogStream;
-#ifndef __ANDROID__
+#if FCITX_HAS_SYNCSTREAM && !defined(__ANDROID__)
     static thread_local std::osyncstream localLogStream;
 #endif
     static bool showTimeDate;
 };
 
 std::ostream *LogConfig::defaultLogStream = &std::cerr;
-#ifndef __ANDROID__
+#if FCITX_HAS_SYNCSTREAM && !defined(__ANDROID__)
 thread_local std::osyncstream LogConfig::localLogStream = []() {
     std::osyncstream out(*LogConfig::defaultLogStream);
     out.rdbuf()->set_emit_on_sync(true);
@@ -202,18 +208,17 @@ void Log::setLogStream(std::ostream &stream) {
     LogConfig::defaultLogStream = &stream;
 }
 
+// Preserve the Android host workaround for startup crashes in osyncstream.
 std::ostream &Log::logStream() {
-#ifdef __ANDROID__
-    // Android host builds currently crash inside std::osyncstream-backed logging
-    // during early fcitx startup, so use the configured stream directly here.
-    return *LogConfig::defaultLogStream;
-#else
+#if FCITX_HAS_SYNCSTREAM && !defined(__ANDROID__)
     auto *buf = LogConfig::defaultLogStream->rdbuf();
     if (LogConfig::localLogStream.get_wrapped() != buf) {
         LogConfig::localLogStream = std::osyncstream(buf);
         LogConfig::localLogStream.rdbuf()->set_emit_on_sync(true);
     }
     return LogConfig::localLogStream;
+#else
+    return *LogConfig::defaultLogStream;
 #endif
 }
 

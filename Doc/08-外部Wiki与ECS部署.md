@@ -215,3 +215,7 @@ SDK `1.0.0.20261011` / runtime `app:1.11` 已按 macOS staging 流程发布，65
 ## 20261012 自定义入口与剪贴板回复接管发布
 
 官网 SDK `1.0.0.20261012` / runtime `app:1.13`，SDK ZIP、Demo、32 页 PDF、AI 一键安装 MD、catalog 和 Maven 仓同步。654 项暂存 SHA-256 校验后仅切换 OEM 静态目录；92 项公开 HTTPS 校验及官网 ZIP 空依赖缓存 Release/R8、15 项发布后真机回归通过。core/admin active、/health healthy 且 dbHealthy=true、/admin/ HTTP 200。当前目录可由 `/var/www/paopao/deploy_backups/oem-before-entry-20261012` 回退，完整私密归档在 ECS 与本机均保留。哈希、构建、验证范围和清理见 [本轮记录](22-20261012自定义抽屉入口回调.md)。
+
+## 20261125 Android 输入法发布
+
+独立 `paopaoOEM` 仓库是本轮 OEM 源码。官网 SDK `1.0.0.20261125`、Fcitx `app:1.14`、25 个 Maven AAR、集成说明 PDF、AI 一键安装 Markdown、演示 APK 和 SDK ZIP 已同版发布。ECS 切换前后 655 项文件及 95 项公网下载回读通过。离线输入实测、签名兼容性、产物哈希和回退路径见 [本轮记录](23-20261125-Android输入法同步.md)。

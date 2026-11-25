@@ -10,6 +10,7 @@ import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.kotlin.dsl.the
 import java.io.File
+import java.util.Properties
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
@@ -24,10 +25,18 @@ fun Project.runCmd(cmd: String, defaultValue: String = ""): String {
     }
 }
 
+// The composite build and the SDK slices publish with the same declarations.
+fun Project.oemRuntimeProperty(name: String): String =
+    providers.gradleProperty(name).orElse(
+        providers.fileContents(rootProject.layout.projectDirectory.file("../gradle.properties"))
+            .asText.map { Properties().apply { load(it.reader()) }.getProperty(name) }
+    ).get()
+
 val Project.libs get() = the<LibrariesForLibs>()
 
 val Project.assetsDir: File
-    get() = file("src/main/assets").also { it.mkdirs() }
+    get() = (if (name == "host-bridge") layout.buildDirectory.dir("fcitx-component-assets").get().asFile
+        else file("src/main/assets")).also { it.mkdirs() }
 
 val Project.cleanTask: Task
     get() = tasks.getByName("clean")

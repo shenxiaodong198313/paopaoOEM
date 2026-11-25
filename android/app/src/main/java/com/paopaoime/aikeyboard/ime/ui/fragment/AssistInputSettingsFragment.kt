@@ -4,6 +4,10 @@ import android.os.Bundle
 import android.view.View
 import android.widget.TextView
 import androidx.appcompat.widget.SwitchCompat
+import androidx.lifecycle.lifecycleScope
+import android.widget.Toast
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 import com.paopaoime.aikeyboard.ime.R
 import com.paopaoime.aikeyboard.ime.prefs.behavior.HalfWidthSymbolsMode
 import com.paopaoime.aikeyboard.ime.ui.settings.InputMethodSettingsBridge
@@ -55,7 +59,20 @@ class AssistInputSettingsFragment : BaseInputMethodSettingsFragment(
             InputMethodSettingsBridge.setAssistPairSymbolEnabled(isChecked)
         }
         chineseAssociationSwitch.setOnCheckedChangeListener { _, isChecked ->
-            InputMethodSettingsBridge.setAssistChineseAssociationEnabled(isChecked)
+            if (!chineseAssociationSwitch.isEnabled) return@setOnCheckedChangeListener
+            chineseAssociationSwitch.isEnabled = false
+            viewLifecycleOwner.lifecycleScope.launch {
+                try {
+                    InputMethodSettingsBridge.setAssistChineseAssociationEnabled(isChecked)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (failure: Exception) {
+                    chineseAssociationSwitch.isChecked = InputMethodSettingsBridge.isAssistChineseAssociationEnabled()
+                    Toast.makeText(context, failure.message ?: "中文联想设置保存失败，请重试", Toast.LENGTH_SHORT).show()
+                } finally {
+                    chineseAssociationSwitch.isEnabled = true
+                }
+            }
         }
         dateAssociationSwitch.setOnCheckedChangeListener { _, isChecked ->
             InputMethodSettingsBridge.setAssistDateAssociationEnabled(isChecked)

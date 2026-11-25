@@ -1,9 +1,9 @@
-set(LM_TAR "lm_sc.arpa-20250113.tar.zst")
+set(LM_TAR "lm_sc.arpa-20260629.tar.zst")
 # Use our own file server for convenience.
 set(LM_URL "https://download.fcitx-im.org/data/${LM_TAR}")
 
 fcitx5_download(lm-download ${LM_URL} ${LM_TAR}
-                ee83ecf20d52e8bccdba4cf6cd57183d53c257713a5eb77ee3a63d50fc3796dd)
+                06808333b9173e5374cf2cb5afc12d08f5625bf9abb536489cac376fc05f2e7f)
 fcitx5_extract(lm-extract ${LM_TAR} DEPENDS lm-download
                OUTPUT lm_sc.arpa)
 
@@ -13,7 +13,7 @@ set(LM_PREDICT_OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/sc.lm.predict")
 add_custom_command(
   OUTPUT "${LM_OUTPUT}"
   DEPENDS "${LM_SRC}" LibIME::slm_build_binary
-  COMMAND LibIME::slm_build_binary -s -a 22 -q 8 trie "${LM_SRC}" "${LM_OUTPUT}")
+  COMMAND LibIME::slm_build_binary -s -a 22 -q 4 trie "${LM_SRC}" "${LM_OUTPUT}")
 add_custom_target(lm ALL DEPENDS "${LM_OUTPUT}")
 
 add_custom_command(
@@ -25,11 +25,11 @@ add_custom_target(lm-predict ALL DEPENDS "${LM_PREDICT_OUTPUT}")
 install(FILES "${LM_OUTPUT}" RENAME zh_CN.lm DESTINATION "${LIBIME_INSTALL_LIBDATADIR}")
 install(FILES "${LM_PREDICT_OUTPUT}" RENAME zh_CN.lm.predict DESTINATION "${LIBIME_INSTALL_LIBDATADIR}")
 
-set(DICT_TAR "dict-20260430.tar.zst")
+set(DICT_TAR "dict-20260907.tar.zst")
 set(DICT_URL "https://download.fcitx-im.org/data/${DICT_TAR}")
 
 fcitx5_download(dict-download ${DICT_URL} ${DICT_TAR}
-               3edc008d90fcd61b9967b9e590f396189d7a00fa74c45ecde0d9850a0fdd6241)
+               fb75a179065e690dfc4559ce1807cbaf4fbe4f0111a5005615be9f435e6b9d76)
 fcitx5_extract(dict-extract ${DICT_TAR} DEPENDS dict-download
                OUTPUT dict_sc.txt dict_extb.txt)
 

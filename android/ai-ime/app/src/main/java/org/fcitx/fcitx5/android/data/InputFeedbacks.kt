@@ -19,6 +19,7 @@ import org.fcitx.fcitx5.android.utils.getSystemSettings
 import org.fcitx.fcitx5.android.utils.vibrator
 
 object InputFeedbacks {
+    private val localConfiguration get() = (org.fcitx.fcitx5.android.data.theme.ThemeManager.activeTheme as? org.fcitx.fcitx5.android.data.theme.Theme.Custom)?.renderStyle?.localConfiguration
 
     enum class InputFeedbackMode(override val stringRes: Int) : ManagedPreferenceEnum {
         FollowingSystem(R.string.following_system_settings),
@@ -54,6 +55,16 @@ object InputFeedbacks {
         (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) && vibrator.hasAmplitudeControl()
 
     fun hapticFeedback(view: View, longPress: Boolean = false, keyUp: Boolean = false) {
+        localConfiguration?.let { config ->
+            if (config.haptic == 0 || (config.haptic == 1 && !systemHapticFeedback) || (keyUp && !hapticOnKeyUp)) return
+            if (config.haptic <= 1) view.performHapticFeedback(if (longPress) HapticFeedbackConstants.LONG_PRESS else HapticFeedbackConstants.KEYBOARD_TAP)
+            else {
+                val amplitude = intArrayOf(0, 0, 35, 65, 110, 180, 255)[config.haptic]
+                if (Build.VERSION.SDK_INT >= 26) vibrator.vibrate(VibrationEffect.createOneShot(if (longPress) 18 else 8, if (hasAmplitudeControl) amplitude else VibrationEffect.DEFAULT_AMPLITUDE))
+                else { @Suppress("DEPRECATION") vibrator.vibrate(8L) }
+            }
+            return
+        }
         when (hapticOnKeyPress) {
             InputFeedbackMode.Enabled -> {}
             InputFeedbackMode.Disabled -> return
@@ -110,13 +121,31 @@ object InputFeedbacks {
 
     private val audioManager = appContext.audioManager
 
-    fun soundEffect(effect: SoundEffect) {
-        when (soundOnKeyPress) {
-            InputFeedbackMode.Enabled -> {}
-            InputFeedbackMode.Disabled -> return
-            InputFeedbackMode.FollowingSystem -> if (!systemSoundEffects) return
+    private val effectiveVolume: Int
+        get() {
+            val global = soundOnKeyPressVolume
+            if (global <= 0 || soundOnKeyPress == InputFeedbackMode.Disabled ||
+                (soundOnKeyPress == InputFeedbackMode.FollowingSystem && !systemSoundEffects)
+            ) return 0
+            return localConfiguration?.volume ?: global
         }
-        KeySounds.play(appContext, volume = soundOnKeyPressVolume / 100f)
+
+    fun prepareSoundEffects() {
+        if (effectiveVolume > 0) KeySounds.prepareAsync(appContext)
+    }
+
+    fun soundEffect(effect: SoundEffect, skinCandidates: List<String> = emptyList()) {
+        val volume = effectiveVolume
+        if (volume > 0) KeySounds.playTouch(appContext, volume = volume / 100f, skinCandidates = skinCandidates)
+    }
+
+    fun beginTouch() = KeySounds.beginTouch()
+
+    fun captureSoundAction(skinCandidates: List<String>): KeySounds.ActionTicket =
+        KeySounds.captureAction(appContext, skinCandidates, effectiveVolume > 0)
+
+    fun completeSoundAction(ticket: KeySounds.ActionTicket) {
+        runCatching { KeySounds.queueAction(appContext, ticket, effectiveVolume / 100f) }
     }
 
 }

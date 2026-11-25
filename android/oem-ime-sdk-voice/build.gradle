@@ -26,7 +26,7 @@ kotlin { compilerOptions { jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 dependencies {
     def versions = rootProject.ext.versions
-    implementation 'org.fcitx.fcitx5.android:app:1.10'
+    implementation "org.fcitx.fcitx5.android:app:${rootProject.ext.oemFcitxRuntimeVersion}"
     implementation 'com.paopaoime.oem.internal:sherpa-onnx:1.13.8'
     implementation "androidx.core:core-ktx:${versions.androidxCoreKtx}"
     implementation "androidx.appcompat:appcompat:${versions.appcompat}"

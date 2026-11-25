@@ -1,0 +1,6 @@
+config_version: '2026-11-06'
+schema_list:
+  - schema: paopao_frost_pinyin
+  - schema: paopao_frost_t9
+menu:
+  page_size: 24

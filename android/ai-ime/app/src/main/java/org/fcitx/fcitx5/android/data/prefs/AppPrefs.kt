@@ -17,11 +17,13 @@ import org.fcitx.fcitx5.android.input.candidates.floating.FloatingCandidatesMode
 import org.fcitx.fcitx5.android.input.candidates.floating.FloatingCandidatesOrientation
 import org.fcitx.fcitx5.android.input.candidates.horizontal.HorizontalCandidateMode
 import org.fcitx.fcitx5.android.input.clipboard.ClipboardLayoutMode
+import org.fcitx.fcitx5.android.input.keyboard.KeyboardHeightPercentBase
 import org.fcitx.fcitx5.android.input.keyboard.LangSwitchBehavior
 import org.fcitx.fcitx5.android.input.keyboard.SpaceLongPressBehavior
 import org.fcitx.fcitx5.android.input.keyboard.SwipeSymbolDirection
 import org.fcitx.fcitx5.android.input.picker.PickerWindow
 import org.fcitx.fcitx5.android.input.popup.EmojiModifier
+import org.fcitx.fcitx5.android.input.status.PinyinDictionaryRouting
 import org.fcitx.fcitx5.android.utils.DeviceUtil
 import org.fcitx.fcitx5.android.utils.appContext
 import org.fcitx.fcitx5.android.utils.vibrator
@@ -29,10 +31,25 @@ import org.fcitx.fcitx5.android.utils.vibrator
 class AppPrefs(private val sharedPreferences: SharedPreferences) {
 
     inner class Internal : ManagedPreferenceInternal(sharedPreferences) {
+        val quickReplyEnabled = bool("paopao_quick_reply_enabled", false)
         val firstRun = bool("first_run", true)
         val lastSymbolLayout = string("last_symbol_layout", PickerWindow.Key.Symbol.name)
         val lastPickerType = string("last_picker_type", PickerWindow.Key.Emoji.name)
+        val keyboardHandwritingEnabled = bool("keyboard_handwriting_enabled", false)
+        val handwritingStrokeWidth = int("handwriting_stroke_width", 4)
+        val handwritingStrokeColor = int("handwriting_stroke_color", 0)
+        val handwritingSelected = bool("handwriting_selected", false)
+        val t9LanguageModelEnabled = bool("t9_language_model_enabled", false)
+        val englishGlideEnabled = bool("english_glide_enabled", false)
+        val extendedKeyboard = string("extended_keyboard", "")
         val lastFullKeyboardChineseIme = string("last_full_keyboard_chinese_ime", "pinyin")
+        val pinyinDictionaryProfile = string("pinyin_dictionary_profile", PinyinDictionaryRouting.FROST_PROFILE)
+        val assistEnglishAutoSpace = bool("abc_space_auto_enable", false)
+        val assistPairSymbols = bool("symbol_pair_input_enable", true)
+        val chineseAssociationEnabled = bool("paopao_chinese_association_enabled", true)
+        val frostDoublePinyinSchema = string(
+            "frost_double_pinyin_schema", PinyinDictionaryRouting.DEFAULT_FROST_DOUBLE_PINYIN_SCHEMA
+        )
         val verboseLog = bool("verbose_log", false)
         val pid = int("pid", 0)
         val editorInfoInspector = bool("editor_info_inspector", false)
@@ -51,6 +68,11 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
         )
         val ignoreSystemWindowInsets = switch(
             R.string.ignore_system_window_insets, "ignore_system_window_insets", false
+        )
+        val keyboardHeightPercentBase = enumList(
+            R.string.keyboard_height_percent_base,
+            "keyboard_height_percent_base",
+            KeyboardHeightPercentBase.DisplayMetrics
         )
     }
 
@@ -76,10 +98,10 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
                 R.string.button_vibration_milliseconds,
                 R.string.button_press,
                 "button_vibration_press_milliseconds",
-                28,
+                36,
                 R.string.button_long_press,
                 "button_vibration_long_press_milliseconds",
-                28,
+                36,
                 0,
                 100,
                 "ms",
@@ -97,10 +119,10 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
                 R.string.button_vibration_amplitude,
                 R.string.button_press,
                 "button_vibration_press_amplitude",
-                210,
+                255,
                 R.string.button_long_press,
                 "button_vibration_long_press_amplitude",
-                210,
+                255,
                 0,
                 255,
                 defaultLabel = R.string.system_default
@@ -442,6 +464,9 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
             listOf(
                 internal.verboseLog,
                 internal.editorInfoInspector,
+                internal.pinyinDictionaryProfile,
+                internal.chineseAssociationEnabled,
+                internal.frostDoublePinyinSchema,
                 advanced.ignoreSystemCursor,
                 advanced.disableAnimation,
                 advanced.vivoKeypressWorkaround

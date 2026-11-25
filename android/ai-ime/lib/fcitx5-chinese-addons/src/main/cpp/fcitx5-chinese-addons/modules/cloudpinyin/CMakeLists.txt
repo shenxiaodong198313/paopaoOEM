@@ -1,11 +1,12 @@
 set(CLOUDPINYIN_SOURCES
+    backend.cpp
     cloudpinyin.cpp
     fetch.cpp
 )
 
 if (ENABLE_CLOUDPINYIN)
 add_fcitx5_addon(cloudpinyin ${CLOUDPINYIN_SOURCES})
-target_link_libraries(cloudpinyin Fcitx5::Core Fcitx5::Config PkgConfig::Curl Pthread::Pthread)
+target_link_libraries(cloudpinyin Fcitx5::Core Fcitx5::Config PkgConfig::Curl Pthread::Pthread nlohmann_json::nlohmann_json)
 install(TARGETS cloudpinyin DESTINATION "${CMAKE_INSTALL_LIBDIR}/fcitx5")
 configure_file(cloudpinyin.conf.in.in cloudpinyin.conf.in)
 fcitx5_translate_desktop_file("${CMAKE_CURRENT_BINARY_DIR}/cloudpinyin.conf.in" cloudpinyin.conf)

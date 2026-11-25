@@ -43,7 +43,7 @@ constexpr uint32_t historyBinaryFormatVersion = 0x4;
 constexpr char bigramSeparator = '\x01';
 constexpr char wordCodeSeparator = '\x02';
 
-std::string wordAndCodeToString(WordWithCodeView wordAndCode) {
+std::string wordWithCodeToString(WordWithCodeView wordAndCode) {
     std::string s{std::get<0>(wordAndCode)};
     if (s.empty()) {
         return s;
@@ -56,23 +56,27 @@ std::string wordAndCodeToString(WordWithCodeView wordAndCode) {
     return s;
 }
 
-WordWithCode bigramWordWithCode(WordWithCodeView prev, WordWithCodeView cur) {
+std::string bigramWordWithCodeToString(WordWithCodeView prev,
+                                       WordWithCodeView cur) {
     std::string s;
-    s.append(std::get<0>(prev));
+    const auto &word1 = std::get<0>(prev);
+    const auto &word2 = std::get<0>(cur);
+    const auto &code1 = std::get<1>(prev);
+    const auto &code2 = std::get<1>(cur);
+    const bool hasCode = !code1.empty() || !code2.empty();
+    s.reserve(word1.size() + word2.size() + code1.size() + code2.size() + 1 +
+              (hasCode ? 2 : 0));
+    s += word1;
     s += bigramSeparator;
-    s.append(std::get<0>(cur));
+    s += word2;
 
-    auto code1 = std::get<1>(prev);
-    auto code2 = std::get<1>(cur);
-    std::string concatCode;
-    if (code1.empty() && code2.empty()) {
-        concatCode = "";
-    } else {
-        concatCode = code1;
-        concatCode += bigramSeparator;
-        concatCode += code2;
+    if (hasCode) {
+        s += wordCodeSeparator;
+        s += code1;
+        s += bigramSeparator;
+        s += code2;
     }
-    return {s, concatCode};
+    return s;
 }
 
 struct WeightedTrie {
@@ -102,35 +106,17 @@ public:
         const char separator[] = {wordCodeSeparator, '\0'};
         v = trie_.traverse(separator, pos);
         if (!TrieType::isNoPath(v)) {
-            if (!wordAndCode.second.empty() &&
-                wordAndCode.second.front() != bigramSeparator &&
-                wordAndCode.second.back() != bigramSeparator) {
+            if (!wordAndCode.second.empty()) {
                 v = trie_.traverse(wordAndCode.second, pos);
                 if (TrieType::isValid(v)) {
                     result += v;
                 }
             } else {
                 trie_.foreach(
-                    [this, &result, &wordAndCode](TrieType::value_type value,
-                                                  size_t len,
-                                                  TrieType::position_type pos) {
+                    [&result](TrieType::value_type value, size_t len,
+                              TrieType::position_type /*pos*/) {
                         if (len == 0) {
                             return true;
-                        }
-                        if (!wordAndCode.second.empty()) {
-                            assert(
-                                wordAndCode.second.front() == bigramSeparator ||
-                                wordAndCode.second.back() == bigramSeparator);
-                            std::string codeInTrie;
-                            trie().suffix(codeInTrie, len, pos);
-                            if (wordAndCode.second.front() == bigramSeparator &&
-                                !codeInTrie.ends_with(wordAndCode.second)) {
-                                return true;
-                            }
-                            if (wordAndCode.second.back() == bigramSeparator &&
-                                !codeInTrie.starts_with(wordAndCode.second)) {
-                                return true;
-                            }
                         }
                         result += value;
                         return true;
@@ -141,16 +127,78 @@ public:
         return result;
     }
 
-    void incFreq(WordWithCodeView wordAndCode, int32_t delta) {
-        auto s = wordAndCodeToString(wordAndCode);
+    int32_t freq(WordWithCodeView prev, WordWithCodeView next) const {
+        const char bigramSeparatorString[] = {bigramSeparator, '\0'};
+        TrieType::position_type pos = 0;
+        auto result = 0;
+        auto v =
+            trie_.traverse(pos, prev.first, bigramSeparatorString, next.first);
+        if (TrieType::isValid(v)) {
+            result += v;
+        } else if (TrieType::isNoPath(v)) {
+            return 0;
+        }
+        const char separator[] = {wordCodeSeparator, '\0'};
+        v = trie_.traverse(separator, pos);
+        if (!TrieType::isNoPath(v)) {
+            if (!prev.second.empty() && !next.second.empty()) {
+                v = trie_.traverse(pos, prev.second, bigramSeparatorString,
+                                   next.second);
+                if (TrieType::isValid(v)) {
+                    result += v;
+                }
+            } else {
+                if (!prev.second.empty()) {
+                    v = trie_.traverse(pos, prev.second, bigramSeparatorString);
+                    if (TrieType::isNoPath(v)) {
+                        return result;
+                    }
+                }
+                if (!next.second.empty()) {
+                    trie_.foreach(
+                        [this, &result, &next](TrieType::value_type value,
+                                               size_t len,
+                                               TrieType::position_type pos) {
+                            if (len < next.second.size()) {
+                                return true;
+                            }
+                            std::string codeInTrie;
+                            trie().suffix(codeInTrie, len, pos);
+                            if (codeInTrie.ends_with(next.second)) {
+                                result += value;
+                            }
+                            return true;
+                        },
+                        pos);
+                } else {
+                    trie_.foreach(
+                        [&result](TrieType::value_type value, size_t /*len*/,
+                                  TrieType::position_type /*pos*/) {
+                            result += value;
+                            return true;
+                        },
+                        pos);
+                }
+            }
+        }
+        return result;
+    }
 
+    void incFreqImpl(const std::string &s, int32_t delta) {
         trie_.update(s.data(), s.size(),
                      [delta](int32_t v) { return v + delta; });
         weightedSize_ += delta;
     }
 
-    void decFreq(WordWithCodeView wordAndCode, int32_t delta) {
-        auto s = wordAndCodeToString(wordAndCode);
+    void incFreq(WordWithCodeView wordAndCode, int32_t delta) {
+        incFreqImpl(wordWithCodeToString(wordAndCode), delta);
+    }
+
+    void incFreq(WordWithCodeView prev, WordWithCodeView next, int32_t delta) {
+        incFreqImpl(bigramWordWithCodeToString(prev, next), delta);
+    }
+
+    void decFreqImpl(const std::string &s, int32_t delta) {
         auto v = trie_.exactMatchSearch(s.data(), s.size());
         if (TrieType::isNoValue(v)) {
             return;
@@ -163,6 +211,14 @@ public:
             trie_.set(s.data(), s.size(), v);
             decWeightedSize(delta);
         }
+    }
+
+    void decFreq(WordWithCodeView wordAndCode, int32_t delta) {
+        decFreqImpl(wordWithCodeToString(wordAndCode), delta);
+    }
+
+    void decFreq(WordWithCodeView prev, WordWithCodeView next, int32_t delta) {
+        decFreqImpl(bigramWordWithCodeToString(prev, next), delta);
     }
 
     void fillPredict(std::unordered_set<std::string> &words,
@@ -289,9 +345,13 @@ public:
             uint32_t size = sentence.size();
             throw_if_io_fail(marshall(out, size));
             for (const auto &s : sentence) {
-                throw_if_io_fail(marshallString(out, wordAndCodeToString(s)));
+                throw_if_io_fail(marshallString(out, wordWithCodeToString(s)));
             }
         }
+    }
+
+    void vocabulary(std::vector<HistoryBigram::WordWithCode> &out) const {
+        for (const auto &sentence : recent_) for (const auto &word : sentence) out.push_back(word);
     }
 
     void dump(std::ostream &out) const {
@@ -364,8 +424,8 @@ public:
 
     int32_t unigramFreq(WordWithCodeView s) const { return unigram_.freq(s); }
 
-    int32_t bigramFreq(WordWithCodeView s1, WordWithCodeView s2) const {
-        return bigram_.freq(bigramWordWithCode(s1, s2));
+    int32_t bigramFreq(WordWithCodeView s, WordWithCodeView s2) const {
+        return bigram_.freq(s, s2);
     }
 
     bool isUnknown(WordWithCodeView word) const {
@@ -440,11 +500,11 @@ private:
     }
 
     void decBigram(WordWithCodeView s1, WordWithCodeView s2, int32_t delta) {
-        bigram_.decFreq(bigramWordWithCode(s1, s2), delta);
+        bigram_.decFreq(s1, s2, delta);
     }
 
     void incBigram(WordWithCodeView s1, WordWithCodeView s2, int delta) {
-        bigram_.incFreq(bigramWordWithCode(s1, s2), delta);
+        bigram_.incFreq(s1, s2, delta);
     }
 
     const size_t maxSize_;
@@ -611,18 +671,19 @@ float HistoryBigram::scoreWithCode(WordWithCodeView prev,
         cur.first = "<unk>";
     }
 
-    auto uf0 = d->unigramFreq(prev);
-    auto bf = d->bigramFreq(prev, cur);
-    auto uf1 = d->unigramFreq(cur);
+    const float bigramWeight = d->useOnlyUnigram_ ? 0.0F : 0.8F;
+    const float unigramWeight = 1.0F - bigramWeight;
+    const float poolWeightHalf = d->poolWeight_[0] / 2.0F;
 
-    float bigramWeight = d->useOnlyUnigram_ ? 0.0F : 0.8F;
     // add 0.5 to avoid div 0
-    float pr = 0.0F;
-    pr += bigramWeight * bf / float(uf0 + (d->poolWeight_[0] / 2));
-    pr += (1.0F - bigramWeight) * uf1 /
-          float(d->unigramSize() + (d->poolWeight_[0] / 2));
+    float pr = unigramWeight * d->unigramFreq(cur) /
+               (d->unigramSize() + poolWeightHalf);
+    if (!d->useOnlyUnigram_) {
+        pr += bigramWeight * d->bigramFreq(prev, cur) /
+              (d->unigramFreq(prev) + poolWeightHalf);
+    }
 
-    pr = std::min<double>(pr, 1.0);
+    pr = std::min<float>(pr, 1.0F);
     if (pr == 0) {
         return d->unknown_;
     }
@@ -683,6 +744,15 @@ void HistoryBigram::dump(std::ostream &out) {
     FCITX_D();
     std::ranges::for_each(d->pools_,
                           [&out](const auto &pool) { pool.dump(out); });
+}
+
+std::vector<HistoryBigram::WordWithCode> HistoryBigram::vocabulary() const {
+    FCITX_D();
+    std::vector<WordWithCode> out;
+    for (const auto &pool : d->pools_) pool.vocabulary(out);
+    std::sort(out.begin(), out.end());
+    out.erase(std::unique(out.begin(), out.end()), out.end());
+    return out;
 }
 
 void HistoryBigram::clear() {

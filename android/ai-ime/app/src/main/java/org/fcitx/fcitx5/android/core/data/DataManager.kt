@@ -98,11 +98,12 @@ object DataManager {
     private val callbacks = mutableListOf<() -> Unit>()
 
     private val criticalDataFiles = listOf(
-        "usr/share/fcitx5/inputmethod/pinyin.conf",
-        "usr/share/libime/sc.dict",
-        "usr/share/libime/extb.dict",
-        "usr/share/libime/zh_CN.lm",
-        "usr/share/libime/zh_CN.lm.predict"
+        "usr/share/fcitx5/inputmethod/rime.conf",
+        "usr/share/rime-data/build/paopao_frost.table.bin",
+        "usr/share/rime-data/build/paopao_frost_pinyin.schema.yaml",
+        "usr/share/rime-data/build/paopao_frost_pinyin.prism.bin",
+        "usr/share/rime-data/zh-moqi.gram",
+        "usr/share/fcitx5/spell/en_dict.fscd"
     )
 
     fun addOnNextSyncedCallback(block: () -> Unit) =
